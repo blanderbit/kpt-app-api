@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подтверждение смены Email - KPT App</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        .title {
+            color: #28a745;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #28a745;
+            color: #ffffff;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background-color: #218838;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 14px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .info {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .email-highlight {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-weight: bold;
+            color: #495057;
+            text-align: center;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">KPT App</div>
+            <h1 class="title">Подтверждение смены Email</h1>
+        </div>
+        
+        <div class="content">
+            <p>Здравствуйте!</p>
+            
+            <p>Вы получили это письмо для подтверждения смены email адреса в вашем аккаунте KPT App.</p>
+            
+            <div class="email-highlight">
+                Новый email: <strong>{{email}}</strong>
+            </div>
+            
+            <p>Для завершения смены email введите следующий код в приложении:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="display: inline-block; background-color: #f8f9fa; border: 2px solid #28a745; border-radius: 8px; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #28a745; font-family: 'Courier New', monospace;">{{code}}</div>
+            </div>
+            
+            <div class="info">
+                <strong>Важно:</strong> Этот код действителен в течение 10 минут. После подтверждения ваш email адрес будет изменен на новый.
+            </div>
+            
+            <div class="warning">
+                <strong>Внимание:</strong> Если вы не запрашивали смену email, немедленно свяжитесь с поддержкой KPT App.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Это письмо было отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
+            <p>&copy; 2024 KPT App. Все права защищены.</p>
+        </div>
+    </div>
+</body>
+</html>

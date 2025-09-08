@@ -1,0 +1,154 @@
+{
+  "moodTypes": [
+    {
+      "id": "excellent",
+      "name": "Отлично",
+      "description": "Превосходное настроение, полный восторг",
+      "emoji": "😍",
+      "color": "#4CAF50",
+      "score": 10,
+      "category": "positive"
+    },
+    {
+      "id": "great",
+      "name": "Отлично",
+      "description": "Очень хорошее настроение",
+      "emoji": "😊",
+      "color": "#8BC34A",
+      "score": 9,
+      "category": "positive"
+    },
+    {
+      "id": "good",
+      "name": "Хорошо",
+      "description": "Хорошее настроение",
+      "emoji": "🙂",
+      "color": "#CDDC39",
+      "score": 8,
+      "category": "positive"
+    },
+    {
+      "id": "fine",
+      "name": "Нормально",
+      "description": "Нормальное, спокойное настроение",
+      "emoji": "😐",
+      "color": "#FFEB3B",
+      "score": 7,
+      "category": "neutral"
+    },
+    {
+      "id": "okay",
+      "name": "Так себе",
+      "description": "Нейтральное настроение",
+      "emoji": "😕",
+      "color": "#FFC107",
+      "score": 6,
+      "category": "neutral"
+    },
+    {
+      "id": "meh",
+      "name": "Не очень",
+      "description": "Не очень хорошее настроение",
+      "emoji": "😒",
+      "color": "#FF9800",
+      "score": 5,
+      "category": "negative"
+    },
+    {
+      "id": "bad",
+      "name": "Плохо",
+      "description": "Плохое настроение",
+      "emoji": "😞",
+      "color": "#F44336",
+      "score": 4,
+      "category": "negative"
+    },
+    {
+      "id": "terrible",
+      "name": "Ужасно",
+      "description": "Очень плохое настроение",
+      "emoji": "😢",
+      "color": "#D32F2F",
+      "score": 3,
+      "category": "negative"
+    },
+    {
+      "id": "angry",
+      "name": "Злой",
+      "description": "Злое, раздраженное настроение",
+      "emoji": "😠",
+      "color": "#FF5722",
+      "score": 2,
+      "category": "negative"
+    },
+    {
+      "id": "stressed",
+      "name": "Стресс",
+      "description": "Стрессовое, тревожное состояние",
+      "emoji": "😰",
+      "color": "#9C27B0",
+      "score": 1,
+      "category": "negative"
+    },
+    {
+      "id": "excited",
+      "name": "Взволнован",
+      "description": "Взволнованное, оживленное настроение",
+      "emoji": "🤩",
+      "color": "#E91E63",
+      "score": 9,
+      "category": "positive"
+    },
+    {
+      "id": "energetic",
+      "name": "Энергичен",
+      "description": "Полон энергии и энтузиазма",
+      "emoji": "💪",
+      "color": "#00BCD4",
+      "score": 8,
+      "category": "positive"
+    },
+    {
+      "id": "relaxed",
+      "name": "Расслаблен",
+      "description": "Спокойное, расслабленное состояние",
+      "emoji": "😌",
+      "color": "#4CAF50",
+      "score": 7,
+      "category": "positive"
+    },
+    {
+      "id": "focused",
+      "name": "Сконцентрирован",
+      "description": "Сконцентрированное, целеустремленное",
+      "emoji": "🎯",
+      "color": "#2196F3",
+      "score": 8,
+      "category": "positive"
+    },
+    {
+      "id": "creative",
+      "name": "Творческий",
+      "description": "Творческое, вдохновленное настроение",
+      "emoji": "🎨",
+      "color": "#9C27B0",
+      "score": 8,
+      "category": "positive"
+    },
+    {
+      "id": "tired",
+      "name": "Устал",
+      "description": "Усталое, измотанное состояние",
+      "emoji": "😴",
+      "color": "#607D8B",
+      "score": 4,
+      "category": "negative"
+    }
+  ],
+  "categories": {
+    "positive": "Позитивное",
+    "neutral": "Нейтральное",
+    "negative": "Негативное"
+  },
+  "defaultMood": "fine"
+}

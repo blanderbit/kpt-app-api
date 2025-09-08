@@ -1,0 +1,13 @@
+{
+  "apiKey": "your-sendgrid-api-key-here",
+  "fromEmail": "noreply@yourdomain.com",
+  "fromName": "Your App Name",
+  "templates": {
+    "welcome": "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "passwordReset": "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "emailConfirmation": "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "activityReminder": "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "webhookUrl": "https://yourdomain.com/api/webhooks/sendgrid",
+  "webhookSecret": "your-webhook-secret-here"
+}

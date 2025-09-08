@@ -1,0 +1,337 @@
+stages:
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+# Deploy to production server
+deploy_production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client docker-cli
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - |
+      echo "🚀 Starting deployment to production server..."
+      
+      # Connect to server and execute deployment
+      ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'EOF'
+        set -e
+        
+        echo "📱 Connected to server: $(hostname)"
+        echo "📂 Current directory: $(pwd)"
+        
+        # Navigate to project directory
+        cd $PROJECT_PATH || {
+          echo "❌ Project directory not found: $PROJECT_PATH"
+          exit 1
+        }
+        
+        echo "📁 Project directory: $PROJECT_PATH"
+        
+        # Stop running Docker containers
+        echo "🛑 Stopping Docker containers..."
+        if docker-compose -f .deploy/docker-compose.prod.yml down; then
+          echo "✅ Docker containers stopped successfully"
+        else
+          echo "❌ Failed to stop Docker containers"
+          exit 1
+        fi
+        
+        # Clean up old Docker resources
+        echo "🧹 Cleaning up Docker resources..."
+        docker system prune -f
+        docker volume prune -f
+        
+        # Pull latest changes from Git
+        echo "📥 Pulling latest changes from Git..."
+        git fetch origin
+        git reset --hard origin/main
+        
+        # Build new Docker image on server
+        echo "🔨 Building new Docker image on server..."
+        if docker build -f .deploy/Dockerfile -t kpt-app:latest .; then
+          echo "✅ Docker image built successfully"
+        else
+          echo "❌ Docker build failed"
+          exit 1
+        fi
+        
+        # Start Docker containers
+        echo "🚀 Starting Docker containers..."
+        if docker-compose -f .deploy/docker-compose.prod.yml up -d; then
+          echo "✅ Docker containers started successfully"
+        else
+          echo "❌ Failed to start Docker containers"
+          exit 1
+        fi
+        
+        # Wait for containers to be healthy
+        echo "⏳ Waiting for containers to be healthy..."
+        sleep 15
+        
+        # Check container status
+        echo "🔍 Checking container status..."
+        if docker-compose -f .deploy/docker-compose.prod.yml ps | grep -q "Up"; then
+          echo "✅ All containers are running"
+        else
+          echo "❌ Some containers are not running"
+          docker-compose -f .deploy/docker-compose.prod.yml ps
+          exit 1
+        fi
+        
+        # Health check
+        echo "🏥 Performing health check..."
+        if curl -f http://localhost:$APP_PORT/health || curl -f http://localhost:$APP_PORT/api/health; then
+          echo "✅ Health check passed"
+        else
+          echo "❌ Health check failed"
+          exit 1
+        fi
+        
+        # Final cleanup
+        echo "🧹 Final cleanup..."
+        docker system prune -f
+        docker image prune -f
+        
+        echo "🎉 Deployment completed successfully!"
+        echo "📊 Container status:"
+        docker-compose -f .deploy/docker-compose.prod.yml ps
+        echo "💾 Disk usage:"
+        df -h
+        echo "🐳 Docker disk usage:"
+        docker system df
+      EOF
+      
+      if [ $? -eq 0 ]; then
+        echo "✅ Production deployment completed successfully!"
+      else
+        echo "❌ Production deployment failed!"
+        exit 1
+      fi
+      
+  environment:
+    name: production
+    url: http://$SSH_HOST:$APP_PORT
+  only:
+    - main
+  when: manual
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# Deploy to staging server
+deploy_staging:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client docker-cli
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - |
+      echo "🚀 Starting deployment to staging server..."
+      
+      # Connect to server and execute deployment
+      ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'EOF'
+        set -e
+        
+        echo "📱 Connected to staging server: $(hostname)"
+        echo "📂 Current directory: $(pwd)"
+        
+        # Navigate to staging project directory
+        cd $STAGING_PROJECT_PATH || {
+          echo "❌ Staging project directory not found: $STAGING_PROJECT_PATH"
+          exit 1
+        }
+        
+        echo "📁 Staging project directory: $STAGING_PROJECT_PATH"
+        
+        # Stop running Docker containers
+        echo "🛑 Stopping staging Docker containers..."
+        if docker-compose -f .deploy/docker-compose.stg.yml down; then
+          echo "✅ Staging Docker containers stopped successfully"
+        else
+          echo "❌ Failed to stop staging Docker containers"
+          exit 1
+        fi
+        
+        # Clean up old Docker resources
+        echo "🧹 Cleaning up staging Docker resources..."
+        docker system prune -f
+        docker volume prune -f
+        
+        # Pull latest changes from Git
+        echo "📥 Pulling latest changes from Git..."
+        git fetch origin
+        git reset --hard origin/develop
+        
+        # Build new Docker image on server
+        echo "🔨 Building new staging Docker image on server..."
+        if docker build -f .deploy/Dockerfile.stg -t kpt-app:staging .; then
+          echo "✅ Staging Docker image built successfully"
+        else
+          echo "❌ Staging Docker build failed"
+          exit 1
+        fi
+        
+        # Start Docker containers
+        echo "🚀 Starting staging Docker containers..."
+        if docker-compose -f .deploy/docker-compose.stg.yml up -d; then
+          echo "✅ Staging Docker containers started successfully"
+        else
+          echo "❌ Failed to start staging Docker containers"
+          exit 1
+        fi
+        
+        # Wait for containers to be healthy
+        echo "⏳ Waiting for staging containers to be healthy..."
+        sleep 15
+        
+        # Check container status
+        echo "🔍 Checking staging container status..."
+        if docker-compose -f .deploy/docker-compose.stg.yml ps | grep -q "Up"; then
+          echo "✅ All staging containers are running"
+        else
+          echo "❌ Some staging containers are not running"
+          docker-compose -f .deploy/docker-compose.stg.yml ps
+          exit 1
+        fi
+        
+        # Health check
+        echo "🏥 Performing staging health check..."
+        if curl -f http://localhost:$STAGING_APP_PORT/health || curl -f http://localhost:$STAGING_APP_PORT/api/health; then
+          echo "✅ Staging health check passed"
+        else
+          echo "❌ Staging health check failed"
+          exit 1
+        fi
+        
+        # Final cleanup
+        echo "🧹 Final staging cleanup..."
+        docker system prune -f
+        docker image prune -f
+        
+        echo "🎉 Staging deployment completed successfully!"
+        echo "📊 Staging container status:"
+        docker-compose -f .deploy/docker-compose.stg.yml ps
+      EOF
+      
+      if [ $? -eq 0 ]; then
+        echo "✅ Staging deployment completed successfully!"
+      else
+        echo "❌ Staging deployment failed!"
+        exit 1
+      fi
+      
+  environment:
+    name: staging
+    url: http://$SSH_HOST:$STAGING_APP_PORT
+  only:
+    - develop
+  when: manual
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# Emergency rollback
+rollback:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client docker-cli
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - |
+      echo "🔄 Starting emergency rollback..."
+      
+      # Connect to server and execute rollback
+      ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'EOF'
+        set -e
+        
+        echo "📱 Connected to server: $(hostname)"
+        
+        # Navigate to project directory
+        cd $PROJECT_PATH || {
+          echo "❌ Project directory not found: $PROJECT_PATH"
+          exit 1
+        }
+        
+        echo "📁 Project directory: $PROJECT_PATH"
+        
+        # Stop current containers
+        echo "🛑 Stopping current containers..."
+        docker-compose -f .deploy/docker-compose.prod.yml down
+        
+        # Check if we have a previous image
+        if docker images | grep -q "kpt-app:previous"; then
+          echo "🔄 Rolling back to previous version..."
+          
+          # Tag current as backup
+          docker tag kpt-app:latest kpt-app:failed || true
+          
+          # Restore previous version
+          docker tag kpt-app:previous kpt-app:latest
+          
+          # Start containers with previous version
+          echo "🚀 Starting containers with previous version..."
+          if docker-compose -f .deploy/docker-compose.prod.yml up -d; then
+            echo "✅ Rollback completed successfully!"
+          else
+            echo "❌ Rollback failed!"
+            exit 1
+          fi
+        else
+          echo "❌ No previous version available for rollback"
+          exit 1
+        fi
+        
+        # Health check after rollback
+        echo "🏥 Performing health check after rollback..."
+        sleep 15
+        if curl -f http://localhost:$APP_PORT/health || curl -f http://localhost:$APP_PORT/api/health; then
+          echo "✅ Rollback health check passed"
+        else
+          echo "❌ Rollback health check failed"
+          exit 1
+        fi
+        
+        echo "🎉 Emergency rollback completed successfully!"
+      EOF
+      
+      if [ $? -eq 0 ]; then
+        echo "✅ Emergency rollback completed successfully!"
+      else
+        echo "❌ Emergency rollback failed!"
+        exit 1
+      fi
+      
+  environment:
+    name: production
+    url: http://$SSH_HOST:$APP_PORT
+  only:
+    - main
+  when: manual
+  retry:
+    max: 1
+    when:
+      - runner_system_failure

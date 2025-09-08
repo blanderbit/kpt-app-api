@@ -1,0 +1,6 @@
+{
+  "OPENAI_API_KEY": "your-openai-api-key-here",
+  "OPENAI_MODEL": "gpt-3.5-turbo",
+  "OPENAI_MAX_TOKENS": 300,
+  "OPENAI_TEMPERATURE": 0.7
+}

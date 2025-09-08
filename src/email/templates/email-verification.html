@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подтверждение Email - KPT App</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .title {
+            color: #007bff;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #007bff;
+            color: #ffffff;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 14px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">KPT App</div>
+            <h1 class="title">Подтверждение Email</h1>
+        </div>
+        
+        <div class="content">
+            <p>Здравствуйте!</p>
+            
+            <p>Благодарим вас за регистрацию в KPT App. Для завершения регистрации необходимо подтвердить ваш email адрес.</p>
+            
+            <p>Введите следующий код подтверждения в приложении:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="display: inline-block; background-color: #f8f9fa; border: 2px solid #007bff; border-radius: 8px; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #007bff; font-family: 'Courier New', monospace;">{{code}}</div>
+            </div>
+            
+            <div class="warning">
+                <strong>Внимание:</strong> Этот код действителен в течение 10 минут. Если вы не регистрировались в KPT App, просто проигнорируйте это письмо.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Это письмо было отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
+            <p>&copy; 2024 KPT App. Все права защищены.</p>
+        </div>
+    </div>
+</body>
+</html>
