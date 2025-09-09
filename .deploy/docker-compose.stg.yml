@@ -12,6 +12,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/traefik.yml:ro
       - ./traefik/dynamic:/dynamic:ro
+      - ./traefik/acme.json:/data/acme.json
     networks:
       - kpt-network
     labels:

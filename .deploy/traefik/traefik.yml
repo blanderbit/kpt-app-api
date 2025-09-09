@@ -21,7 +21,7 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: admin@kpt.local
+      email: yarik.roterdamskiy@gmail.com
       storage: /data/acme.json
       httpChallenge:
         entryPoint: web
