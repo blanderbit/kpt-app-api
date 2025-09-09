@@ -29,9 +29,10 @@ http:
 
     # Rate limiting
     rate-limit:
-      burst: 100
-      average: 50
-      period: 1s
+      rateLimit:
+        burst: 100
+        average: 50
+        period: 1s
 
   # Роутинг теперь через Docker labels в docker-compose.yml
   # Переменные окружения используются в labels
