@@ -32,54 +32,5 @@ http:
       burst: 100
       average: 50
 
-  routers:
-    # API router
-    api:
-      rule: "Host(`api.kpt.local`)"
-      service: "api"
-      middlewares:
-        - cors
-        - security
-        - rate-limit
-
-    # phpMyAdmin router
-    phpmyadmin:
-      rule: "Host(`phpmyadmin.kpt.local`)"
-      service: "phpmyadmin"
-      middlewares:
-        - security
-
-    # MinIO router
-    minio:
-      rule: "Host(`minio.kpt.local`)"
-      service: "minio"
-      middlewares:
-        - security
-
-    # MinIO Console router
-    minio-console:
-      rule: "Host(`minio-console.kpt.local`)"
-      service: "minio-console"
-      middlewares:
-        - security
-
-  services:
-    api:
-      loadBalancer:
-        servers:
-          - url: "http://kpt-api-stg:3000"
-
-    phpmyadmin:
-      loadBalancer:
-        servers:
-          - url: "http://kpt-phpmyadmin-stg:80"
-
-    minio:
-      loadBalancer:
-        servers:
-          - url: "http://kpt-minio-stg:9000"
-
-    minio-console:
-      loadBalancer:
-        servers:
-          - url: "http://kpt-minio-stg:9001"
+  # Роутинг теперь через Docker labels в docker-compose.yml
+  # Переменные окружения используются в labels

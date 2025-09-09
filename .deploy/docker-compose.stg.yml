@@ -39,6 +39,7 @@ services:
       - "traefik.http.routers.api.rule=Host(`${API_DOMAIN}`)"
       - "traefik.http.routers.api.entrypoints=web"
       - "traefik.http.services.api.loadbalancer.server.port=3000"
+      - "traefik.http.routers.api.middlewares=cors,security,rate-limit"
 
   mysql:
     image: mysql:8.0
@@ -67,6 +68,7 @@ services:
       - "traefik.http.routers.phpmyadmin.rule=Host(`${PHPMYADMIN_DOMAIN}`)"
       - "traefik.http.routers.phpmyadmin.entrypoints=web"
       - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+      - "traefik.http.routers.phpmyadmin.middlewares=security"
 
   minio:
     image: minio/minio:latest
@@ -84,9 +86,11 @@ services:
       - "traefik.http.routers.minio.rule=Host(`${MINIO_DOMAIN}`)"
       - "traefik.http.routers.minio.entrypoints=web"
       - "traefik.http.services.minio.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio.middlewares=security"
       - "traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_DOMAIN}`)"
       - "traefik.http.routers.minio-console.entrypoints=web"
       - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio-console.middlewares=security"
 
   redis:
     image: redis:7-alpine
