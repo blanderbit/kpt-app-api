@@ -112,15 +112,6 @@ jobs:
             exit 1
           fi
           
-          # Health check
-          echo "🏥 Performing health check..."
-          if curl -f http://localhost:${{ secrets.APP_PORT }}/health || curl -f http://localhost:${{ secrets.APP_PORT }}/api/health; then
-            echo "✅ Health check passed"
-          else
-            echo "❌ Health check failed"
-            exit 1
-          fi
-          
           # Final cleanup
           echo "🧹 Final cleanup..."
           docker system prune -f

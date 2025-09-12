@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../users/entities/user.entity';
+import { VerificationCode } from '../auth/entities/verification-code.entity';
 import { UpdateProfileDto, ChangeEmailDto, ChangePasswordDto, DeleteAccountDto, ProfileResponseDto } from './dto/profile.dto';
 import { EmailService } from '../email/email.service';
 import { AuthService } from '../auth/auth.service';
@@ -17,6 +18,8 @@ export class ProfileService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(VerificationCode)
+    private verificationCodesRepository: Repository<VerificationCode>,
     private emailService: EmailService,
     private authService: AuthService,
     private jwtService: JwtService,
@@ -203,6 +206,40 @@ export class ProfileService {
     return { message: 'Account successfully deleted' };
   }
 
+
+  @Transactional()
+  async verifyEmailCode(email: string, code: string): Promise<{ message: string }> {
+    // Find verification code
+    const verificationCode = await this.verificationCodesRepository.findOne({
+      where: { 
+        email, 
+        code,
+        type: 'email_verification',
+        isUsed: false 
+      },
+    });
+
+    if (!verificationCode) {
+      throw AppException.validation(ErrorCode.AUTH_EMAIL_VERIFICATION_INVALID, 'Invalid verification code');
+    }
+
+    // Check if code is expired
+    if (new Date() > verificationCode.expiresAt) {
+      throw AppException.validation(ErrorCode.AUTH_EMAIL_VERIFICATION_EXPIRED, 'Verification code has expired');
+    }
+
+    // Mark code as used
+    await this.verificationCodesRepository.update(verificationCode.id, {
+      isUsed: true,
+    });
+
+    // Update user email verification status
+    await this.usersRepository.update(verificationCode.userId, {
+      emailVerified: true,
+    });
+
+    return { message: 'Email successfully verified' };
+  }
 
   private mapUserToProfileResponse(user: User): ProfileResponseDto {
     return {

@@ -288,39 +288,6 @@ export class AuthService {
   }
 
 
-  @Transactional()
-  async verifyEmailCode(email: string, code: string): Promise<{ message: string }> {
-    // Find verification code
-    const verificationCode = await this.verificationCodesRepository.findOne({
-      where: { 
-        email, 
-        code,
-        type: 'email_verification',
-        isUsed: false 
-      },
-    });
-
-    if (!verificationCode) {
-      throw AppException.validation(ErrorCode.AUTH_EMAIL_VERIFICATION_INVALID, 'Invalid verification code');
-    }
-
-    // Check if code is expired
-    if (new Date() > verificationCode.expiresAt) {
-      throw AppException.validation(ErrorCode.AUTH_EMAIL_VERIFICATION_EXPIRED, 'Verification code has expired');
-    }
-
-    // Mark code as used
-    await this.verificationCodesRepository.update(verificationCode.id, {
-      isUsed: true,
-    });
-
-    // Update user email verification status
-    await this.usersRepository.update(verificationCode.userId, {
-      emailVerified: true,
-    });
-
-    return { message: 'Email successfully verified' };
-  }
 
   @Transactional()
   async confirmEmailChangeCode(email: string, code: string): Promise<{ message: string }> {

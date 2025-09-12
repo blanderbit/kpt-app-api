@@ -28,6 +28,7 @@ import {
   ProfileResponseDto,
 } from './dto/profile.dto';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
+import { VerifyEmailDto } from '../auth/dto/verify-email.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BlacklistGuard } from '../auth/guards/blacklist.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -268,5 +269,37 @@ export class ProfileController {
   ): Promise<{ message: string }> {
     const accessToken = req.headers.authorization?.replace('Bearer ', '');
     return this.profileService.deleteAccount(user.id, deleteAccountDto, accessToken);
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Подтверждение email',
+    description: 'Подтверждает email пользователя по коду подтверждения',
+  })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Email успешно подтвержден',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Email successfully verified',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Недействительный или истекший код подтверждения',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Неавторизованный доступ',
+  })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.profileService.verifyEmailCode(verifyEmailDto.email, verifyEmailDto.code);
   }
 }

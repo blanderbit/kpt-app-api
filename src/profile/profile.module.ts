@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
 import { User } from '../users/entities/user.entity';
+import { VerificationCode } from '../auth/entities/verification-code.entity';
 import { EmailModule } from '../email/email.module';
 import { AuthModule } from '../auth/auth.module';
 import { ActivityModule } from './activity/activity.module';
@@ -12,7 +13,7 @@ import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, VerificationCode]),
     EmailModule,
     AuthModule,
     ActivityModule,

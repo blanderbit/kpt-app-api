@@ -22,7 +22,6 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { FirebaseAuthDto, FirebaseAuthResponseDto } from './dto/firebase-auth.dto';
-import { VerifyEmailDto } from './dto/verify-email.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { BlacklistGuard } from './guards/blacklist.guard';
@@ -172,33 +171,6 @@ export class AuthController {
     return this.authService.resetPassword(resetPasswordDto);
   }
 
-  @Post('verify-email')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Подтверждение email',
-    description: 'Подтверждает email пользователя по коду подтверждения',
-  })
-  @ApiBody({ type: VerifyEmailDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Email успешно подтвержден',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: 'Email successfully verified',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Недействительный или истекший код подтверждения',
-  })
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
-    return this.authService.verifyEmailCode(verifyEmailDto.email, verifyEmailDto.code);
-  }
 
   @Post('refresh')
   @ApiOperation({
