@@ -78,34 +78,20 @@ jobs:
           
           # Stop running Docker containers
           echo "🛑 Stopping Docker containers..."
-          if docker-compose -f .deploy/docker-compose.prod.yml down; then
+          if docker compose -f .deploy/docker-compose.stg.yml --env-file .deploy/env.stg down; then
             echo "✅ Docker containers stopped successfully"
           else
             echo "❌ Failed to stop Docker containers"
             exit 1
           fi
           
-          # Clean up old Docker resources
-          echo "🧹 Cleaning up Docker resources..."
-          docker system prune -f
-          docker volume prune -f
-          
           # Pull latest changes from Git
           echo "📥 Pulling latest changes from Git..."
           git pull origin
           
-          # Build new Docker image on server
-          echo "🔨 Building new Docker image on server..."
-          if docker build -f .deploy/Dockerfile -t kpt-app:latest .; then
-            echo "✅ Docker image built successfully"
-          else
-            echo "❌ Docker build failed"
-            exit 1
-          fi
-          
           # Start Docker containers
           echo "🚀 Starting Docker containers..."
-          if docker-compose -f .deploy/docker-compose.prod.yml up -d; then
+          if docker compose -f .deploy/docker-compose.stg.yml --env-file .deploy/env.stg up -d --build; then
             echo "✅ Docker containers started successfully"
           else
             echo "❌ Failed to start Docker containers"
@@ -118,11 +104,11 @@ jobs:
           
           # Check container status
           echo "🔍 Checking container status..."
-          if docker-compose -f .deploy/docker-compose.prod.yml ps | grep -q "Up"; then
+          if docker compose -f .deploy/docker-compose.stg.yml --env-file .deploy/env.stg ps | grep -q "Up"; then
             echo "✅ All containers are running"
           else
             echo "❌ Some containers are not running"
-            docker-compose -f .deploy/docker-compose.prod.yml ps
+            docker compose -f .deploy/docker-compose.stg.yml --env-file .deploy/env.stg ps
             exit 1
           fi
           
@@ -142,7 +128,7 @@ jobs:
           
           echo "🎉 Deployment completed successfully!"
           echo "📊 Container status:"
-          docker-compose -f .deploy/docker-compose.prod.yml ps
+          docker compose -f .deploy/docker-compose.stg.yml --env-file .deploy/env.stg ps
           echo "💾 Disk usage:"
           df -h
           echo "🐳 Docker disk usage:"
