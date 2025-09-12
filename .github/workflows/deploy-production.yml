@@ -48,7 +48,7 @@ jobs:
     - name: Add server to known hosts
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+        ssh-keyscan -t rsa,ecdsa,ed25519 {{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
         chmod 644 ~/.ssh/known_hosts
         
     - name: Deploy to production server
