@@ -6,7 +6,7 @@ import { Activity } from './entities/activity.entity';
 import { RateActivity } from './entities/rate-activity.entity';
 import { CreateActivityDto, UpdateActivityDto, ActivityResponseDto, ActivityFilterDto } from './dto/activity.dto';
 import { CreateRateActivityDto } from './dto/rate-activity.dto';
-import { ActivityTypesService } from './activity-types.service';
+import { ActivityTypesService } from '../../core/activity-types';
 import { PaginateQuery, paginate, Paginated } from 'nestjs-paginate';
 import { ACTIVITY_PAGINATION_CONFIG } from './activity.config';
 import { ErrorCode } from '../../common/error-codes';

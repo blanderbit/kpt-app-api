@@ -1,15 +1,14 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
-import * as path from 'path';
 import { google } from 'googleapis';
+import { googleDriveConfig } from '../../config/google.config';
+import * as fs from 'fs';
 
 @Injectable()
 export class GoogleDriveService {
   private readonly logger = new Logger(GoogleDriveService.name);
   private drive: any;
 
-  constructor(private configService: ConfigService) {
+  constructor() {
     this.initializeGoogleDrive();
   }
 
@@ -19,7 +18,7 @@ export class GoogleDriveService {
   private async initializeGoogleDrive() {
     try {
       const auth = new google.auth.GoogleAuth({
-        keyFile: this.configService.get<string>('GOOGLE_DRIVE_KEY_FILE'),
+        credentials: googleDriveConfig,
         scopes: ['https://www.googleapis.com/auth/drive'],
       });
 
@@ -77,6 +76,8 @@ export class GoogleDriveService {
       const response = await this.drive.files.create({
         requestBody: fileMetadata,
         media: media,
+        supportsAllDrives: true,
+        supportsTeamDrives: true,
         fields: 'id, webViewLink',
       });
 
@@ -251,7 +252,7 @@ export class GoogleDriveService {
   async getOrCreateLanguagesRootFolder(): Promise<string> {
     try {
       // Пытаемся получить существующую папку из переменной окружения
-      const rootFolderId = this.configService.get<string>('LANGUAGES_FOLDER_ID');
+      const rootFolderId = process.env.LANGUAGES_FOLDER_ID;
       
       if (rootFolderId) {
         try {

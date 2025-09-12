@@ -23,6 +23,29 @@ export class ProfileService {
     private redisBlacklistService: RedisBlacklistService,
   ) {}
 
+  async sendVerificationEmail(email: string): Promise<{ message: string }> {
+    // Find user by email
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user) {
+      throw AppException.notFound(ErrorCode.AUTH_USER_NOT_FOUND, 'User not found');
+    }
+
+    // Check if user was created via Google or Apple
+    if (user.googleId || user.firebaseUid) {
+      throw AppException.forbidden(ErrorCode.PROFILE_SOCIAL_ACCOUNT_RESTRICTION, 'Cannot send verification email for social media accounts');
+    }
+
+    // Check if email is already verified
+    if (user.emailVerified) {
+      throw AppException.validation(ErrorCode.AUTH_EMAIL_ALREADY_VERIFIED, 'Email is already verified');
+    }
+
+    // Generate and send verification code
+    await this.emailService.generateAndSendVerificationCode(user.id, email, 'email_verification');
+
+    return { message: 'Verification email sent successfully' };
+  }
+
   async getProfile(userId: number): Promise<ProfileResponseDto> {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -64,6 +87,11 @@ export class ProfileService {
       throw AppException.notFound(ErrorCode.USER_NOT_FOUND, undefined, { userId });
     }
 
+    // Check if user was created via Google or Apple
+    if (user.googleId || user.firebaseUid) {
+      throw AppException.forbidden(ErrorCode.PROFILE_SOCIAL_ACCOUNT_RESTRICTION, 'Cannot change email for social media accounts');
+    }
+
     // Check password
     if (!user.passwordHash) {
       throw AppException.validation(ErrorCode.PROFILE_PASSWORD_CHANGE_NOT_SUPPORTED, undefined, { userId });
@@ -103,6 +131,11 @@ export class ProfileService {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw AppException.notFound(ErrorCode.USER_NOT_FOUND, undefined, { userId });
+    }
+
+    // Check if user was created via Google or Apple
+    if (user.googleId || user.firebaseUid) {
+      throw AppException.forbidden(ErrorCode.PROFILE_SOCIAL_ACCOUNT_RESTRICTION, 'Cannot change password for social media accounts');
     }
 
     // Check if account supports password change

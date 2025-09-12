@@ -34,7 +34,7 @@ export class MoodTypesService {
   /**
    * Загружает типы настроения из Google Drive
    */
-  private async loadMoodTypes(): Promise<void> {
+  async loadMoodTypes(): Promise<void> {
     try {
       // Загружаем из Google Drive
       if (this.fileId && this.googleDriveFilesService.isAvailable()) {

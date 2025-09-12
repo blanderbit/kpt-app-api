@@ -1,55 +1,62 @@
-# 🔧 Конфигурации сторонних сервисов
+# 🔧 Third-Party Service Configurations
 
-Эта папка содержит примеры конфигураций для различных сторонних сервисов, используемых в приложении.
+This directory contains configuration examples for various third-party services used in the application.
 
-## 📁 Структура
+## 🚀 Quick Links
+
+- [🔥 Firebase Setup](./FIREBASE_SETUP.md) - Detailed Firebase setup guide
+- [🌐 Google Drive Setup](./GOOGLE_DRIVE_SETUP.md) - Detailed Google Drive setup guide
+
+## 📁 Structure
 
 ```
 config/third-party/
-├── README.md                    # Документация конфигураций
-├── google-drive.example.json    # Пример конфигурации Google Drive
-├── firebase.example.json        # Пример конфигурации Firebase
-├── sendgrid.example.json        # Пример конфигурации SendGrid
-├── redis.example.json           # Пример конфигурации Redis
-└── openai.example.json          # Пример конфигурации OpenAI
+├── README.md                    # Configuration documentation
+├── FIREBASE_SETUP.md           # Detailed Firebase setup guide
+├── GOOGLE_DRIVE_SETUP.md       # Detailed Google Drive setup guide
+├── google-drive.example.json    # Google Drive configuration example
+├── firebase.example.json        # Firebase configuration example
+├── sendgrid.example.json        # SendGrid configuration example
+├── redis.example.json           # Redis configuration example
+└── openai.example.json          # OpenAI configuration example
 ```
 
-## ⚠️ Важно
+## ⚠️ Important
 
-**Все файлы в этой папке являются примерами и НЕ содержат реальные ключи!**
+**All files in this directory are examples and do NOT contain real keys!**
 
-- **Примеры** - файлы с расширением `.example.json`
-- **Реальные конфигурации** - должны быть созданы на основе примеров
-- **Безопасность** - реальные файлы НЕ должны попадать в Git
+- **Examples** - files with `.example.json` extension
+- **Real configurations** - should be created based on examples
+- **Security** - real files should NOT be committed to Git
 
-## 🔐 Настройка
+## 🔐 Setup
 
-### 1. Скопируйте примеры
+### 1. Copy Examples
 
 ```bash
-# Для Google Drive
+# For Google Drive
 cp config/third-party/google-drive.example.json config/third-party/google-drive.json
 
-# Для Firebase
+# For Firebase
 cp config/third-party/firebase.example.json config/third-party/firebase.json
 
-# Для SendGrid
+# For SendGrid
 cp config/third-party/sendgrid.example.json config/third-party/sendgrid.json
 
-# Для Redis
+# For Redis
 cp config/third-party/redis.example.json config/third-party/redis.json
 
-# Для OpenAI
+# For OpenAI
 cp config/third-party/openai.example.json config/third-party/openai.json
 ```
 
-### 2. Заполните реальными данными
+### 2. Fill with Real Data
 
-Отредактируйте скопированные файлы, заменив placeholder значения на реальные ключи и настройки.
+Edit the copied files, replacing placeholder values with real keys and settings.
 
-### 3. Добавьте в .gitignore
+### 3. Add to .gitignore
 
-Убедитесь, что в `.gitignore` добавлены строки:
+Make sure the following lines are added to `.gitignore`:
 
 ```gitignore
 # Third-party service configurations
@@ -59,106 +66,109 @@ config/third-party/*.json
 
 ## 🌐 Google Drive
 
-### Настройка
+### Setup
 
-1. Создайте Google Cloud Project
-2. Включите Google Drive API
-3. Создайте Service Account
-4. Скачайте ключ в формате JSON
-5. Скопируйте содержимое в `google-drive.json`
+📖 **Detailed Guide**: [GOOGLE_DRIVE_SETUP.md](./GOOGLE_DRIVE_SETUP.md)
 
-### Использование
+**Quick Start**:
+1. Enable Google Drive API in Google Cloud Console
+2. Create Service Account with Editor permissions
+3. Download JSON key
+4. Copy content to `google-drive.json`
+
+### Usage
 
 ```typescript
-// В .env файле
-GOOGLE_DRIVE_KEY_FILE=./config/third-party/google-drive.json
+// Application automatically loads configuration from file
+import { googleDriveConfig } from './config/google.config';
 ```
 
 ## 🔥 Firebase
 
-### Настройка
+### Setup
 
-1. Создайте Firebase проект
-2. Перейдите в Project Settings > Service Accounts
-3. Создайте новый Service Account
-4. Скачайте ключ в формате JSON
-5. Скопируйте содержимое в `firebase.json`
+📖 **Detailed Guide**: [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
 
-### Использование
+**Quick Start**:
+1. Go to Firebase Console
+2. Project Settings → Service accounts → Generate new private key
+3. Download JSON file
+4. Copy content to `firebase.json`
+
+### Usage
 
 ```typescript
-// В .env файле
-FIREBASE_CONFIG_FILE=./config/third-party/firebase.json
+// Application automatically loads configuration from file
+import { firebaseConfig } from './config/firebase.config';
 ```
 
 ## 📧 SendGrid
 
-### Настройка
+### Setup
 
-1. Создайте аккаунт SendGrid
-2. Сгенерируйте API ключ
-3. Создайте email шаблоны
-4. Заполните конфигурацию в `sendgrid.json`
+1. Create SendGrid account
+2. Generate API key
+3. Create email templates
+4. Fill configuration in `sendgrid.json`
 
-### Использование
+### Usage
 
 ```typescript
-// В .env файле
+// In .env file
 SENDGRID_CONFIG_FILE=./config/third-party/sendgrid.json
 ```
 
 ## 🗄️ Redis
 
-### Настройка
+### Setup
 
-1. Установите Redis сервер
-2. Настройте пароль и другие параметры
-3. Заполните конфигурацию в `redis.json`
+1. Install Redis server
+2. Configure password and other parameters
+3. Fill configuration in `redis.json`
 
-### Использование
+### Usage
 
 ```typescript
-// В .env файле
+// In .env file
 REDIS_CONFIG_FILE=./config/third-party/redis.json
 ```
 
 ## 🤖 OpenAI
 
-### Настройка
+### Setup
 
-1. Создайте аккаунт OpenAI
-2. Сгенерируйте API ключ
-3. Настройте параметры модели
-4. Заполните конфигурацию в `openai.json`
+1. Create OpenAI account
+2. Generate API key
+3. Configure model parameters
+4. Fill configuration in `openai.json`
 
-### Использование
+### Usage
 
 ```typescript
-// В .env файле
+// In .env file
 OPENAI_CONFIG_FILE=./config/third-party/openai.json
 ```
 
-## 🔒 Безопасность
+## 🔒 Security
 
-### Рекомендации
+### Recommendations
 
-1. **Никогда не коммитьте** реальные ключи в Git
-2. **Используйте переменные окружения** для чувствительных данных
-3. **Регулярно ротируйте** API ключи
-4. **Ограничивайте права** Service Accounts
-5. **Мониторьте использование** API
+1. **Never commit** real keys to Git
+2. **Use environment variables** for sensitive data
+3. **Regularly rotate** API keys
+4. **Limit permissions** for Service Accounts
+5. **Monitor API usage**
 
-### Переменные окружения
+### Environment Variables
 
-Для дополнительной безопасности используйте переменные окружения:
+For additional security, use environment variables:
 
 ```env
-# Google Drive
-GOOGLE_DRIVE_KEY_FILE=./config/third-party/google-drive.json
-GOOGLE_DRIVE_ROOT_FOLDER_ID=your-folder-id
+# Google Drive - automatically loaded from config/third-party/google-drive.json
+# No environment variables required
 
-# Firebase
-FIREBASE_CONFIG_FILE=./config/third-party/firebase.json
+# Firebase - automatically loaded from config/third-party/firebase.json
+# No environment variables required
 
 # SendGrid
 SENDGRID_CONFIG_FILE=./config/third-party/sendgrid.json
@@ -170,24 +180,24 @@ REDIS_CONFIG_FILE=./config/third-party/redis.json
 OPENAI_CONFIG_FILE=./config/third-party/openai.json
 ```
 
-## 🧪 Тестирование
+## 🧪 Testing
 
-### Проверка конфигураций
+### Configuration Verification
 
-После настройки проверьте подключения:
+After setup, verify connections:
 
 ```bash
 # Google Drive
 curl -X GET "http://localhost:3000/admin/languages/google-drive/test-connection"
 
-# Firebase (если есть endpoint)
-curl -X GET "http://localhost:3000/api/firebase/test"
+# Firebase - automatically validated on application startup
+# If firebase.json is missing or invalid, application won't start
 
-# Redis (если есть endpoint)
+# Redis (if endpoint exists)
 curl -X GET "http://localhost:3000/api/redis/test"
 ```
 
-## 📚 Дополнительные ресурсы
+## 📚 Additional Resources
 
 - [Google Cloud Console](https://console.cloud.google.com/)
 - [Firebase Console](https://console.firebase.google.com/)
@@ -197,4 +207,4 @@ curl -X GET "http://localhost:3000/api/redis/test"
 
 ---
 
-**Успешной настройки! 🎉**
+**Happy configuring! 🎉**

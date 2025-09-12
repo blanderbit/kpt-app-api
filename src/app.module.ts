@@ -9,6 +9,7 @@ import { FirebaseModule } from './firebase/firebase.module';
 import { ProfileModule } from './profile/profile.module';
 import { SuggestedActivityModule } from './suggested-activity/suggested-activity.module';
 import { AdminModule } from './admin/admin.module';
+import { BackupModule } from './backup/backup.module';
 import { CommonModule } from './common/common.module';
 import { databaseConfig } from './config/database.config';
 import bullConfig from './config/bull.config';
@@ -35,6 +36,7 @@ import bullConfig from './config/bull.config';
     ProfileModule,
     SuggestedActivityModule,
     AdminModule,
+    BackupModule,
     CommonModule,
   ],
 })

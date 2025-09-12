@@ -1,10 +1,12 @@
 # Build stage
-FROM node:22-alpine AS builder
+FROM node:22-bullseye AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+
+RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 RUN npm ci --only=production

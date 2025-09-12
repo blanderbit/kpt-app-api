@@ -5,7 +5,7 @@ import { Repository, Between } from 'typeorm';
 import { SuggestedActivity } from '../entities/suggested-activity.entity';
 import { Activity } from '../../profile/activity/entities/activity.entity';
 import { RateActivity } from '../../profile/activity/entities/rate-activity.entity';
-import { ActivityTypesService } from '../../profile/activity/activity-types.service';
+import { ActivityTypesService } from '../../core/activity-types';
 import { CreateSuggestedActivityDto, SuggestedActivityResponseDto } from '../dto/suggested-activity.dto';
 import { ChatGPTService } from './chatgpt.service';
 import { ErrorCode } from '../../common/error-codes';

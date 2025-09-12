@@ -7,6 +7,8 @@ import { AdminService } from './admin.service';
 import { UsersModule } from '../users/users.module';
 import { LanguageModule } from './languages/language.module';
 import { TooltipModule } from './tooltips/tooltip.module';
+import { MoodTypesAdminModule } from './mood-types/mood-types-admin.module';
+import { ActivityTypesAdminModule } from './activity-types/activity-types-admin.module';
 import { jwtConfig } from '../config/jwt.config';
 import { User } from '../users/entities/user.entity';
 
@@ -16,6 +18,8 @@ import { User } from '../users/entities/user.entity';
     UsersModule,
     LanguageModule,
     TooltipModule,
+    MoodTypesAdminModule,
+    ActivityTypesAdminModule,
     JwtModule.register(jwtConfig),
   ],
   controllers: [AdminController],

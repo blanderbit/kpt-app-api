@@ -62,6 +62,37 @@ export class ProfileController {
     return this.profileService.getProfile(user.id);
   }
 
+  @Post('send-verification-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Отправить письмо для подтверждения email',
+    description: 'Отправляет письмо с кодом подтверждения на email текущего пользователя',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Письмо с кодом подтверждения отправлено',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Письмо с кодом подтверждения отправлено на указанный email',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Email уже подтвержден',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Неавторизованный доступ',
+  })
+  async sendVerificationEmail(@CurrentUser() user: User): Promise<{ message: string }> {
+    return this.profileService.sendVerificationEmail(user.email);
+  }
+
   @Put()
   @ApiOperation({
     summary: 'Update user profile',

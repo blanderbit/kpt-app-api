@@ -3,7 +3,7 @@ import { ErrorCode } from '../../../common/error-codes';
 import { AppException } from '../../../common/exceptions/app.exception';
 import * as fs from 'fs';
 import * as path from 'path';
-import { GoogleDriveService } from './google-drive.service';
+import { GoogleDriveService } from '../../../core/google-drive';
 import { CreateLanguageDto, UpdateLanguageDto, LanguageResponseDto, DownloadTemplateDto } from '../dto/language.dto';
 
 @Injectable()

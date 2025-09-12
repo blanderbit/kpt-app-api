@@ -12,32 +12,32 @@ export class FirebaseService implements OnModuleInit {
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    // try {
-    //   // Initialize Firebase Admin SDK
-    //   if (!admin.apps.length) {
-    //     this.firebaseApp = admin.initializeApp({
-    //       credential: admin.credential.cert({
-    //         type: firebaseConfig.type,
-    //         project_id: firebaseConfig.project_id,
-    //         private_key_id: firebaseConfig.private_key_id,
-    //         private_key: firebaseConfig.private_key,
-    //         client_email: firebaseConfig.client_email,
-    //         client_id: firebaseConfig.client_id,
-    //         auth_uri: firebaseConfig.auth_uri,
-    //         token_uri: firebaseConfig.token_uri,
-    //         auth_provider_x509_cert_url: firebaseConfig.auth_provider_x509_cert_url,
-    //         client_x509_cert_url: firebaseConfig.client_x509_cert_url,
-    //       } as any),
-    //     });
-    //   } else {
-    //     this.firebaseApp = admin.app();
-    //   }
-    // } catch (error) {
-    //   throw AppException.internal(
-    //     ErrorCode.FIREBASE_INITIALIZATION_FAILED,
-    //     `Failed to initialize Firebase: ${error.message}`
-    //   );
-    // }
+    try {
+      // Initialize Firebase Admin SDK
+      if (!admin.apps.length) {
+        this.firebaseApp = admin.initializeApp({
+          credential: admin.credential.cert({
+            type: firebaseConfig.type,
+            project_id: firebaseConfig.project_id,
+            private_key_id: firebaseConfig.private_key_id,
+            private_key: firebaseConfig.private_key,
+            client_email: firebaseConfig.client_email,
+            client_id: firebaseConfig.client_id,
+            auth_uri: firebaseConfig.auth_uri,
+            token_uri: firebaseConfig.token_uri,
+            auth_provider_x509_cert_url: firebaseConfig.auth_provider_x509_cert_url,
+            client_x509_cert_url: firebaseConfig.client_x509_cert_url,
+          } as any),
+        });
+      } else {
+        this.firebaseApp = admin.app();
+      }
+    } catch (error) {
+      throw AppException.internal(
+        ErrorCode.FIREBASE_INITIALIZATION_FAILED,
+        `Failed to initialize Firebase: ${error.message}`
+      );
+    }
   }
 
   getAuth(): admin.auth.Auth {

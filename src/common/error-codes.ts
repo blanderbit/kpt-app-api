@@ -279,22 +279,23 @@ export enum ErrorCode {
   PROFILE_EMAIL_ALREADY_EXISTS = '4008',
   PROFILE_INVALID_VERIFICATION_TOKEN = '4009',
   PROFILE_ACCOUNT_DELETION_NOT_CONFIRMED = '4010',
+  PROFILE_SOCIAL_ACCOUNT_RESTRICTION = '4011',
 
-  // Activity Management (4011-4099)
-  PROFILE_ACTIVITY_NOT_FOUND = '4011',
-  PROFILE_ACTIVITY_CREATION_FAILED = '4012',
-  PROFILE_ACTIVITY_UPDATE_FAILED = '4013',
-  PROFILE_ACTIVITY_DELETION_FAILED = '4014',
-  PROFILE_ACTIVITY_VALIDATION_FAILED = '4015',
-  PROFILE_ACTIVITY_TYPE_NOT_FOUND = '4016',
-  PROFILE_ACTIVITY_LIMIT_EXCEEDED = '4017',
-  PROFILE_ACTIVITY_ALREADY_CLOSED = '4018',
-  PROFILE_ACTIVITY_CANNOT_MODIFY_CLOSED = '4019',
-  PROFILE_ACTIVITY_CANNOT_DELETE_CLOSED = '4020',
-  PROFILE_ACTIVITY_RATE_ACTIVITY_CREATION_FAILED = '4021',
-  PROFILE_ACTIVITY_TYPE_DETERMINATION_FAILED = '4022',
-  PROFILE_ACTIVITY_GOOGLE_DRIVE_UNAVAILABLE = '4023',
-  PROFILE_ACTIVITY_INVALID_CONTENT_FORMAT = '4024',
+  // Activity Management (4012-4099)
+  PROFILE_ACTIVITY_NOT_FOUND = '4012',
+  PROFILE_ACTIVITY_CREATION_FAILED = '4013',
+  PROFILE_ACTIVITY_UPDATE_FAILED = '4014',
+  PROFILE_ACTIVITY_DELETION_FAILED = '4015',
+  PROFILE_ACTIVITY_VALIDATION_FAILED = '4016',
+  PROFILE_ACTIVITY_TYPE_NOT_FOUND = '4017',
+  PROFILE_ACTIVITY_LIMIT_EXCEEDED = '4018',
+  PROFILE_ACTIVITY_ALREADY_CLOSED = '4019',
+  PROFILE_ACTIVITY_CANNOT_MODIFY_CLOSED = '4020',
+  PROFILE_ACTIVITY_CANNOT_DELETE_CLOSED = '4021',
+  PROFILE_ACTIVITY_RATE_ACTIVITY_CREATION_FAILED = '4022',
+  PROFILE_ACTIVITY_TYPE_DETERMINATION_FAILED = '4023',
+  PROFILE_ACTIVITY_GOOGLE_DRIVE_UNAVAILABLE = '4024',
+  PROFILE_ACTIVITY_INVALID_CONTENT_FORMAT = '4025',
 
   // Mood Tracking (4100-4199)
   PROFILE_MOOD_NOT_FOUND = '4101',
@@ -442,6 +443,23 @@ export enum ErrorCode {
   GOOGLE_DRIVE_DOWNLOAD_FAILED = '8004',
   GOOGLE_DRIVE_PERMISSION_DENIED = '8005',
   GOOGLE_DRIVE_API_QUOTA_EXCEEDED = '8006',
+
+  // ========================================
+  // BACKUP MODULE (8500-8999)
+  // ========================================
+  
+  // Database Backup (8500-8599)
+  BACKUP_DATABASE_FAILED = '8501',
+  BACKUP_UPLOAD_FAILED = '8502',
+  BACKUP_DOWNLOAD_FAILED = '8503',
+  BACKUP_LIST_FAILED = '8504',
+  BACKUP_CREATION_AND_UPLOAD_FAILED = '8505',
+  BACKUP_MYSQLDUMP_NOT_AVAILABLE = '8506',
+  BACKUP_GOOGLE_DRIVE_UNAVAILABLE = '8507',
+  BACKUP_FOLDER_NOT_CONFIGURED = '8508',
+  BACKUP_FILE_NOT_FOUND = '8509',
+  BACKUP_INVALID_FILE_ID = '8510',
+  BACKUP_RESTORE_FAILED = '8511',
 
   // ========================================
   // COMMON/SYSTEM ERRORS (9000-9999)
@@ -664,6 +682,7 @@ export const ErrorDescription: Record<ErrorCode, string> = {
   [ErrorCode.PROFILE_EMAIL_ALREADY_EXISTS]: 'Email already exists',
   [ErrorCode.PROFILE_INVALID_VERIFICATION_TOKEN]: 'Invalid verification token',
   [ErrorCode.PROFILE_ACCOUNT_DELETION_NOT_CONFIRMED]: 'Account deletion not confirmed',
+  [ErrorCode.PROFILE_SOCIAL_ACCOUNT_RESTRICTION]: 'Operation not allowed for social media accounts',
   [ErrorCode.PROFILE_ACTIVITY_NOT_FOUND]: 'Activity not found',
   [ErrorCode.PROFILE_ACTIVITY_CREATION_FAILED]: 'Activity creation failed',
   [ErrorCode.PROFILE_ACTIVITY_UPDATE_FAILED]: 'Activity update failed',
@@ -784,6 +803,19 @@ export const ErrorDescription: Record<ErrorCode, string> = {
   [ErrorCode.GOOGLE_DRIVE_PERMISSION_DENIED]: 'Google Drive permission denied',
   [ErrorCode.GOOGLE_DRIVE_API_QUOTA_EXCEEDED]: 'Google Drive API quota exceeded',
 
+  // Backup Module
+  [ErrorCode.BACKUP_DATABASE_FAILED]: 'Database backup failed',
+  [ErrorCode.BACKUP_UPLOAD_FAILED]: 'Failed to upload backup to Google Drive',
+  [ErrorCode.BACKUP_DOWNLOAD_FAILED]: 'Failed to download backup from Google Drive',
+  [ErrorCode.BACKUP_LIST_FAILED]: 'Failed to list backups from Google Drive',
+  [ErrorCode.BACKUP_CREATION_AND_UPLOAD_FAILED]: 'Failed to create and upload backup',
+  [ErrorCode.BACKUP_MYSQLDUMP_NOT_AVAILABLE]: 'mysqldump utility is not available',
+  [ErrorCode.BACKUP_GOOGLE_DRIVE_UNAVAILABLE]: 'Google Drive service is not available',
+  [ErrorCode.BACKUP_FOLDER_NOT_CONFIGURED]: 'Backup folder ID is not configured',
+  [ErrorCode.BACKUP_FILE_NOT_FOUND]: 'Backup file not found',
+  [ErrorCode.BACKUP_INVALID_FILE_ID]: 'Invalid backup file ID',
+  [ErrorCode.BACKUP_RESTORE_FAILED]: 'Database restore from backup failed',
+
   // Common/System Errors
   [ErrorCode.COMMON_INVALID_INPUT]: 'Invalid input provided',
   [ErrorCode.COMMON_MISSING_REQUIRED_FIELDS]: 'Required fields are missing',
@@ -832,7 +864,8 @@ export function getModuleFromErrorCode(code: ErrorCode): string {
   if (codeNum >= 5000 && codeNum < 6000) return 'Suggested Activity';
   if (codeNum >= 6000 && codeNum < 7000) return 'Email';
   if (codeNum >= 7000 && codeNum < 8000) return 'Firebase';
-  if (codeNum >= 8000 && codeNum < 9000) return 'Google Drive';
+  if (codeNum >= 8000 && codeNum < 8500) return 'Google Drive';
+  if (codeNum >= 8500 && codeNum < 9000) return 'Backup';
   if (codeNum >= 9000 && codeNum < 10000) return 'Common/System';
   
   return 'Unknown';

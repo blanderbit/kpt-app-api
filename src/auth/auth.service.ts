@@ -57,10 +57,7 @@ export class AuthService {
 
     await this.usersRepository.save(user);
 
-    // Generate and send verification code
-    await this.emailService.generateAndSendVerificationCode(user.id, email, 'email_verification');
-
-    return { message: 'Registration successful. Check your email for verification code.' };
+    return { message: 'Registration successful. You can now send verification email when needed.' };
   }
 
   async login(loginDto: LoginDto): Promise<{ accessToken: string; refreshToken: string; user: Partial<User> }> {
@@ -78,10 +75,6 @@ export class AuthService {
       throw AppException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, 'Invalid email or password');
     }
 
-    // Check if email is verified
-    if (!user.emailVerified) {
-      throw AppException.unauthorized(ErrorCode.AUTH_EMAIL_VERIFICATION_FAILED, 'Email not verified');
-    }
 
     // Generate tokens
     const payload = { email: user.email, sub: user.id, roles: user.roles };

@@ -22,7 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { LanguageService } from './services/language.service';
-import { GoogleDriveService } from './services/google-drive.service';
+import { GoogleDriveService } from '../../core/google-drive';
 import {
   CreateLanguageDto,
   UpdateLanguageDto,

@@ -36,7 +36,7 @@ export class ActivityTypesService {
   /**
    * Loads activity types from Google Drive
    */
-  private async loadActivityTypes(): Promise<void> {
+  async loadActivityTypes(): Promise<void> {
     try {
       // Load from Google Drive
       if (this.fileId && this.googleDriveFilesService.isAvailable()) {

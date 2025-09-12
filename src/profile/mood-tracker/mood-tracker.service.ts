@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MoodTracker } from './entities/mood-tracker.entity';
 import { CreateMoodTrackerDto, UpdateMoodTrackerDto, MoodTrackerResponseDto } from './dto/mood-tracker.dto';
-import { MoodTypesService } from './mood-types.service';
+import { MoodTypesService } from '../../core/mood-types';
 
 @Injectable()
 export class MoodTrackerService {

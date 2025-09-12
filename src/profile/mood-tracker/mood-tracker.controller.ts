@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,16 +18,19 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { MoodTrackerService } from './mood-tracker.service';
+import { MoodTypesService, MoodTypeDto } from '../../core/mood-types';
 import { CreateMoodTrackerDto, UpdateMoodTrackerDto, MoodTrackerResponseDto } from './dto/mood-tracker.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('mood-tracker')
 @Controller('profile/mood-tracker')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class MoodTrackerController {
-  constructor(private readonly moodTrackerService: MoodTrackerService) {}
+  constructor(
+    private readonly moodTrackerService: MoodTrackerService,
+    private readonly moodTypesService: MoodTypesService,
+  ) {}
 
   @Post()
   @ApiOperation({
@@ -319,5 +321,23 @@ export class MoodTrackerController {
   })
   async getAllMoodTrackers(): Promise<MoodTrackerResponseDto[]> {
     return this.moodTrackerService.getAllMoodTrackers();
+  }
+
+  @Get('mood-types')
+  @ApiOperation({
+    summary: 'Получить все типы настроения',
+    description: 'Возвращает все доступные типы настроения с их характеристиками',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Список всех типов настроения',
+    type: [MoodTypeDto],
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Неавторизованный доступ',
+  })
+  async getAllMoodTypes(): Promise<MoodTypeDto[]> {
+    return this.moodTypesService.getAllMoodTypes();
   }
 }

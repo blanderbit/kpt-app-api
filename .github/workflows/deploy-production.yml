@@ -1,0 +1,157 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Validate required secrets
+      run: |
+        echo "🔍 Checking required secrets..."
+        
+        if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+          echo "❌ SSH_PRIVATE_KEY secret is not set"
+          exit 1
+        fi
+        
+        if [ -z "${{ secrets.SSH_USER }}" ]; then
+          echo "❌ SSH_USER secret is not set"
+          exit 1
+        fi
+        
+        if [ -z "${{ secrets.SSH_HOST }}" ]; then
+          echo "❌ SSH_HOST secret is not set"
+          exit 1
+        fi
+        
+        if [ -z "${{ secrets.PROJECT_PATH }}" ]; then
+          echo "❌ PROJECT_PATH secret is not set"
+          exit 1
+        fi
+        
+        echo "✅ All required secrets are present"
+      
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+    - name: Add server to known hosts
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+        chmod 644 ~/.ssh/known_hosts
+        
+    - name: Deploy to production server
+      run: |
+        echo "🚀 Starting deployment to production server..."
+        
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e
+          
+          echo "📱 Connected to server: $(hostname)"
+          echo "📂 Current directory: $(pwd)"
+          
+          # Navigate to project directory
+          cd ${{ secrets.PROJECT_PATH }} || {
+            echo "❌ Project directory not found: ${{ secrets.PROJECT_PATH }}"
+            exit 1
+          }
+          
+          echo "📁 Project directory: ${{ secrets.PROJECT_PATH }}"
+          
+          # Backup current image before deployment
+          echo "💾 Backing up current production image..."
+          if docker images | grep -q "kpt-app:latest"; then
+            docker tag kpt-app:latest kpt-app:previous || true
+            echo "✅ Current image backed up as kpt-app:previous"
+          fi
+          
+          # Stop running Docker containers
+          echo "🛑 Stopping Docker containers..."
+          if docker-compose -f .deploy/docker-compose.prod.yml down; then
+            echo "✅ Docker containers stopped successfully"
+          else
+            echo "❌ Failed to stop Docker containers"
+            exit 1
+          fi
+          
+          # Clean up old Docker resources
+          echo "🧹 Cleaning up Docker resources..."
+          docker system prune -f
+          docker volume prune -f
+          
+          # Pull latest changes from Git
+          echo "📥 Pulling latest changes from Git..."
+          git pull origin
+          
+          # Build new Docker image on server
+          echo "🔨 Building new Docker image on server..."
+          if docker build -f .deploy/Dockerfile -t kpt-app:latest .; then
+            echo "✅ Docker image built successfully"
+          else
+            echo "❌ Docker build failed"
+            exit 1
+          fi
+          
+          # Start Docker containers
+          echo "🚀 Starting Docker containers..."
+          if docker-compose -f .deploy/docker-compose.prod.yml up -d; then
+            echo "✅ Docker containers started successfully"
+          else
+            echo "❌ Failed to start Docker containers"
+            exit 1
+          fi
+          
+          # Wait for containers to be healthy
+          echo "⏳ Waiting for containers to be healthy..."
+          sleep 15
+          
+          # Check container status
+          echo "🔍 Checking container status..."
+          if docker-compose -f .deploy/docker-compose.prod.yml ps | grep -q "Up"; then
+            echo "✅ All containers are running"
+          else
+            echo "❌ Some containers are not running"
+            docker-compose -f .deploy/docker-compose.prod.yml ps
+            exit 1
+          fi
+          
+          # Health check
+          echo "🏥 Performing health check..."
+          if curl -f http://localhost:${{ secrets.APP_PORT }}/health || curl -f http://localhost:${{ secrets.APP_PORT }}/api/health; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed"
+            exit 1
+          fi
+          
+          # Final cleanup
+          echo "🧹 Final cleanup..."
+          docker system prune -f
+          docker image prune -f
+          
+          echo "🎉 Deployment completed successfully!"
+          echo "📊 Container status:"
+          docker-compose -f .deploy/docker-compose.prod.yml ps
+          echo "💾 Disk usage:"
+          df -h
+          echo "🐳 Docker disk usage:"
+          docker system df
+        EOF
+        
+        if [ $? -eq 0 ]; then
+          echo "✅ Production deployment completed successfully!"
+        else
+          echo "❌ Production deployment failed!"
+          exit 1
+        fi
