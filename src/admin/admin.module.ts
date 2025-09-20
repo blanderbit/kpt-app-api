@@ -9,6 +9,7 @@ import { LanguageModule } from './languages/language.module';
 import { TooltipModule } from './tooltips/tooltip.module';
 import { MoodTypesAdminModule } from './mood-types/mood-types-admin.module';
 import { ActivityTypesAdminModule } from './activity-types/activity-types-admin.module';
+import { MoodSurveyAdminModule } from './mood-survey/mood-survey-admin.module';
 import { jwtConfig } from '../config/jwt.config';
 import { User } from '../users/entities/user.entity';
 
@@ -20,6 +21,7 @@ import { User } from '../users/entities/user.entity';
     TooltipModule,
     MoodTypesAdminModule,
     ActivityTypesAdminModule,
+    MoodSurveyAdminModule,
     JwtModule.register(jwtConfig),
   ],
   controllers: [AdminController],

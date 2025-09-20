@@ -251,8 +251,13 @@ export class AuthService {
       
       // Find user in our database
       let user = await this.usersRepository.findOne({ 
-        where: { firebaseUid: decodedToken.uid } 
+        where: { email: decodedToken.email } 
       });
+      
+      // Check if user exists but was not created via Firebase
+      if (user && !user.firebaseUid) {
+        throw AppException.validation(ErrorCode.AUTH_EMAIL_ALREADY_USED_NON_FIREBASE, 'This email is already registered with a regular account. Please use email/password login instead.');
+      }
       
       if (!user) {
         // If user doesn't exist, create new one
@@ -283,6 +288,12 @@ export class AuthService {
         user: userWithoutSensitiveData,
       };
     } catch (error) {
+      // Re-throw AppException errors to preserve custom error codes
+      if (error instanceof AppException) {
+        throw error;
+      }
+      
+      // For other errors, use the generic Firebase auth failed error
       throw AppException.unauthorized(ErrorCode.AUTH_FIREBASE_AUTH_FAILED, 'Invalid Firebase token');
     }
   }

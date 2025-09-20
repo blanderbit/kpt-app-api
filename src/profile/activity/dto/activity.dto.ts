@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateActivityDto {
   @ApiProperty({
@@ -10,13 +10,13 @@ export class CreateActivityDto {
   activityName: string;
 
   @ApiProperty({
-    description: 'Activity content in JSON format',
+    description: 'Activity content as string',
     required: false,
-    example: { distance: '5km', duration: '30min' },
+    example: 'Ran 5km in 30 minutes',
   })
   @IsOptional()
-  @IsObject()
-  content?: any;
+  @IsString()
+  content?: string;
 
   @ApiProperty({
     description: 'Whether activity is public',
@@ -39,13 +39,13 @@ export class UpdateActivityDto {
   activityName?: string;
 
   @ApiProperty({
-    description: 'Activity content in JSON format',
+    description: 'Activity content as string',
     required: false,
-    example: { distance: '7km', duration: '45min' },
+    example: 'Evening run, 7km in 45 minutes',
   })
   @IsOptional()
-  @IsObject()
-  content?: any;
+  @IsString()
+  content?: string;
 
   @ApiProperty({
     description: 'Whether activity is public',
@@ -114,11 +114,11 @@ export class ActivityResponseDto {
   activityType: string;
 
   @ApiProperty({
-    description: 'Activity content in JSON format',
-    example: { distance: '5km', duration: '30min' },
+    description: 'Activity content as string',
+    example: 'Ran 5km in 30 minutes',
     nullable: true,
   })
-  content: any;
+  content: string;
 
   @ApiProperty({
     description: 'Whether activity is public',

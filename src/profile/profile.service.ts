@@ -49,47 +49,21 @@ export class ProfileService {
     return { message: 'Verification email sent successfully' };
   }
 
-  async getProfile(userId: number): Promise<ProfileResponseDto> {
-    const user = await this.usersRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw AppException.notFound(ErrorCode.USER_NOT_FOUND, undefined, { userId });
-    }
-
+  async getProfile(user: User): Promise<ProfileResponseDto> {
     return this.mapUserToProfileResponse(user);
   }
 
   @Transactional()
-  async updateProfile(userId: number, updateProfileDto: UpdateProfileDto): Promise<ProfileResponseDto> {
-    const user = await this.usersRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw AppException.notFound(ErrorCode.USER_NOT_FOUND, undefined, { userId });
-    }
-
-    // Update only provided fields
-    if (updateProfileDto.firstName !== undefined) {
-      user.firstName = updateProfileDto.firstName;
-    }
-    if (updateProfileDto.lastName !== undefined) {
-      user.lastName = updateProfileDto.lastName;
-    }
-    if (updateProfileDto.avatarUrl !== undefined) {
-      user.avatarUrl = updateProfileDto.avatarUrl;
-    }
-    if (updateProfileDto.theme !== undefined) {
-      user.theme = updateProfileDto.theme;
-    }
-
-    const updatedUser = await this.usersRepository.save(user);
+  async updateProfile(user: User, updateProfileDto: UpdateProfileDto): Promise<ProfileResponseDto> {
+    const updatedUser = await this.usersRepository.save({
+      ...user,
+      ...updateProfileDto
+    });
     return this.mapUserToProfileResponse(updatedUser);
   }
 
   @Transactional()
-  async changeEmail(userId: number, changeEmailDto: ChangeEmailDto): Promise<{ message: string }> {
-    const user = await this.usersRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw AppException.notFound(ErrorCode.USER_NOT_FOUND, undefined, { userId });
-    }
-
+  async changeEmail(user: User, changeEmailDto: ChangeEmailDto): Promise<{ message: string }> {
     // Check if user was created via Google or Apple
     if (user.googleId || user.firebaseUid) {
       throw AppException.forbidden(ErrorCode.PROFILE_SOCIAL_ACCOUNT_RESTRICTION, 'Cannot change email for social media accounts');
@@ -97,26 +71,26 @@ export class ProfileService {
 
     // Check password
     if (!user.passwordHash) {
-      throw AppException.validation(ErrorCode.PROFILE_PASSWORD_CHANGE_NOT_SUPPORTED, undefined, { userId });
+      throw AppException.validation(ErrorCode.PROFILE_PASSWORD_CHANGE_NOT_SUPPORTED, undefined, { userId: user.id });
     }
 
     const isPasswordValid = await bcrypt.compare(changeEmailDto.password, user.passwordHash);
     if (!isPasswordValid) {
-      throw AppException.unauthorized(ErrorCode.PROFILE_INVALID_PASSWORD, undefined, { userId });
+      throw AppException.unauthorized(ErrorCode.PROFILE_INVALID_PASSWORD, undefined, { userId: user.id });
     }
 
     // Check if new email is already taken
     const existingUser = await this.usersRepository.findOne({ where: { email: changeEmailDto.newEmail } });
-    if (existingUser && existingUser.id !== userId) {
+    if (existingUser && existingUser.id !== user.id) {
       throw AppException.validation(ErrorCode.PROFILE_EMAIL_ALREADY_EXISTS, undefined, { 
-        userId, 
+        userId: user.id, 
         newEmail: changeEmailDto.newEmail 
       });
     }
 
     // Generate and send verification code
     await this.emailService.generateAndSendVerificationCode(
-      userId, 
+      user.id, 
       user.email, 
       'email_change', 
       changeEmailDto.newEmail
@@ -130,11 +104,7 @@ export class ProfileService {
   }
 
   @Transactional()
-  async changePassword(userId: number, changePasswordDto: ChangePasswordDto): Promise<{ message: string }> {
-    const user = await this.usersRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw AppException.notFound(ErrorCode.USER_NOT_FOUND, undefined, { userId });
-    }
+  async changePassword(user: User, changePasswordDto: ChangePasswordDto): Promise<{ message: string }> {
 
     // Check if user was created via Google or Apple
     if (user.googleId || user.firebaseUid) {
@@ -143,13 +113,13 @@ export class ProfileService {
 
     // Check if account supports password change
     if (!user.passwordHash) {
-      throw AppException.validation(ErrorCode.PROFILE_PASSWORD_CHANGE_NOT_SUPPORTED, undefined, { userId });
+      throw AppException.validation(ErrorCode.PROFILE_PASSWORD_CHANGE_NOT_SUPPORTED, undefined, { userId: user.id });
     }
 
     // Check current password
     const isCurrentPasswordValid = await bcrypt.compare(changePasswordDto.currentPassword, user.passwordHash);
     if (!isCurrentPasswordValid) {
-      throw AppException.unauthorized(ErrorCode.PROFILE_INVALID_PASSWORD, undefined, { userId });
+      throw AppException.unauthorized(ErrorCode.PROFILE_INVALID_PASSWORD, undefined, { userId: user.id });
     }
 
     // Hash new password
@@ -157,7 +127,7 @@ export class ProfileService {
     const newPasswordHash = await bcrypt.hash(changePasswordDto.newPassword, saltRounds);
 
     // Update password
-    await this.usersRepository.update(userId, {
+    await this.usersRepository.update(user.id, {
       passwordHash: newPasswordHash,
     });
 
@@ -165,24 +135,19 @@ export class ProfileService {
   }
 
   @Transactional()
-  async deleteAccount(userId: number, deleteAccountDto: DeleteAccountDto, accessToken?: string): Promise<{ message: string }> {
+  async deleteAccount(user: User, deleteAccountDto: DeleteAccountDto, accessToken?: string): Promise<{ message: string }> {
     if (!deleteAccountDto.confirm) {
-      throw AppException.validation(ErrorCode.PROFILE_ACCOUNT_DELETION_NOT_CONFIRMED, undefined, { userId });
-    }
-
-    const user = await this.usersRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw AppException.notFound(ErrorCode.USER_NOT_FOUND, undefined, { userId });
+      throw AppException.validation(ErrorCode.PROFILE_ACCOUNT_DELETION_NOT_CONFIRMED, undefined, { userId: user.id });
     }
 
     // Check password
     if (!user.passwordHash) {
-      throw AppException.validation(ErrorCode.PROFILE_PASSWORD_CHANGE_NOT_SUPPORTED, undefined, { userId });
+      throw AppException.validation(ErrorCode.PROFILE_PASSWORD_CHANGE_NOT_SUPPORTED, undefined, { userId: user.id });
     }
 
     const isPasswordValid = await bcrypt.compare(deleteAccountDto.password, user.passwordHash);
     if (!isPasswordValid) {
-      throw AppException.unauthorized(ErrorCode.PROFILE_INVALID_PASSWORD, undefined, { userId });
+      throw AppException.unauthorized(ErrorCode.PROFILE_INVALID_PASSWORD, undefined, { userId: user.id });
     }
 
     // Add access token to blacklist before deleting account
@@ -191,17 +156,17 @@ export class ProfileService {
         const decoded = this.jwtService.decode(accessToken) as any;
         const expiresIn = decoded?.exp ? Math.floor((decoded.exp * 1000 - Date.now()) / 1000) : 3600;
         
-        await this.redisBlacklistService.addToBlacklist(accessToken, userId, Math.max(expiresIn, 0));
-        console.log(`Access token blacklisted for deleted user ${userId}, expires in ${expiresIn}s`);
+        await this.redisBlacklistService.addToBlacklist(accessToken, user.id, Math.max(expiresIn, 0));
+        console.log(`Access token blacklisted for deleted user ${user.id}, expires in ${expiresIn}s`);
       } catch (decodeError) {
         console.error('Failed to decode access token for blacklist during account deletion:', decodeError);
         // If decoding failed, add with default lifetime
-        await this.redisBlacklistService.addToBlacklist(accessToken, userId, 3600);
+        await this.redisBlacklistService.addToBlacklist(accessToken, user.id, 3600);
       }
     }
 
     // Delete user
-    await this.usersRepository.delete(userId);
+    await this.usersRepository.delete(user.id);
 
     return { message: 'Account successfully deleted' };
   }

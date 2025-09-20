@@ -26,9 +26,9 @@ export class Activity {
   @Column({ default: 'general' })
   activityType: string;
 
-  @ApiProperty({ description: 'Activity content in JSON format' })
-  @Column({ type: 'json', nullable: true })
-  content: any;
+  @ApiProperty({ description: 'Activity content as string' })
+  @Column({ type: 'text', nullable: true })
+  content: string;
 
   @ApiProperty({ description: 'Whether activity is public' })
   @Column({ default: false })

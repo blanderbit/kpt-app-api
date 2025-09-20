@@ -4,10 +4,11 @@ import { MoodTrackerController } from './mood-tracker.controller';
 import { MoodTrackerService } from './mood-tracker.service';
 import { MoodTypesModule } from '../../core/mood-types';
 import { MoodTracker } from './entities/mood-tracker.entity';
+import { MoodSurvey } from './entities/mood-survey.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MoodTracker]),
+    TypeOrmModule.forFeature([MoodTracker, MoodSurvey]),
     MoodTypesModule,
   ],
   controllers: [MoodTrackerController],

@@ -1,22 +1,29 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { TooltipService } from '../services/tooltip.service';
 import { Tooltip } from '../entities/tooltip.entity';
 import { TooltipPage, TooltipType } from '../entities/tooltip.entity';
 import { ErrorCode } from '../../../common/error-codes';
 import { AppException } from '../../../common/exceptions/app.exception';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { User } from '../../../users/entities/user.entity';
 
-@ApiTags('Public Tooltips')
+@ApiTags('Profile Tooltips')
 @Controller('tooltips')
-export class PublicTooltipController {
+export class ProfileTooltipController {
   constructor(private readonly tooltipService: TooltipService) {}
 
   @Get('page/:page')
-  @ApiOperation({ summary: 'Get tooltips by page (public endpoint)' })
+  @ApiOperation({ summary: 'Get tooltips by page (filters closed tooltips for authenticated users)' })
   @ApiParam({ name: 'page', description: 'Page name to get tooltips for' })
   @ApiResponse({ 
     status: 200, 
@@ -25,7 +32,10 @@ export class PublicTooltipController {
   })
   @ApiResponse({ status: 400, description: 'Invalid page parameter' })
   @ApiResponse({ status: 404, description: 'No tooltips found for this page' })
-  findByPage(@Param('page') page: string): Promise<Tooltip[]> {
+  findByPage(
+    @Param('page') page: string,
+    @CurrentUser() user?: User
+  ): Promise<Tooltip[]> {
     // Validate page parameter
     if (!Object.values(TooltipPage).includes(page as TooltipPage)) {
       throw AppException.validation(
@@ -33,11 +43,11 @@ export class PublicTooltipController {
         `Invalid page. Allowed values: ${Object.values(TooltipPage).join(', ')}`
       );
     }
-    return this.tooltipService.findByPage(page as TooltipPage);
+    return this.tooltipService.findByPage(page as TooltipPage, user?.id);
   }
 
   @Get('page/:page/type/:type')
-  @ApiOperation({ summary: 'Get tooltips by page and type (public endpoint)' })
+  @ApiOperation({ summary: 'Get tooltips by page and type (filters closed tooltips for authenticated users)' })
   @ApiParam({ name: 'page', description: 'Page name' })
   @ApiParam({ name: 'type', description: 'Tooltip type' })
   @ApiResponse({ 
@@ -50,6 +60,7 @@ export class PublicTooltipController {
   findByPageAndType(
     @Param('page') page: string,
     @Param('type') type: string,
+    @CurrentUser() user?: User
   ): Promise<Tooltip[]> {
     // Validate page parameter
     if (!Object.values(TooltipPage).includes(page as TooltipPage)) {
@@ -67,6 +78,37 @@ export class PublicTooltipController {
       );
     }
     
-    return this.tooltipService.findByTypeAndPage(type as TooltipType, page as TooltipPage);
+    return this.tooltipService.findByTypeAndPage(type as TooltipType, page as TooltipPage, user?.id);
+  }
+
+  @Post('close/:tooltipId')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ 
+    summary: 'Close tooltip for user',
+    description: 'Marks tooltip as closed for the current user so it won\'t be shown again'
+  })
+  @ApiParam({ name: 'tooltipId', description: 'ID of the tooltip to close' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Tooltip closed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Tooltip closed successfully'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  @ApiResponse({ status: 404, description: 'Tooltip not found' })
+  async closeTooltip(
+    @Param('tooltipId') tooltipId: string,
+    @CurrentUser() user: User
+  ): Promise<{ message: string }> {
+    return this.tooltipService.closeTooltipForUser(parseInt(tooltipId), user);
   }
 }

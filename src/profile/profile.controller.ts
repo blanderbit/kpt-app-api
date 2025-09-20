@@ -60,7 +60,7 @@ export class ProfileController {
     description: 'User not found',
   })
   async getProfile(@CurrentUser() user: User): Promise<ProfileResponseDto> {
-    return this.profileService.getProfile(user.id);
+    return this.profileService.getProfile(user);
   }
 
   @Post('send-verification-email')
@@ -121,7 +121,7 @@ export class ProfileController {
     @CurrentUser() user: User,
     @Body() updateProfileDto: UpdateProfileDto,
   ): Promise<ProfileResponseDto> {
-    return this.profileService.updateProfile(user.id, updateProfileDto);
+    return this.profileService.updateProfile(user, updateProfileDto);
   }
 
   @Post('change-email')
@@ -160,7 +160,7 @@ export class ProfileController {
     @CurrentUser() user: User,
     @Body() changeEmailDto: ChangeEmailDto,
   ): Promise<{ message: string }> {
-    return this.profileService.changeEmail(user.id, changeEmailDto);
+    return this.profileService.changeEmail(user, changeEmailDto);
   }
 
   @Post('confirm-email-change')
@@ -227,7 +227,7 @@ export class ProfileController {
     @CurrentUser() user: User,
     @Body() changePasswordDto: ChangePasswordDto,
   ): Promise<{ message: string }> {
-    return this.profileService.changePassword(user.id, changePasswordDto);
+    return this.profileService.changePassword(user, changePasswordDto);
   }
 
   @Delete('account')
@@ -268,7 +268,7 @@ export class ProfileController {
     @Req() req: any,
   ): Promise<{ message: string }> {
     const accessToken = req.headers.authorization?.replace('Bearer ', '');
-    return this.profileService.deleteAccount(user.id, deleteAccountDto, accessToken);
+    return this.profileService.deleteAccount(user, deleteAccountDto, accessToken);
   }
 
   @Post('verify-email')

@@ -126,8 +126,9 @@ export enum ErrorCode {
   AUTH_INVALID_EMAIL_FORMAT = '2102',
   AUTH_INVALID_PASSWORD_FORMAT = '2103',
   AUTH_EMAIL_ALREADY_VERIFIED = '2104',
-  AUTH_REGISTRATION_DISABLED = '2105',
-  AUTH_LOGIN_DISABLED = '2106',
+  AUTH_EMAIL_ALREADY_USED_NON_FIREBASE = '2105',
+  AUTH_REGISTRATION_DISABLED = '2106',
+  AUTH_LOGIN_DISABLED = '2107',
 
   // Password Management (2200-2299)
   AUTH_PASSWORD_TOO_WEAK = '2201',
@@ -571,6 +572,7 @@ export const ErrorDescription: Record<ErrorCode, string> = {
   [ErrorCode.AUTH_INVALID_EMAIL_FORMAT]: 'Invalid email format provided',
   [ErrorCode.AUTH_INVALID_PASSWORD_FORMAT]: 'Invalid password format provided',
   [ErrorCode.AUTH_EMAIL_ALREADY_VERIFIED]: 'Email is already verified',
+  [ErrorCode.AUTH_EMAIL_ALREADY_USED_NON_FIREBASE]: 'Email is already registered with a regular account',
   [ErrorCode.AUTH_REGISTRATION_DISABLED]: 'User registration is currently disabled',
   [ErrorCode.AUTH_LOGIN_DISABLED]: 'User login is currently disabled',
   [ErrorCode.AUTH_PASSWORD_TOO_WEAK]: 'Password does not meet security requirements',

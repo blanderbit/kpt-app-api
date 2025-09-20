@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../../users/entities/user.entity';
+import { MoodSurvey } from './mood-survey.entity';
 
 // Типы настроения теперь определяются через JSON файл
 
@@ -49,4 +50,12 @@ export class MoodTracker {
   @ManyToOne(() => User, (user) => user.moodTrackers)
   @JoinColumn({ name: 'userId' })
   user: User;
+
+  @ApiProperty({ 
+    description: 'Связанный опросник настроения',
+    required: false
+  })
+  @ManyToOne(() => MoodSurvey, (moodSurvey) => moodSurvey.moodTrackers, { nullable: true })
+  @JoinColumn({ name: 'moodSurveyId' })
+  moodSurvey: MoodSurvey;
 }

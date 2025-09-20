@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { Tooltip, TooltipType, TooltipPage } from '../entities/tooltip.entity';
+import { UserClosedTooltip } from '../entities/user-closed-tooltip.entity';
+import { User } from '../../../users/entities/user.entity';
 import { CreateTooltipDto } from '../dto/create-tooltip.dto';
 import { UpdateTooltipDto } from '../dto/update-tooltip.dto';
 import { SearchTooltipDto } from '../dto/search-tooltip.dto';
@@ -14,6 +16,8 @@ export class TooltipService {
   constructor(
     @InjectRepository(Tooltip)
     private readonly tooltipRepository: Repository<Tooltip>,
+    @InjectRepository(UserClosedTooltip)
+    private readonly userClosedTooltipRepository: Repository<UserClosedTooltip>,
   ) {}
 
   @Transactional()
@@ -54,17 +58,27 @@ export class TooltipService {
     }
   }
 
-  async findByPage(page: TooltipPage): Promise<Tooltip[]> {
+  async findByPage(page: TooltipPage, userId?: number): Promise<Tooltip[]> {
     try {
-      return await this.tooltipRepository.find({
-        where: { page },
-        order: { createdAt: 'DESC' },
-      });
+      const query = this.tooltipRepository
+        .createQueryBuilder('tooltip')
+        .where('tooltip.page = :page', { page })
+        .orderBy('tooltip.createdAt', 'DESC');
+
+      // Если пользователь авторизован, исключаем закрытые им тултипы
+      if (userId) {
+        query
+          .leftJoin(UserClosedTooltip, 'closed', 'closed.tooltip = tooltip.id AND closed.user = :userId', { userId })
+          .andWhere('closed.id IS NULL');
+      }
+
+      return await query.getMany();
     } catch (error) {
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
         error: error.message,
         operation: 'findByPage',
-        page
+        page,
+        userId
       });
     }
   }
@@ -127,18 +141,29 @@ export class TooltipService {
     }
   }
 
-  async findByTypeAndPage(type: TooltipType, page: TooltipPage): Promise<Tooltip[]> {
+  async findByTypeAndPage(type: TooltipType, page: TooltipPage, userId?: number): Promise<Tooltip[]> {
     try {
-      return await this.tooltipRepository.find({
-        where: { type, page },
-        order: { createdAt: 'DESC' },
-      });
+      const query = this.tooltipRepository
+        .createQueryBuilder('tooltip')
+        .where('tooltip.type = :type', { type })
+        .andWhere('tooltip.page = :page', { page })
+        .orderBy('tooltip.createdAt', 'DESC');
+
+      // Если пользователь авторизован, исключаем закрытые им тултипы
+      if (userId) {
+        query
+          .leftJoin(UserClosedTooltip, 'closed', 'closed.tooltip = tooltip.id AND closed.user = :userId', { userId })
+          .andWhere('closed.id IS NULL');
+      }
+
+      return await query.getMany();
     } catch (error) {
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
         error: error.message,
         operation: 'findByTypeAndPage',
         type,
-        page
+        page,
+        userId
       });
     }
   }
@@ -171,6 +196,53 @@ export class TooltipService {
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
         error: error.message,
         operation: 'getPages'
+      });
+    }
+  }
+
+  /**
+   * Закрывает тултип для пользователя (добавляет в список скрытых)
+   */
+  @Transactional()
+  async closeTooltipForUser(tooltipId: number, user: User): Promise<{ message: string }> {
+    try {
+      // Проверяем, существует ли тултип
+      const tooltip = await this.tooltipRepository.findOne({ where: { id: tooltipId } });
+      if (!tooltip) {
+        throw AppException.notFound(ErrorCode.ADMIN_TOOLTIP_NOT_FOUND, 'Tooltip not found');
+      }
+
+      // Проверяем, не закрыт ли уже тултип этим пользователем
+      const existingClosed = await this.userClosedTooltipRepository.findOne({
+        where: { 
+          tooltip: { id: tooltipId },
+          user: { id: user.id }
+        }
+      });
+
+      if (existingClosed) {
+        return { message: 'Tooltip already closed for this user' };
+      }
+
+      // Создаем запись о закрытом тултипе
+      const closedTooltip = this.userClosedTooltipRepository.create({
+        tooltip,
+        user
+      });
+
+      await this.userClosedTooltipRepository.save(closedTooltip);
+      
+      return { message: 'Tooltip closed successfully' };
+    } catch (error) {
+      if (error instanceof AppException) {
+        throw error;
+      }
+      
+      throw AppException.internal(ErrorCode.ADMIN_TOOLTIP_UPDATE_FAILED, undefined, {
+        error: error.message,
+        operation: 'closeTooltipForUser',
+        tooltipId,
+        userId: user.id
       });
     }
   }

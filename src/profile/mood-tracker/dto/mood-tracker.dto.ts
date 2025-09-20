@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsNumber } from 'class-validator';
 
 export class CreateMoodTrackerDto {
   @ApiProperty({
@@ -17,6 +17,15 @@ export class CreateMoodTrackerDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiProperty({ 
+    description: 'ID опросника настроения',
+    required: false,
+    example: 1
+  })
+  @IsOptional()
+  @IsNumber()
+  moodSurveyId?: number;
 }
 
 export class UpdateMoodTrackerDto {
@@ -37,6 +46,15 @@ export class UpdateMoodTrackerDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiProperty({ 
+    description: 'ID опросника настроения',
+    required: false,
+    example: 1
+  })
+  @IsOptional()
+  @IsNumber()
+  moodSurveyId?: number;
 }
 
 export class MoodTrackerResponseDto {
