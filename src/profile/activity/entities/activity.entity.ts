@@ -30,6 +30,10 @@ export class Activity {
   @Column({ type: 'text', nullable: true })
   content: string;
 
+  @ApiProperty({ description: 'Activity position for ordering' })
+  @Column({ type: 'int', default: 0 })
+  position: number;
+
   @ApiProperty({ description: 'Whether activity is public' })
   @Column({ default: false })
   isPublic: boolean;

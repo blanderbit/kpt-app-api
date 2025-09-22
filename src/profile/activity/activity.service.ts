@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { Repository } from 'typeorm';
@@ -15,6 +15,8 @@ import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class ActivityService {
+  private readonly logger = new Logger(ActivityService.name);
+
   constructor(
     @InjectRepository(Activity)
     private readonly activityRepository: Repository<Activity>,
@@ -209,6 +211,7 @@ export class ActivityService {
       activityName: activity.activityName,
       activityType: activity.activityType,
       content: activity.content,
+      position: activity.position,
       isPublic: activity.isPublic,
       status: activity.status,
       closedAt: activity.closedAt,
@@ -216,5 +219,90 @@ export class ActivityService {
       updatedAt: activity.updatedAt,
       rateActivities: activity.rateActivities || [],
     };
+  }
+
+  /**
+   * Change activity position
+   */
+  @Transactional()
+  async changePosition(activityId: number, newPosition: number, user: User): Promise<ActivityResponseDto> {
+    try {
+      const activity = await this.activityRepository.findOne({
+        where: { id: activityId, user: { id: user.id } },
+        relations: ['rateActivities'],
+      });
+
+      if (!activity) {
+        throw AppException.notFound(ErrorCode.PROFILE_ACTIVITY_NOT_FOUND, 'Activity not found');
+      }
+
+      if (activity.status === 'closed') {
+        throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_CANNOT_MODIFY_CLOSED, 'Cannot modify closed activity');
+      }
+
+      const oldPosition = activity.position;
+      
+      // If position hasn't changed, no need to update
+      if (oldPosition === newPosition) {
+        return this.mapToResponseDto(activity);
+      }
+
+      // Get all activities for this user, ordered by position
+      const allActivities = await this.activityRepository.find({
+        where: { user: { id: user.id } },
+        order: { position: 'ASC', createdAt: 'DESC' }
+      });
+
+      // Remove the current activity from the list
+      const otherActivities = allActivities.filter(a => a.id !== activityId);
+
+      // Create new positions array
+      const newPositions = otherActivities.map(a => a.position);
+      
+      // Insert new position in the correct place
+      if (newPosition <= 0) {
+        newPosition = 1;
+      } else if (newPosition > otherActivities.length + 1) {
+        newPosition = otherActivities.length + 1;
+      }
+
+      // Shift positions
+      if (oldPosition < newPosition) {
+        // Moving down: shift activities between old and new position up
+        for (let i = 0; i < otherActivities.length; i++) {
+          if (otherActivities[i].position > oldPosition && otherActivities[i].position <= newPosition) {
+            otherActivities[i].position = otherActivities[i].position - 1;
+          }
+        }
+      } else {
+        // Moving up: shift activities between new and old position down
+        for (let i = 0; i < otherActivities.length; i++) {
+          if (otherActivities[i].position >= newPosition && otherActivities[i].position < oldPosition) {
+            otherActivities[i].position = otherActivities[i].position + 1;
+          }
+        }
+      }
+
+      // Update the current activity position
+      activity.position = newPosition;
+
+      // Save all changes
+      await this.activityRepository.save([...otherActivities, activity]);
+
+      this.logger.log(`Activity position updated: ${activityId} -> position ${newPosition} (was ${oldPosition})`);
+      return this.mapToResponseDto(activity);
+    } catch (error) {
+      if (error instanceof AppException) {
+        throw error;
+      }
+
+      this.logger.error('Failed to change activity position:', error);
+      throw AppException.internal(ErrorCode.PROFILE_ACTIVITY_UPDATE_FAILED, undefined, {
+        error: error.message,
+        operation: 'changePosition',
+        activityId,
+        userId: user.id
+      });
+    }
   }
 }

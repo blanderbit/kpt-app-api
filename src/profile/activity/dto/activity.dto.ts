@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
 
 export class CreateActivityDto {
   @ApiProperty({
@@ -17,6 +17,15 @@ export class CreateActivityDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @ApiProperty({
+    description: 'Activity position for ordering',
+    required: false,
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  position?: number;
 
   @ApiProperty({
     description: 'Whether activity is public',
@@ -46,6 +55,15 @@ export class UpdateActivityDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @ApiProperty({
+    description: 'Activity position for ordering',
+    required: false,
+    example: 2,
+  })
+  @IsOptional()
+  @IsNumber()
+  position?: number;
 
   @ApiProperty({
     description: 'Whether activity is public',
@@ -121,6 +139,12 @@ export class ActivityResponseDto {
   content: string;
 
   @ApiProperty({
+    description: 'Activity position for ordering',
+    example: 1,
+  })
+  position: number;
+
+  @ApiProperty({
     description: 'Whether activity is public',
     example: false,
   })
@@ -158,4 +182,13 @@ export class ActivityResponseDto {
     example: [],
   })
   rateActivities: any[];
+}
+
+export class ChangePositionDto {
+  @ApiProperty({
+    description: 'New position for the activity',
+    example: 1,
+  })
+  @IsNumber()
+  position: number;
 }

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MoodTrackerController } from './mood-tracker.controller';
 import { MoodTrackerService } from './mood-tracker.service';
+import { PublicMoodSurveyController } from './controllers/public-mood-survey.controller';
+import { MoodSurveyService } from './services/mood-survey.service';
 import { MoodTypesModule } from '../../core/mood-types';
 import { MoodTracker } from './entities/mood-tracker.entity';
 import { MoodSurvey } from './entities/mood-survey.entity';
@@ -11,8 +13,8 @@ import { MoodSurvey } from './entities/mood-survey.entity';
     TypeOrmModule.forFeature([MoodTracker, MoodSurvey]),
     MoodTypesModule,
   ],
-  controllers: [MoodTrackerController],
-  providers: [MoodTrackerService],
-  exports: [MoodTrackerService],
+  controllers: [MoodTrackerController, PublicMoodSurveyController],
+  providers: [MoodTrackerService, MoodSurveyService],
+  exports: [MoodTrackerService, MoodSurveyService],
 })
 export class MoodTrackerModule {}
