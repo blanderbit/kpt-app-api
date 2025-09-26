@@ -159,8 +159,8 @@ export class ProfileService {
       }
     }
 
-    // Delete user
-    await this.usersRepository.delete(user.id);
+    // Delete user with cascade (will automatically delete all related activities and mood trackers)
+    await this.usersRepository.remove(user);
 
     return { message: 'Account successfully deleted' };
   }

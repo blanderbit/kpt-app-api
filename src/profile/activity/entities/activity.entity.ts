@@ -65,6 +65,6 @@ export class Activity {
   @JoinColumn({ name: 'userId', referencedColumnName: 'id' })
   user: User;
 
-  @OneToMany(() => RateActivity, (rateActivity) => rateActivity.activity)
+  @OneToMany(() => RateActivity, (rateActivity) => rateActivity.activity, { cascade: true })
   rateActivities: RateActivity[];
 }

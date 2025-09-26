@@ -69,9 +69,9 @@ export class User {
   updatedAt: Date;
 
   // Relations
-  @OneToMany(() => Activity, (activity) => activity.user)
+  @OneToMany(() => Activity, (activity) => activity.user, { cascade: true })
   activities: Activity[];
 
-  @OneToMany(() => MoodTracker, (moodTracker) => moodTracker.user)
+  @OneToMany(() => MoodTracker, (moodTracker) => moodTracker.user, { cascade: true })
   moodTrackers: MoodTracker[];
 }
