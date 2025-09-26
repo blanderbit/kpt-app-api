@@ -301,11 +301,10 @@ export class AuthService {
 
 
   @Transactional()
-  async confirmEmailChangeCode(email: string, code: string): Promise<{ message: string }> {
+  async confirmEmailChangeCode(code: string): Promise<{ message: string }> {
     // Find verification code
     const verificationCode = await this.verificationCodesRepository.findOne({
       where: { 
-        email, 
         code,
         type: 'email_change',
       },
@@ -313,6 +312,10 @@ export class AuthService {
 
     if (!verificationCode) {
       throw AppException.validation(ErrorCode.AUTH_EMAIL_VERIFICATION_INVALID, 'Invalid email change code');
+    }
+    
+    if (verificationCode.isUsed) {
+      throw AppException.validation(ErrorCode.AUTH_EMAIL_VERIFICATION_INVALID, 'Email change code has already been used');
     }
 
     // Check if code is expired

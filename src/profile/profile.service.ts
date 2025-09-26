@@ -103,8 +103,8 @@ export class ProfileService {
     };
   }
 
-  async confirmEmailChange(email: string, code: string): Promise<{ message: string }> {
-    return this.authService.confirmEmailChangeCode(email, code);
+  async confirmEmailChange(code: string): Promise<{ message: string }> {
+    return this.authService.confirmEmailChangeCode(code);
   }
 
   @Transactional()

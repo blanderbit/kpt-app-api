@@ -191,7 +191,7 @@ export class ProfileController {
     @CurrentUser() user: User,
     @Body() confirmEmailChangeDto: ConfirmEmailChangeDto
   ): Promise<{ message: string }> {
-    return this.profileService.confirmEmailChange(user.email, confirmEmailChangeDto.code);
+    return this.profileService.confirmEmailChange(confirmEmailChangeDto.code);
   }
 
   @Put('password/change')
