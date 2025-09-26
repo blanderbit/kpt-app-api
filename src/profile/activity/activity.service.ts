@@ -51,7 +51,7 @@ export class ActivityService {
 
     // Get all existing activities for this user to shift their positions
     const existingActivities = await this.activityRepository.find({
-      where: { userId: user.id },
+      where: { user: { id: user.id } },
       order: { position: 'ASC' }
     });
 
@@ -89,7 +89,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: { 
         id: activityId, 
-        userId: user.id 
+        user: { id: user.id } 
       },
       relations: ['user', 'rateActivities'],
     });
@@ -125,7 +125,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: { 
         id: activityId, 
-        userId: userId
+        user: { id: userId } 
       },
       relations: ['user', 'rateActivities'],
     });
@@ -151,7 +151,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: { 
         id: activityId, 
-        userId: userId
+        user: { id: userId } 
       },
       relations: ['user', 'rateActivities'],
     });
@@ -187,7 +187,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: { 
         id: activityId, 
-        userId: userId
+        user: { id: userId } 
       },
       relations: ['user', 'rateActivities'],
     });
@@ -257,7 +257,7 @@ export class ActivityService {
   async changePosition(activityId: number, newPosition: number, user: User): Promise<ActivityResponseDto> {
     try {
       const activity = await this.activityRepository.findOne({
-        where: { id: activityId, userId: user.id  },
+        where: { id: activityId, user: { id: user.id } },
         relations: ['rateActivities'],
       });
 
