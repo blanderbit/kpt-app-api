@@ -89,7 +89,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: { 
         id: activityId, 
-        userId: userId 
+        userId: user.id 
       },
       relations: ['user', 'rateActivities'],
     });
