@@ -3,13 +3,6 @@ import { IsString, Length, IsEmail } from 'class-validator';
 
 export class VerifyEmailDto {
   @ApiProperty({
-    description: 'User email',
-    example: 'user@example.com',
-  })
-  @IsEmail()
-  email: string;
-
-  @ApiProperty({
     description: 'Verification code',
     example: '123456',
     minLength: 6,

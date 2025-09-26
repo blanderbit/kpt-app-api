@@ -282,7 +282,6 @@ export enum ErrorCode {
   PROFILE_ACCOUNT_DELETION_NOT_CONFIRMED = '4010',
   PROFILE_SOCIAL_ACCOUNT_RESTRICTION = '4011',
   PROFILE_INTERNAL_SERVER_ERROR = '4012',
-  PROFILE_MOOD_SURVEY_NOT_FOUND = '4013',
 
   // Activity Management (4014-4099)
   PROFILE_ACTIVITY_NOT_FOUND = '4014',
@@ -307,6 +306,12 @@ export enum ErrorCode {
   PROFILE_MOOD_DELETION_FAILED = '4104',
   PROFILE_MOOD_VALIDATION_FAILED = '4105',
   PROFILE_MOOD_TYPE_NOT_FOUND = '4106',
+  PROFILE_MOOD_ALREADY_EXISTS = '4107',
+  PROFILE_MOOD_INVALID_TYPE = '4108',
+  PROFILE_MOOD_SURVEY_NOT_FOUND = '4109',
+  PROFILE_MOOD_SURVEY_INVALID = '4110',
+  PROFILE_MOOD_DATE_INVALID = '4111',
+  PROFILE_MOOD_STATS_GENERATION_FAILED = '4112',
 
   // Analytics (4200-4299)
   PROFILE_ANALYTICS_GENERATION_FAILED = '4201',
@@ -688,7 +693,6 @@ export const ErrorDescription: Record<ErrorCode, string> = {
   [ErrorCode.PROFILE_ACCOUNT_DELETION_NOT_CONFIRMED]: 'Account deletion not confirmed',
   [ErrorCode.PROFILE_SOCIAL_ACCOUNT_RESTRICTION]: 'Operation not allowed for social media accounts',
   [ErrorCode.PROFILE_INTERNAL_SERVER_ERROR]: 'Internal server error in profile module',
-  [ErrorCode.PROFILE_MOOD_SURVEY_NOT_FOUND]: 'Mood survey not found or archived',
   [ErrorCode.PROFILE_ACTIVITY_NOT_FOUND]: 'Activity not found',
   [ErrorCode.PROFILE_ACTIVITY_CREATION_FAILED]: 'Activity creation failed',
   [ErrorCode.PROFILE_ACTIVITY_UPDATE_FAILED]: 'Activity update failed',
@@ -709,6 +713,12 @@ export const ErrorDescription: Record<ErrorCode, string> = {
   [ErrorCode.PROFILE_MOOD_DELETION_FAILED]: 'Mood deletion failed',
   [ErrorCode.PROFILE_MOOD_VALIDATION_FAILED]: 'Mood validation failed',
   [ErrorCode.PROFILE_MOOD_TYPE_NOT_FOUND]: 'Mood type not found',
+  [ErrorCode.PROFILE_MOOD_ALREADY_EXISTS]: 'Mood entry already exists for this date',
+  [ErrorCode.PROFILE_MOOD_INVALID_TYPE]: 'Invalid mood type provided',
+  [ErrorCode.PROFILE_MOOD_SURVEY_NOT_FOUND]: 'Mood survey not found',
+  [ErrorCode.PROFILE_MOOD_SURVEY_INVALID]: 'Invalid mood survey provided',
+  [ErrorCode.PROFILE_MOOD_DATE_INVALID]: 'Invalid mood date provided',
+  [ErrorCode.PROFILE_MOOD_STATS_GENERATION_FAILED]: 'Mood statistics generation failed',
   [ErrorCode.PROFILE_ANALYTICS_GENERATION_FAILED]: 'Analytics generation failed',
   [ErrorCode.PROFILE_ANALYTICS_INVALID_DATE_RANGE]: 'Invalid date range for analytics',
   [ErrorCode.PROFILE_ANALYTICS_DATA_NOT_FOUND]: 'Analytics data not found',

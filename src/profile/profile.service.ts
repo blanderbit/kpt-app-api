@@ -80,7 +80,9 @@ export class ProfileService {
     }
 
     // Check if new email is already taken
-    const existingUser = await this.usersRepository.findOne({ where: { email: changeEmailDto.newEmail } });
+    const existingUser = await this.usersRepository.findOne({ 
+      where: { email: changeEmailDto.newEmail }
+    });
     if (existingUser && existingUser.id !== user.id) {
       throw AppException.validation(ErrorCode.PROFILE_EMAIL_ALREADY_EXISTS, undefined, { 
         userId: user.id, 
@@ -91,12 +93,14 @@ export class ProfileService {
     // Generate and send verification code
     await this.emailService.generateAndSendVerificationCode(
       user.id, 
-      user.email, 
+      changeEmailDto.newEmail, 
       'email_change', 
       changeEmailDto.newEmail
     );
 
-    return { message: 'Check your new email for confirmation code' };
+    return { 
+      message: 'Check your new email for confirmation code'
+    };
   }
 
   async confirmEmailChange(email: string, code: string): Promise<{ message: string }> {
@@ -138,16 +142,6 @@ export class ProfileService {
   async deleteAccount(user: User, deleteAccountDto: DeleteAccountDto, accessToken?: string): Promise<{ message: string }> {
     if (!deleteAccountDto.confirm) {
       throw AppException.validation(ErrorCode.PROFILE_ACCOUNT_DELETION_NOT_CONFIRMED, undefined, { userId: user.id });
-    }
-
-    // Check password
-    if (!user.passwordHash) {
-      throw AppException.validation(ErrorCode.PROFILE_PASSWORD_CHANGE_NOT_SUPPORTED, undefined, { userId: user.id });
-    }
-
-    const isPasswordValid = await bcrypt.compare(deleteAccountDto.password, user.passwordHash);
-    if (!isPasswordValid) {
-      throw AppException.unauthorized(ErrorCode.PROFILE_INVALID_PASSWORD, undefined, { userId: user.id });
     }
 
     // Add access token to blacklist before deleting account

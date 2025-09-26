@@ -27,14 +27,6 @@ export class CreateActivityDto {
   @IsNumber()
   position?: number;
 
-  @ApiProperty({
-    description: 'Whether activity is public',
-    required: false,
-    example: false,
-  })
-  @IsOptional()
-  @IsBoolean()
-  isPublic?: boolean;
 }
 
 export class UpdateActivityDto {
@@ -65,14 +57,6 @@ export class UpdateActivityDto {
   @IsNumber()
   position?: number;
 
-  @ApiProperty({
-    description: 'Whether activity is public',
-    required: false,
-    example: true,
-  })
-  @IsOptional()
-  @IsBoolean()
-  isPublic?: boolean;
 }
 
 export class ActivityFilterDto {
@@ -98,12 +82,6 @@ export class ActivityFilterDto {
   })
   status?: 'active' | 'closed';
 
-  @ApiProperty({
-    description: 'Publicity filter',
-    required: false,
-    example: true,
-  })
-  isPublic?: boolean;
 }
 
 export class ActivityResponseDto {
@@ -144,11 +122,6 @@ export class ActivityResponseDto {
   })
   position: number;
 
-  @ApiProperty({
-    description: 'Whether activity is public',
-    example: false,
-  })
-  isPublic: boolean;
 
   @ApiProperty({
     description: 'Activity status',

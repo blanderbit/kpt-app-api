@@ -151,7 +151,6 @@ GET /profile/activities?page=1&limit=20&sortBy=createdAt:DESC&search=meditation
       "activityType": "wellness",
       "content": "10 minutes mindfulness session",
       "status": "active",
-      "isPublic": false,
       "createdAt": "2024-01-15T06:00:00Z"
     }
   ],
@@ -180,7 +179,6 @@ Create a new user activity.
   "activityName": "Evening Run",
   "activityType": "fitness",
   "content": "5km run in the park",
-  "isPublic": true
 }
 ```
 
@@ -194,7 +192,6 @@ Create a new user activity.
     "activityType": "fitness",
     "content": "5km run in the park",
     "status": "active",
-    "isPublic": true,
     "createdAt": "2024-01-15T18:00:00Z"
   },
   "message": "Activity created successfully"

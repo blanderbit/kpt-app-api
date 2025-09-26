@@ -68,7 +68,7 @@ export class TooltipService {
       // Если пользователь авторизован, исключаем закрытые им тултипы
       if (userId) {
         query
-          .leftJoin(UserClosedTooltip, 'closed', 'closed.tooltip = tooltip.id AND closed.user = :userId', { userId })
+          .leftJoin(UserClosedTooltip, 'closed', 'closed.tooltipId = tooltip.id AND closed.userId = :userId', { userId })
           .andWhere('closed.id IS NULL');
       }
 
@@ -152,7 +152,7 @@ export class TooltipService {
       // Если пользователь авторизован, исключаем закрытые им тултипы
       if (userId) {
         query
-          .leftJoin(UserClosedTooltip, 'closed', 'closed.tooltip = tooltip.id AND closed.user = :userId', { userId })
+          .leftJoin(UserClosedTooltip, 'closed', 'closed.tooltipId = tooltip.id AND closed.userId = :userId', { userId })
           .andWhere('closed.id IS NULL');
       }
 

@@ -399,7 +399,6 @@ export interface FirestoreActivity {
   activityType: string;
   content: any;
   status: 'active' | 'completed' | 'cancelled';
-  isPublic: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   completedAt?: Timestamp;
@@ -570,7 +569,6 @@ service cloud.firestore {
     match /activities/{activityId} {
       allow read: if request.auth != null && (
         resource.data.userId == request.auth.uid ||
-        resource.data.isPublic == true
       );
       allow create: if request.auth != null && 
         request.auth.uid == request.resource.data.userId;
@@ -690,13 +688,6 @@ export class ActivitiesService {
     });
   }
 
-  async getPublicActivities(): Promise<any[]> {
-    return this.firestoreService.queryDocuments('activities', {
-      where: [{ field: 'isPublic', operator: '==', value: true }],
-      orderBy: [{ field: 'createdAt', direction: 'desc' }],
-      limit: 20,
-    });
-  }
 }
 ```
 

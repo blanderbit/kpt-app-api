@@ -70,8 +70,6 @@ export class Activity {
   @Column('text')
   content: string;
 
-  @Column({ default: false })
-  isPublic: boolean;
 
   @Column({ default: 'active' })
   status: 'active' | 'closed';
@@ -125,7 +123,7 @@ export class RateActivity {
 ```typescript
 export const ACTIVITY_PAGINATION_CONFIG: PaginateConfig<Activity> = {
   sortableColumns: [
-    'id', 'activityName', 'activityType', 'isPublic', 'status', 'createdAt', 'updatedAt', 'closedAt',
+    'id', 'activityName', 'activityType', 'status', 'createdAt', 'updatedAt', 'closedAt',
   ],
   defaultSortBy: [['createdAt', 'DESC']],
   searchableColumns: [
@@ -135,7 +133,6 @@ export const ACTIVITY_PAGINATION_CONFIG: PaginateConfig<Activity> = {
     id: [FilterOperator.EQ, FilterOperator.GT, FilterOperator.LT, FilterOperator.GTE, FilterOperator.LTE],
     activityName: [FilterOperator.EQ, FilterOperator.ILIKE, FilterOperator.SW, FilterOperator.CONTAINS],
     activityType: [FilterOperator.EQ, FilterOperator.IN, FilterOperator.ILIKE, FilterOperator.CONTAINS],
-    isPublic: [FilterOperator.EQ],
     status: [FilterOperator.EQ, FilterOperator.IN],
     userId: [FilterOperator.EQ],
     createdAt: [FilterOperator.BTW, FilterOperator.GTE, FilterOperator.LTE, FilterOperator.GT, FilterOperator.LT],
@@ -143,7 +140,7 @@ export const ACTIVITY_PAGINATION_CONFIG: PaginateConfig<Activity> = {
     closedAt: [FilterOperator.BTW, FilterOperator.GTE, FilterOperator.LTE, FilterOperator.GT, FilterOperator.LT, FilterOperator.NULL, FilterOperator.NOT],
   },
   select: [
-    'id', 'activityName', 'activityType', 'content', 'isPublic', 'status', 'closedAt', 'createdAt', 'updatedAt', 'userId',
+    'id', 'activityName', 'activityType', 'content', 'status', 'closedAt', 'createdAt', 'updatedAt', 'userId',
   ],
   defaultLimit: 20,
   maxLimit: 100,
@@ -225,7 +222,6 @@ export class CreateActivityDto {
 
   @IsBoolean()
   @IsOptional()
-  isPublic?: boolean;
 }
 ```
 

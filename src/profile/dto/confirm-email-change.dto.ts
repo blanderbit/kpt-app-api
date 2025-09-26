@@ -3,13 +3,6 @@ import { IsString, Length, IsEmail } from 'class-validator';
 
 export class ConfirmEmailChangeDto {
   @ApiProperty({
-    description: 'Current email address',
-    example: 'user@example.com',
-  })
-  @IsEmail()
-  email: string;
-
-  @ApiProperty({
     description: 'Email change confirmation code',
     example: '123456',
     minLength: 6,

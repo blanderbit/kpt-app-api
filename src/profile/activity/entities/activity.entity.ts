@@ -7,6 +7,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  RelationId,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../../users/entities/user.entity';
@@ -34,9 +35,6 @@ export class Activity {
   @Column({ type: 'int', default: 0 })
   position: number;
 
-  @ApiProperty({ description: 'Whether activity is public' })
-  @Column({ default: false })
-  isPublic: boolean;
 
   @ApiProperty({ description: 'Activity status' })
   @Column({ 
@@ -57,6 +55,10 @@ export class Activity {
   @ApiProperty({ description: 'Update date' })
   @UpdateDateColumn()
   updatedAt: Date;
+
+
+  @RelationId((activity: Activity) => activity.user)
+  userId: number;
 
   // Relations
   @ManyToOne(() => User, (user) => user.activities)

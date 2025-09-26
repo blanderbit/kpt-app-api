@@ -33,13 +33,18 @@ import {
 } from './dto/activity.dto';
 import { Activity } from './entities/activity.entity';
 import { ACTIVITY_PAGINATION_CONFIG } from './activity.config';
+import { ActivityTypesService } from '../../core/activity-types';
+import { ActivityTypeDto } from '../../core/activity-types';
 
 @ApiTags('activities')
 @Controller('profile/activities')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ActivityController {
-  constructor(private readonly activityService: ActivityService) {}
+  constructor(
+    private readonly activityService: ActivityService,
+    private readonly activityTypesService: ActivityTypesService,
+  ) {}
 
   @Post()
   @ApiOperation({
@@ -81,6 +86,24 @@ export class ActivityController {
     return this.activityService.getMyActivities(user, query);
   }
 
+  @Get('types')
+  @ApiOperation({
+    summary: 'Get all activity types',
+    description: 'Returns all available activity types for the user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of all activity types',
+    type: [ActivityTypeDto],
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized access',
+  })
+  async getAllActivityTypes(): Promise<ActivityTypeDto[]> {
+    return this.activityTypesService.getAllActivityTypes();
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Get activity by ID',
@@ -102,7 +125,7 @@ export class ActivityController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: User,
   ): Promise<ActivityResponseDto> {
-    const activity = await this.activityService.getActivityById(id, user.id);
+    const activity = await this.activityService.getActivityById(user.id, id);
     return this.mapToResponseDto(activity);
   }
 
@@ -129,7 +152,7 @@ export class ActivityController {
     @Body() updateActivityDto: UpdateActivityDto,
     @CurrentUser() user: User,
   ): Promise<ActivityResponseDto> {
-    const activity = await this.activityService.updateActivity(id, user.id, updateActivityDto);
+    const activity = await this.activityService.updateActivity(user.id, id, updateActivityDto);
     return this.mapToResponseDto(activity);
   }
 
@@ -161,7 +184,7 @@ export class ActivityController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: User,
   ): Promise<{ success: boolean; message: string }> {
-    await this.activityService.deleteActivity(id, user.id);
+    await this.activityService.deleteActivity(user.id, id);
     return { success: true, message: 'Activity deleted successfully' };
   }
 
@@ -203,7 +226,6 @@ export class ActivityController {
       activityType: activity.activityType,
       content: activity.content,
       position: activity.position,
-      isPublic: activity.isPublic,
       status: activity.status,
       closedAt: activity.closedAt,
       createdAt: activity.createdAt,

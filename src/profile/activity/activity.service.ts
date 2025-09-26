@@ -49,15 +49,31 @@ export class ActivityService {
       createActivityDto.content
     );
 
+    // Get all existing activities for this user to shift their positions
+    const existingActivities = await this.activityRepository.find({
+      where: { user: { id: user.id } },
+      order: { position: 'ASC' }
+    });
+
+    // Shift all existing activities down by 1 position
+    for (const existingActivity of existingActivities) {
+      existingActivity.position = existingActivity.position + 1;
+    }
+
+    // Create new activity with position 0 (top)
     const activity = this.activityRepository.create({
       ...createActivityDto,
       user,
       activityType,
       status: 'active', // Activity is active by default
+      position: 0, // Always place new activity at the top
     });
 
-    const savedActivity = await this.activityRepository.save(activity);
-    return this.mapToResponseDto(savedActivity);
+    // Save all activities (existing with shifted positions + new activity)
+    await this.activityRepository.save([...existingActivities, activity]);
+
+    this.logger.log(`New activity created at position 0, shifted ${existingActivities.length} existing activities`);
+    return this.mapToResponseDto(activity);
   }
 
   /**
@@ -71,8 +87,11 @@ export class ActivityService {
   ): Promise<ActivityResponseDto> {
     // Check that activity exists and belongs to user
     const activity = await this.activityRepository.findOne({
-      where: { id: activityId, user: {id: user.id} },
-      relations: ['user'],
+      where: { 
+        id: activityId, 
+        user: { id: user.id } 
+      },
+      relations: ['user', 'rateActivities'],
     });
 
     if (!activity) {
@@ -104,9 +123,14 @@ export class ActivityService {
    */
   async getActivityById(userId: number, activityId: number): Promise<ActivityResponseDto> {
     const activity = await this.activityRepository.findOne({
-      where: { id: activityId, user: {id: userId} },
-      relations: ['user'],
+      where: { 
+        id: activityId, 
+        user: { id: userId } 
+      },
+      relations: ['user', 'rateActivities'],
     });
+
+    console.log(activity);
 
     if (!activity) {
       throw AppException.notFound(ErrorCode.PROFILE_ACTIVITY_NOT_FOUND, 'Activity not found', { activityId, userId });
@@ -125,8 +149,11 @@ export class ActivityService {
     updateActivityDto: UpdateActivityDto
   ): Promise<ActivityResponseDto> {
     const activity = await this.activityRepository.findOne({
-      where: { id: activityId, user: {id: userId} },
-      relations: ['user'],
+      where: { 
+        id: activityId, 
+        user: { id: userId } 
+      },
+      relations: ['user', 'rateActivities'],
     });
 
     if (!activity) {
@@ -158,8 +185,11 @@ export class ActivityService {
   @Transactional()
   async deleteActivity(userId: number, activityId: number): Promise<void> {
     const activity = await this.activityRepository.findOne({
-      where: { id: activityId, user: {id: userId} },
-      relations: ['user'],
+      where: { 
+        id: activityId, 
+        user: { id: userId } 
+      },
+      relations: ['user', 'rateActivities'],
     });
 
     if (!activity) {
@@ -212,7 +242,6 @@ export class ActivityService {
       activityType: activity.activityType,
       content: activity.content,
       position: activity.position,
-      isPublic: activity.isPublic,
       status: activity.status,
       closedAt: activity.closedAt,
       createdAt: activity.createdAt,
@@ -260,10 +289,10 @@ export class ActivityService {
       const newPositions = otherActivities.map(a => a.position);
       
       // Insert new position in the correct place
-      if (newPosition <= 0) {
-        newPosition = 1;
-      } else if (newPosition > otherActivities.length + 1) {
-        newPosition = otherActivities.length + 1;
+      if (newPosition < 0) {
+        newPosition = 0;
+      } else if (newPosition > otherActivities.length) {
+        newPosition = otherActivities.length;
       }
 
       // Shift positions
@@ -274,7 +303,7 @@ export class ActivityService {
             otherActivities[i].position = otherActivities[i].position - 1;
           }
         }
-      } else {
+      } else if (oldPosition > newPosition) {
         // Moving up: shift activities between new and old position down
         for (let i = 0; i < otherActivities.length; i++) {
           if (otherActivities[i].position >= newPosition && otherActivities[i].position < oldPosition) {

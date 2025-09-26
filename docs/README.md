@@ -244,7 +244,6 @@ CREATE TABLE activities (
   activityType VARCHAR(100) NOT NULL,
   content JSON,
   status ENUM('active', 'completed', 'cancelled') DEFAULT 'active',
-  isPublic BOOLEAN DEFAULT FALSE,
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (userId) REFERENCES users(id)

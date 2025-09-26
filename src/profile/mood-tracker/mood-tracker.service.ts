@@ -1,26 +1,34 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In, DataSource } from 'typeorm';
+import { Transactional } from 'typeorm-transactional';
 import { MoodTracker } from './entities/mood-tracker.entity';
+import { MoodSurvey } from './entities/mood-survey.entity';
 import { CreateMoodTrackerDto, UpdateMoodTrackerDto, MoodTrackerResponseDto } from './dto/mood-tracker.dto';
 import { MoodTypesService } from '../../core/mood-types';
+import { AppException } from '../../common/exceptions/app.exception';
+import { ErrorCode } from '../../common/error-codes';
 
 @Injectable()
 export class MoodTrackerService {
   constructor(
     @InjectRepository(MoodTracker)
     private readonly moodTrackerRepository: Repository<MoodTracker>,
+    @InjectRepository(MoodSurvey)
+    private readonly moodSurveyRepository: Repository<MoodSurvey>,
     private readonly moodTypesService: MoodTypesService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
-   * Указать настроение за день (только 1 раз в день)
+   * Set mood for the day (only once per day)
    */
+  @Transactional()
   async setMoodForDay(createMoodTrackerDto: CreateMoodTrackerDto): Promise<MoodTrackerResponseDto> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Проверяем, есть ли уже настроение за сегодня
+    // Check if mood is already set for today
     const existingMood = await this.moodTrackerRepository.findOne({
       where: {
         moodDate: today,
@@ -28,26 +36,44 @@ export class MoodTrackerService {
     });
 
     if (existingMood) {
-      throw new ConflictException('Настроение за сегодня уже указано. Можно обновить существующую запись.');
+      throw AppException.conflict(
+        ErrorCode.PROFILE_MOOD_ALREADY_EXISTS,
+        'Mood for today is already set. You can update the existing record.',
+        { date: today }
+      );
     }
 
-    // Валидируем тип настроения
+    // Validate mood type
     if (!this.moodTypesService.isValidMoodTypeId(createMoodTrackerDto.moodType)) {
-      throw new NotFoundException('Неверный тип настроения');
+      throw AppException.validation(
+        ErrorCode.PROFILE_MOOD_INVALID_TYPE,
+        'Invalid mood type provided',
+        { moodType: createMoodTrackerDto.moodType }
+      );
     }
 
     const moodTracker = this.moodTrackerRepository.create({
-      ...createMoodTrackerDto,
+      moodType: createMoodTrackerDto.moodType,
+      notes: createMoodTrackerDto.notes,
       moodDate: today,
     });
+
+    // Load surveys if they are specified
+    if (createMoodTrackerDto.moodSurveyIds && createMoodTrackerDto.moodSurveyIds.length > 0) {
+      const moodSurveys = await this.moodSurveyRepository.findBy({
+        id: In(createMoodTrackerDto.moodSurveyIds)
+      });
+      moodTracker.moodSurveys = moodSurveys;
+    }
 
     const savedMoodTracker = await this.moodTrackerRepository.save(moodTracker);
     return this.mapToResponseDto(savedMoodTracker);
   }
 
   /**
-   * Обновить настроение за день
+   * Update mood for the day
    */
+  @Transactional()
   async updateMoodForDay(
     moodDate: Date,
     updateMoodTrackerDto: UpdateMoodTrackerDto,
@@ -60,22 +86,49 @@ export class MoodTrackerService {
     });
 
     if (!moodTracker) {
-      throw new NotFoundException('Настроение за указанную дату не найдено');
+      throw AppException.notFound(
+        ErrorCode.PROFILE_MOOD_NOT_FOUND,
+        'Mood for the specified date not found',
+        { date: moodDate }
+      );
     }
 
-    // Валидируем тип настроения если он изменяется
+    // Validate mood type if it's being changed
     if (updateMoodTrackerDto.moodType && !this.moodTypesService.isValidMoodTypeId(updateMoodTrackerDto.moodType)) {
-      throw new NotFoundException('Неверный тип настроения');
+      throw AppException.validation(
+        ErrorCode.PROFILE_MOOD_INVALID_TYPE,
+        'Invalid mood type provided',
+        { moodType: updateMoodTrackerDto.moodType }
+      );
     }
 
-    Object.assign(moodTracker, updateMoodTrackerDto);
+    // Update main fields
+    if (updateMoodTrackerDto.moodType) {
+      moodTracker.moodType = updateMoodTrackerDto.moodType;
+    }
+    if (updateMoodTrackerDto.notes !== undefined) {
+      moodTracker.notes = updateMoodTrackerDto.notes;
+    }
+
+    // Update surveys if they are specified
+    if (updateMoodTrackerDto.moodSurveyIds !== undefined) {
+      if (updateMoodTrackerDto.moodSurveyIds.length > 0) {
+        const moodSurveys = await this.moodSurveyRepository.findBy({
+          id: In(updateMoodTrackerDto.moodSurveyIds)
+        });
+        moodTracker.moodSurveys = moodSurveys;
+      } else {
+        moodTracker.moodSurveys = [];
+      }
+    }
+
     const updatedMoodTracker = await this.moodTrackerRepository.save(moodTracker);
     
     return this.mapToResponseDto(updatedMoodTracker);
   }
 
   /**
-   * Получить настроение за конкретную дату
+   * Get mood for a specific date
    */
   async getMoodForDate(moodDate: Date): Promise<MoodTrackerResponseDto | null> {
     const date = new Date(moodDate);
@@ -83,13 +136,14 @@ export class MoodTrackerService {
 
     const moodTracker = await this.moodTrackerRepository.findOne({
       where: { moodDate: date },
+      relations: ['moodSurveys'],
     });
 
     return moodTracker ? this.mapToResponseDto(moodTracker) : null;
   }
 
   /**
-   * Получить настроение за последние 7 дней
+   * Get mood for the last 7 days
    */
   async getMoodForLast7Days(): Promise<MoodTrackerResponseDto[]> {
     const endDate = new Date();
@@ -101,6 +155,7 @@ export class MoodTrackerService {
 
     const moodTrackers = await this.moodTrackerRepository
       .createQueryBuilder('moodTracker')
+      .leftJoinAndSelect('moodTracker.moodSurveys', 'moodSurveys')
       .where('moodTracker.moodDate >= :startDate', { startDate })
       .andWhere('moodTracker.moodDate <= :endDate', { endDate })
       .orderBy('moodTracker.moodDate', 'ASC')
@@ -110,7 +165,7 @@ export class MoodTrackerService {
   }
 
   /**
-   * Получить настроение за период
+   * Get mood for a period
    */
   async getMoodForPeriod(startDate: Date, endDate: Date): Promise<MoodTrackerResponseDto[]> {
     const start = new Date(startDate);
@@ -121,6 +176,7 @@ export class MoodTrackerService {
 
     const moodTrackers = await this.moodTrackerRepository
       .createQueryBuilder('moodTracker')
+      .leftJoinAndSelect('moodTracker.moodSurveys', 'moodSurveys')
       .where('moodTracker.moodDate >= :startDate', { startDate: start })
       .andWhere('moodTracker.moodDate <= :endDate', { endDate: end })
       .orderBy('moodTracker.moodDate', 'ASC')
@@ -130,7 +186,7 @@ export class MoodTrackerService {
   }
 
   /**
-   * Получить статистику настроения за период
+   * Get mood statistics for a period
    */
   async getMoodStatsForPeriod(startDate: Date, endDate: Date): Promise<{
     totalDays: number;
@@ -147,6 +203,7 @@ export class MoodTrackerService {
 
     const moodTrackers = await this.moodTrackerRepository
       .createQueryBuilder('moodTracker')
+      .leftJoinAndSelect('moodTracker.moodSurveys', 'moodSurveys')
       .where('moodTracker.moodDate >= :startDate', { startDate: start })
       .andWhere('moodTracker.moodDate <= :endDate', { endDate: end })
       .getMany();
@@ -163,10 +220,10 @@ export class MoodTrackerService {
       if (moodType) {
         totalScore += moodType.score;
         
-        // Распределение по типам настроения
+        // Distribution by mood types
         moodDistribution[moodTracker.moodType] = (moodDistribution[moodTracker.moodType] || 0) + 1;
         
-        // Распределение по категориям
+        // Distribution by categories
         categoryDistribution[moodType.category] = (categoryDistribution[moodType.category] || 0) + 1;
       }
     });
@@ -183,11 +240,12 @@ export class MoodTrackerService {
   }
 
   /**
-   * Получить все записи настроения
+   * Get all mood records
    */
   async getAllMoodTrackers(): Promise<MoodTrackerResponseDto[]> {
     const moodTrackers = await this.moodTrackerRepository
       .createQueryBuilder('moodTracker')
+      .leftJoinAndSelect('moodTracker.moodSurveys', 'moodSurveys')
       .orderBy('moodTracker.moodDate', 'DESC')
       .getMany();
 
@@ -195,8 +253,9 @@ export class MoodTrackerService {
   }
 
   /**
-   * Удалить настроение за конкретную дату
+   * Delete mood for a specific date
    */
+  @Transactional()
   async deleteMoodForDate(moodDate: Date): Promise<void> {
     const date = new Date(moodDate);
     date.setHours(0, 0, 0, 0);
@@ -206,14 +265,18 @@ export class MoodTrackerService {
     });
 
     if (!moodTracker) {
-      throw new NotFoundException('Настроение за указанную дату не найдено');
+      throw AppException.notFound(
+        ErrorCode.PROFILE_MOOD_NOT_FOUND,
+        'Mood for the specified date not found',
+        { date: moodDate }
+      );
     }
 
     await this.moodTrackerRepository.remove(moodTracker);
   }
 
   /**
-   * Получить текущее настроение (за сегодня)
+   * Get current mood (for today)
    */
   async getCurrentMood(): Promise<MoodTrackerResponseDto | null> {
     const today = new Date();
@@ -221,13 +284,14 @@ export class MoodTrackerService {
 
     const moodTracker = await this.moodTrackerRepository.findOne({
       where: { moodDate: today },
+      relations: ['moodSurveys'],
     });
 
     return moodTracker ? this.mapToResponseDto(moodTracker) : null;
   }
 
   /**
-   * Преобразовать MoodTracker в ResponseDto
+   * Convert MoodTracker to ResponseDto
    */
   private mapToResponseDto(moodTracker: MoodTracker): MoodTrackerResponseDto {
     const moodType = this.moodTypesService.getMoodTypeById(moodTracker.moodType);
@@ -238,6 +302,7 @@ export class MoodTrackerService {
       moodTypeDetails: moodType || null,
       notes: moodTracker.notes,
       moodDate: moodTracker.moodDate,
+      moodSurveys: moodTracker.moodSurveys || [],
       createdAt: moodTracker.createdAt,
       updatedAt: moodTracker.updatedAt,
     };

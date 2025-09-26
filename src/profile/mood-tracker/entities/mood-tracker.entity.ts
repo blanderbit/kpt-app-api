@@ -5,6 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  ManyToMany,
+  JoinTable,
   JoinColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
@@ -52,10 +54,15 @@ export class MoodTracker {
   user: User;
 
   @ApiProperty({ 
-    description: 'Связанный опросник настроения',
-    required: false
+    description: 'Связанные опросники настроения',
+    required: false,
+    type: [MoodSurvey]
   })
-  @ManyToOne(() => MoodSurvey, (moodSurvey) => moodSurvey.moodTrackers, { nullable: true })
-  @JoinColumn({ name: 'moodSurveyId' })
-  moodSurvey: MoodSurvey;
+  @ManyToMany(() => MoodSurvey, (moodSurvey) => moodSurvey.moodTrackers, { nullable: true })
+  @JoinTable({
+    name: 'mood_tracker_surveys',
+    joinColumn: { name: 'moodTrackerId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'moodSurveyId', referencedColumnName: 'id' }
+  })
+  moodSurveys: MoodSurvey[];
 }

@@ -9,8 +9,8 @@ export enum Theme {
 
 export class UpdateProfileDto {
   @ApiProperty({
-    description: 'Имя пользователя',
-    example: 'Иван',
+    description: 'User first name',
+    example: 'John',
     required: false,
   })
   @IsOptional()
@@ -18,8 +18,8 @@ export class UpdateProfileDto {
   firstName?: string;
 
   @ApiProperty({
-    description: 'Фамилия пользователя',
-    example: 'Иванов',
+    description: 'User last name',
+    example: 'Doe',
     required: false,
   })
   @IsOptional()
@@ -27,7 +27,7 @@ export class UpdateProfileDto {
   lastName?: string;
 
   @ApiProperty({
-    description: 'URL аватара',
+    description: 'Avatar URL',
     example: 'https://example.com/avatar.jpg',
     required: false,
   })
@@ -36,7 +36,7 @@ export class UpdateProfileDto {
   avatarUrl?: string;
 
   @ApiProperty({
-    description: 'Тема приложения',
+    description: 'Application theme',
     enum: Theme,
     example: Theme.DARK,
     required: false,
@@ -48,14 +48,14 @@ export class UpdateProfileDto {
 
 export class ChangeEmailDto {
   @ApiProperty({
-    description: 'Новый email',
+    description: 'New email',
     example: 'newemail@example.com',
   })
   @IsEmail()
   newEmail: string;
 
   @ApiProperty({
-    description: 'Пароль для подтверждения',
+    description: 'Password for confirmation',
     example: 'password123',
   })
   @IsString()
@@ -64,14 +64,14 @@ export class ChangeEmailDto {
 
 export class ChangePasswordDto {
   @ApiProperty({
-    description: 'Текущий пароль',
+    description: 'Current password',
     example: 'oldpassword123',
   })
   @IsString()
   currentPassword: string;
 
   @ApiProperty({
-    description: 'Новый пароль',
+    description: 'New password',
     example: 'newpassword123',
     minLength: 6,
   })
@@ -81,14 +81,7 @@ export class ChangePasswordDto {
 
 export class DeleteAccountDto {
   @ApiProperty({
-    description: 'Пароль для подтверждения удаления',
-    example: 'password123',
-  })
-  @IsString()
-  password: string;
-
-  @ApiProperty({
-    description: 'Подтверждение удаления',
+    description: 'Confirmation of account deletion',
     example: true,
   })
   @IsBoolean()
@@ -97,50 +90,50 @@ export class DeleteAccountDto {
 
 export class ProfileResponseDto {
   @ApiProperty({
-    description: 'ID пользователя',
+    description: 'User ID',
     example: 1,
   })
   id: number;
 
   @ApiProperty({
-    description: 'Email пользователя',
+    description: 'User email',
     example: 'user@example.com',
   })
   email: string;
 
   @ApiProperty({
-    description: 'Имя пользователя',
-    example: 'Иван',
+    description: 'User first name',
+    example: 'John',
   })
   firstName: string;
 
   @ApiProperty({
-    description: 'Фамилия пользователя',
-    example: 'Иванов',
+    description: 'User last name',
+    example: 'Doe',
   })
   lastName: string;
 
   @ApiProperty({
-    description: 'URL аватара',
+    description: 'Avatar URL',
     example: 'https://example.com/avatar.jpg',
   })
   avatarUrl: string;
 
   @ApiProperty({
-    description: 'Тема приложения',
+    description: 'Application theme',
     enum: Theme,
     example: Theme.DARK,
   })
   theme: Theme;
 
   @ApiProperty({
-    description: 'Дата создания',
+    description: 'Creation date',
     example: '2024-01-01T00:00:00.000Z',
   })
   createdAt: Date;
 
   @ApiProperty({
-    description: 'Дата обновления',
+    description: 'Update date',
     example: '2024-01-01T00:00:00.000Z',
   })
   updatedAt: Date;

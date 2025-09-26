@@ -66,29 +66,29 @@ export class ProfileController {
   @Post('send-verification-email')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Отправить письмо для подтверждения email',
-    description: 'Отправляет письмо с кодом подтверждения на email текущего пользователя',
+    summary: 'Send email verification',
+    description: 'Sends verification email with confirmation code to current user email',
   })
   @ApiResponse({
     status: 200,
-    description: 'Письмо с кодом подтверждения отправлено',
+    description: 'Verification email sent',
     schema: {
       type: 'object',
       properties: {
         message: {
           type: 'string',
-          example: 'Письмо с кодом подтверждения отправлено на указанный email',
+          example: 'Verification email sent to the specified email',
         },
       },
     },
   })
   @ApiResponse({
     status: 400,
-    description: 'Email уже подтвержден',
+    description: 'Email already verified',
   })
   @ApiResponse({
     status: 401,
-    description: 'Неавторизованный доступ',
+    description: 'Unauthorized access',
   })
   async sendVerificationEmail(@CurrentUser() user: User): Promise<{ message: string }> {
     return this.profileService.sendVerificationEmail(user.email);
@@ -187,8 +187,11 @@ export class ProfileController {
     status: 400,
     description: 'Invalid or expired verification code',
   })
-  async confirmEmailChange(@Body() confirmEmailChangeDto: ConfirmEmailChangeDto): Promise<{ message: string }> {
-    return this.profileService.confirmEmailChange(confirmEmailChangeDto.email, confirmEmailChangeDto.code);
+  async confirmEmailChange(
+    @CurrentUser() user: User,
+    @Body() confirmEmailChangeDto: ConfirmEmailChangeDto
+  ): Promise<{ message: string }> {
+    return this.profileService.confirmEmailChange(user.email, confirmEmailChangeDto.code);
   }
 
   @Post('change-password')
@@ -256,7 +259,7 @@ export class ProfileController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid password',
+    description: 'Unauthorized access',
   })
   @ApiResponse({
     status: 404,
@@ -274,13 +277,13 @@ export class ProfileController {
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Подтверждение email',
-    description: 'Подтверждает email пользователя по коду подтверждения',
+    summary: 'Verify email',
+    description: 'Verifies user email using verification code',
   })
   @ApiBody({ type: VerifyEmailDto })
   @ApiResponse({
     status: 200,
-    description: 'Email успешно подтвержден',
+    description: 'Email successfully verified',
     schema: {
       type: 'object',
       properties: {
@@ -293,13 +296,16 @@ export class ProfileController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Недействительный или истекший код подтверждения',
+    description: 'Invalid or expired verification code',
   })
   @ApiResponse({
     status: 401,
-    description: 'Неавторизованный доступ',
+    description: 'Unauthorized access',
   })
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
-    return this.profileService.verifyEmailCode(verifyEmailDto.email, verifyEmailDto.code);
+  async verifyEmail(
+    @CurrentUser() user: User,
+     @Body() verifyEmailDto: VerifyEmailDto
+  ) {
+    return this.profileService.verifyEmailCode(user.email, verifyEmailDto.code);
   }
 }

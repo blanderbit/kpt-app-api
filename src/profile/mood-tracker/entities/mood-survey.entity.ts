@@ -4,7 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
+  ManyToMany,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { MoodTracker } from './mood-tracker.entity';
@@ -48,7 +48,7 @@ export class MoodSurvey {
   archivedBy: string | null;
 
   // Связь с записями настроения
-  @OneToMany(() => MoodTracker, (moodTracker) => moodTracker.moodSurvey)
+  @ManyToMany(() => MoodTracker, (moodTracker) => moodTracker.moodSurveys)
   @ApiProperty({ description: 'Mood tracker entries using this survey', type: () => [MoodTracker] })
   moodTrackers: MoodTracker[];
 }

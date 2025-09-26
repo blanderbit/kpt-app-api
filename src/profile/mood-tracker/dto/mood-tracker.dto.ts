@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsNumber, IsArray } from 'class-validator';
 
 export class CreateMoodTrackerDto {
   @ApiProperty({
@@ -19,13 +19,15 @@ export class CreateMoodTrackerDto {
   notes?: string;
 
   @ApiProperty({ 
-    description: 'ID опросника настроения',
+    description: 'ID опросников настроения',
     required: false,
-    example: 1
+    example: [1, 2, 3],
+    type: [Number]
   })
   @IsOptional()
-  @IsNumber()
-  moodSurveyId?: number;
+  @IsArray()
+  @IsNumber({}, { each: true })
+  moodSurveyIds?: number[];
 }
 
 export class UpdateMoodTrackerDto {
@@ -48,13 +50,15 @@ export class UpdateMoodTrackerDto {
   notes?: string;
 
   @ApiProperty({ 
-    description: 'ID опросника настроения',
+    description: 'ID опросников настроения',
     required: false,
-    example: 1
+    example: [1, 2, 3],
+    type: [Number]
   })
   @IsOptional()
-  @IsNumber()
-  moodSurveyId?: number;
+  @IsArray()
+  @IsNumber({}, { each: true })
+  moodSurveyIds?: number[];
 }
 
 export class MoodTrackerResponseDto {
@@ -97,6 +101,18 @@ export class MoodTrackerResponseDto {
     example: '2024-01-01',
   })
   moodDate: Date;
+
+  @ApiProperty({
+    description: 'Связанные опросники настроения',
+    type: 'array',
+    items: { type: 'object' },
+    example: [
+      { id: 1, title: 'Опросник настроения 1', isArchived: false },
+      { id: 2, title: 'Опросник настроения 2', isArchived: false }
+    ],
+    nullable: true,
+  })
+  moodSurveys: any[] | null;
 
   @ApiProperty({
     description: 'Дата создания записи',
