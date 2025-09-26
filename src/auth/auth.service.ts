@@ -308,7 +308,6 @@ export class AuthService {
         email, 
         code,
         type: 'email_change',
-        isUsed: false 
       },
     });
 
