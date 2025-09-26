@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transactional } from 'typeorm-transactional';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { Activity } from './entities/activity.entity';
 import { RateActivity } from './entities/rate-activity.entity';
 import { CreateActivityDto, UpdateActivityDto, ActivityResponseDto, ActivityFilterDto } from './dto/activity.dto';
@@ -49,14 +49,13 @@ export class ActivityService {
       createActivityDto.content
     );
 
-    // Get the last activity to determine the next position
-    const lastActivity = await this.activityRepository.findOne({
-      where: { user: { id: user.id } },
-      order: { position: 'DESC' }
+    // Get the count of existing activities for this user
+    const activitiesCount = await this.activityRepository.count({
+      where: { user: { id: user.id } }
     });
 
-    // Calculate next position (last position + 1, or 0 if no activities exist)
-    const nextPosition = lastActivity ? lastActivity.position + 1 : 0;
+    // Calculate next position (count of activities = next position)
+    const nextPosition = activitiesCount;
 
     // Create new activity with the calculated position (at the end)
     const activity = this.activityRepository.create({
@@ -70,7 +69,7 @@ export class ActivityService {
     // Save the new activity
     const savedActivity = await this.activityRepository.save(activity);
 
-    this.logger.log(`New activity created at position ${nextPosition} (at the end of the list)`);
+    this.logger.log(`New activity created at position ${nextPosition} (user has ${activitiesCount} existing activities)`);
     return this.mapToResponseDto(savedActivity);
   }
 
@@ -127,8 +126,6 @@ export class ActivityService {
       },
       relations: ['user', 'rateActivities'],
     });
-
-    console.log(activity);
 
     if (!activity) {
       throw AppException.notFound(ErrorCode.PROFILE_ACTIVITY_NOT_FOUND, 'Activity not found', { activityId, userId });
@@ -198,7 +195,30 @@ export class ActivityService {
       throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_CANNOT_DELETE_CLOSED, 'Cannot delete closed activity', { activityId });
     }
 
+    const deletedPosition = activity.position;
+
+    // Get all activities with position greater than the deleted one
+    const activitiesToShift = await this.activityRepository.find({
+      where: { 
+        user: { id: userId },
+        position: MoreThan(deletedPosition)
+      },
+      order: { position: 'ASC' }
+    });
+
+    // Shift all activities with higher positions down by 1
+    for (const activityToShift of activitiesToShift) {
+      activityToShift.position = activityToShift.position - 1;
+    }
+
+    // Save the shifted activities and remove the deleted one
+    if (activitiesToShift.length > 0) {
+      await this.activityRepository.save(activitiesToShift);
+    }
+    
     await this.activityRepository.remove(activity);
+
+    this.logger.log(`Activity ${activityId} deleted from position ${deletedPosition}, shifted ${activitiesToShift.length} activities`);
   }
 
   /**
