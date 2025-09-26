@@ -17,16 +17,6 @@ export class CreateActivityDto {
   @IsOptional()
   @IsString()
   content?: string;
-
-  @ApiProperty({
-    description: 'Activity position for ordering',
-    required: false,
-    example: 1,
-  })
-  @IsOptional()
-  @IsNumber()
-  position?: number;
-
 }
 
 export class UpdateActivityDto {
@@ -47,16 +37,6 @@ export class UpdateActivityDto {
   @IsOptional()
   @IsString()
   content?: string;
-
-  @ApiProperty({
-    description: 'Activity position for ordering',
-    required: false,
-    example: 2,
-  })
-  @IsOptional()
-  @IsNumber()
-  position?: number;
-
 }
 
 export class ActivityFilterDto {

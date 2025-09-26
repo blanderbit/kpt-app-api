@@ -63,7 +63,7 @@ export class ProfileController {
     return this.profileService.getProfile(user);
   }
 
-  @Post('send-verification-email')
+  @Post('email-verification/send-code')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Send email verification',
@@ -124,7 +124,7 @@ export class ProfileController {
     return this.profileService.updateProfile(user, updateProfileDto);
   }
 
-  @Post('change-email')
+  @Post('request-for-change/email')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Request email change',
@@ -163,7 +163,7 @@ export class ProfileController {
     return this.profileService.changeEmail(user, changeEmailDto);
   }
 
-  @Post('confirm-email-change')
+  @Put('email/confirm-change')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Confirm email change',
@@ -194,7 +194,7 @@ export class ProfileController {
     return this.profileService.confirmEmailChange(user.email, confirmEmailChangeDto.code);
   }
 
-  @Post('change-password')
+  @Put('password/change')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Change password',
@@ -274,7 +274,7 @@ export class ProfileController {
     return this.profileService.deleteAccount(user, deleteAccountDto, accessToken);
   }
 
-  @Post('verify-email')
+  @Post('verification-email/verify-code/complete')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Verify email',
