@@ -49,31 +49,29 @@ export class ActivityService {
       createActivityDto.content
     );
 
-    // Get all existing activities for this user to shift their positions
-    const existingActivities = await this.activityRepository.find({
+    // Get the last activity to determine the next position
+    const lastActivity = await this.activityRepository.findOne({
       where: { user: { id: user.id } },
-      order: { position: 'ASC' }
+      order: { position: 'DESC' }
     });
 
-    // Shift all existing activities down by 1 position
-    for (const existingActivity of existingActivities) {
-      existingActivity.position = existingActivity.position + 1;
-    }
+    // Calculate next position (last position + 1, or 0 if no activities exist)
+    const nextPosition = lastActivity ? lastActivity.position + 1 : 0;
 
-    // Create new activity with position 0 (top)
+    // Create new activity with the calculated position (at the end)
     const activity = this.activityRepository.create({
       ...createActivityDto,
       user,
       activityType,
       status: 'active', // Activity is active by default
-      position: 0, // Always place new activity at the top
+      position: nextPosition, // Place new activity at the end
     });
 
-    // Save all activities (existing with shifted positions + new activity)
-    await this.activityRepository.save([...existingActivities, activity]);
+    // Save the new activity
+    const savedActivity = await this.activityRepository.save(activity);
 
-    this.logger.log(`New activity created at position 0, shifted ${existingActivities.length} existing activities`);
-    return this.mapToResponseDto(activity);
+    this.logger.log(`New activity created at position ${nextPosition} (at the end of the list)`);
+    return this.mapToResponseDto(savedActivity);
   }
 
   /**
