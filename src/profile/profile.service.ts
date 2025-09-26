@@ -159,8 +159,18 @@ export class ProfileService {
       }
     }
 
+    // Load user with all related data for cascade deletion
+    const userWithRelations = await this.usersRepository.findOne({
+      where: { id: user.id },
+      relations: ['activities', 'activities.rateActivities', 'moodTrackers']
+    });
+
+    if (!userWithRelations) {
+      throw AppException.notFound(ErrorCode.PROFILE_USER_NOT_FOUND, 'User not found', { userId: user.id });
+    }
+
     // Delete user with cascade (will automatically delete all related activities and mood trackers)
-    await this.usersRepository.remove(user);
+    await this.usersRepository.remove(userWithRelations);
 
     return { message: 'Account successfully deleted' };
   }
