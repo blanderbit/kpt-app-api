@@ -16,12 +16,8 @@ export const usersConfig: PaginateConfig<User> = {
     'id',
     'email',
     'firstName',
-    'lastName',
     'createdAt',
-    'updatedAt',
-    // 'lastLoginAt',
-    // 'isActive',
-    // 'isVerified'
+    'updatedAt'
   ],
   
   // Default sorting
@@ -45,7 +41,6 @@ export const usersConfig: PaginateConfig<User> = {
   searchableColumns: [
     'email',
     'firstName',
-    'lastName'
   ],
   
   // Select only necessary fields for performance

@@ -54,7 +54,7 @@ export class RemoveAdminCommand extends CommandRunner {
 
       console.log('✅ Administrator removed successfully!');
       console.log(`📧 Email: ${user.email}`);
-      console.log(`👤 Name: ${user.firstName} ${user.lastName}`);
+      console.log(`👤 Name: ${user.firstName} `);
 
     } catch (error) {
       const appError = AppException.internal(

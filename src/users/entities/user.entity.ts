@@ -28,10 +28,6 @@ export class User {
   @Column({ nullable: true })
   firstName: string;
 
-  @ApiProperty({ description: 'User last name' })
-  @Column({ nullable: true })
-  lastName: string;
-
   @ApiProperty({ description: 'Avatar URL' })
   @Column({ nullable: true })
   avatarUrl: string;
@@ -39,7 +35,6 @@ export class User {
   @ApiProperty({ description: 'Whether email is verified' })
   @Column({ default: false })
   emailVerified: boolean;
-
 
   @ApiProperty({ description: 'Google ID' })
   @Column({ nullable: true })
@@ -60,6 +55,26 @@ export class User {
   @Column({ type: 'varchar', length: 255, default: 'user' })
   roles: string;
 
+  @ApiProperty({ description: 'User metadata as JSON object', example: {} })
+  @Column({ type: 'json', nullable: true })
+  meta: object | null;
+
+  @ApiProperty({ description: 'User age', example: '25' })
+  @Column({ type: 'varchar', length: 10, default: '' })
+  age: string;
+
+  @ApiProperty({ description: 'Initial feeling when user registered', example: 'good' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  initialFeeling: string;
+
+  @ApiProperty({ description: 'Social networks used by user', example: 'facebook,instagram,twitter' })
+  @Column({ type: 'text', nullable: true })
+  socialNetworks: string;
+
+  @ApiProperty({ description: 'How user tracks tasks and goals', example: 'I use apps and paper notes' })
+  @Column({ type: 'text', nullable: true })
+  taskTrackingMethod: string;
+
   @ApiProperty({ description: 'Creation date' })
   @CreateDateColumn()
   createdAt: Date;
@@ -69,9 +84,9 @@ export class User {
   updatedAt: Date;
 
   // Relations
-  @OneToMany(() => Activity, (activity) => activity.user, { cascade: true })
+  @OneToMany(() => Activity, (activity) => activity.user, { onDelete: 'CASCADE' })
   activities: Activity[];
 
-  @OneToMany(() => MoodTracker, (moodTracker) => moodTracker.user, { cascade: true })
+  @OneToMany(() => MoodTracker, (moodTracker) => moodTracker.user, { onDelete: 'CASCADE' })
   moodTrackers: MoodTracker[];
 }

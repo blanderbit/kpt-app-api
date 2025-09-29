@@ -58,6 +58,7 @@
     "mysql2": "^3.6.5",
     "nest-commander": "^3.19.0",
     "nestjs-paginate": "^12.7.0",
+    "openai": "^5.23.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",

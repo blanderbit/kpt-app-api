@@ -7,7 +7,6 @@ export const ADMIN_USERS_PAGINATION_CONFIG: PaginateConfig<User> = {
     'id',
     'email',
     'firstName',
-    'lastName',
     'emailVerified',
     'createdAt',
     'updatedAt',
@@ -17,7 +16,6 @@ export const ADMIN_USERS_PAGINATION_CONFIG: PaginateConfig<User> = {
   searchableColumns: [
     'email',
     'firstName',
-    'lastName',
     'googleId',
     'firebaseUid',
     'appleId',

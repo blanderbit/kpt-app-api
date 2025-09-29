@@ -11,12 +11,14 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { FirebaseAuthDto } from './dto/firebase-auth.dto';
+import { FirebaseAuthDto, AuthType } from './dto/firebase-auth.dto';
 import { EmailService } from '../email/email.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { RedisBlacklistService } from './redis-blacklist.service';
+import { ChatGPTService } from '../core/chatgpt';
 import { ErrorCode } from '../common/error-codes';
 import { AppException } from '../common/exceptions/app.exception';
+import { GenerateActivityRecommendationsDto, ActivityRecommendationsResponseDto, ActivityRecommendationDto } from './dto/generate-activity-recommendations.dto';
 
 @Injectable()
 export class AuthService {
@@ -30,11 +32,22 @@ export class AuthService {
     private firebaseService: FirebaseService,
     private redisBlacklistService: RedisBlacklistService,
     private roleService: RoleService,
+    private chatGPTService: ChatGPTService,
   ) {}
 
   @Transactional()
   async register(registerDto: RegisterDto): Promise<{ message: string }> {
-    const { email, password, firstName, lastName } = registerDto;
+    const { 
+      email, 
+      password, 
+      firstName, 
+      age, 
+      feelingToday, 
+      socialNetworks, 
+      onboardingQuestionAndAnswers, 
+      activities, 
+      taskTrackingMethod 
+    } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.usersRepository.findOne({ where: { email } });
@@ -46,16 +59,49 @@ export class AuthService {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Create user
-    const user = this.usersRepository.create({
+    // Prepare user data
+    const userData: any = {
       email,
       passwordHash,
       firstName,
-      lastName,
       emailVerified: false,
-    });
+      age: age || '',
+      initialFeeling: feelingToday || null,
+      socialNetworks: socialNetworks?.join(',') || null,
+      taskTrackingMethod: taskTrackingMethod || null,
+    };
 
+    // Add onboarding data to meta
+    if (onboardingQuestionAndAnswers) {
+      userData.meta = {
+        onboardingQuestionAndAnswers: onboardingQuestionAndAnswers
+      };
+    } else {
+      userData.meta = {};
+    }
+
+    // Create user
+    const user = this.usersRepository.create(userData);
     await this.usersRepository.save(user);
+
+    // If activities are provided, create them
+    if (activities && activities.length > 0) {
+      const activityRepository = this.usersRepository.manager.getRepository('Activity');
+      
+      // Create all activities at once
+      const activitiesToCreate = activities.map((activityDto, index) => 
+        activityRepository.create({
+          ...activityDto,
+          user,
+          activityType: 'general', // Default activity type
+          status: 'active',
+          position: index, // Set position based on array index
+        })
+      );
+      
+      // Save all activities in one operation
+      await activityRepository.save(activitiesToCreate);
+    }
 
     return { message: 'Registration successful. You can now send verification email when needed.' };
   }
@@ -261,17 +307,59 @@ export class AuthService {
       
       if (!user) {
         // If user doesn't exist, create new one
-        user = this.usersRepository.create({
+        const userData: any = {
           email: firebaseUser.email,
           firebaseUid: decodedToken.uid,
           firstName: firebaseUser.displayName?.split(' ')[0] || undefined,
-          lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || undefined,
           avatarUrl: firebaseUser.photoURL || undefined,
           emailVerified: firebaseUser.emailVerified,
           roles: this.roleService.stringifyRoles(['user']),
-        });
-        
-        await this.usersRepository.save(user);
+        };
+
+        // If this is a registration, add additional fields
+        if (firebaseAuthDto.authType === AuthType.REGISTER) {
+          userData.age = firebaseAuthDto.age || '';
+          userData.initialFeeling = firebaseAuthDto.feelingToday || null;
+          userData.socialNetworks = firebaseAuthDto.socialNetworks?.join(',') || null;
+          userData.taskTrackingMethod = firebaseAuthDto.taskTrackingMethod || null;
+          
+          // Add onboarding data to meta
+          if (firebaseAuthDto.onboardingQuestionAndAnswers) {
+            userData.meta = {
+              onboardingQuestionAndAnswers: firebaseAuthDto.onboardingQuestionAndAnswers
+            };
+          } else {
+            userData.meta = {};
+          }
+        }
+
+        const newUser = this.usersRepository.create(userData);
+        const savedUser = await this.usersRepository.save(newUser);
+        user = Array.isArray(savedUser) ? savedUser[0] : savedUser;
+
+        // If this is registration and activities are provided, create them
+        if (firebaseAuthDto.authType === AuthType.REGISTER && firebaseAuthDto.activities && firebaseAuthDto.activities.length > 0) {
+          const activityRepository = this.usersRepository.manager.getRepository('Activity');
+          
+          // Create all activities at once
+          const activitiesToCreate = firebaseAuthDto.activities.map((activityDto, index) => 
+            activityRepository.create({
+              ...activityDto,
+              user,
+              activityType: 'general', // Default activity type
+              status: 'active',
+              position: index, // Set position based on array index
+            })
+          );
+          
+          // Save all activities in one operation
+          await activityRepository.save(activitiesToCreate);
+        }
+      }
+      
+      // Ensure user exists (should not be null at this point)
+      if (!user) {
+        throw AppException.internal(ErrorCode.AUTH_FIREBASE_AUTH_FAILED, 'User creation failed');
       }
       
       // Generate JWT tokens
@@ -338,6 +426,7 @@ export class AuthService {
     // Update user email
     await this.usersRepository.update(verificationCode.userId, {
       email: verificationCode.tempEmail,
+      emailVerified: true,
     });
 
     // Mark code as used
@@ -374,5 +463,199 @@ export class AuthService {
       console.error('Error during force logout:', error);
       throw AppException.internal(ErrorCode.AUTH_TOKEN_ADD_TO_BLACKLIST_FAILED, 'Failed to logout from all devices');
     }
+  }
+
+  /**
+   * Generate personalized activity recommendations using ChatGPT
+   */
+  async generateActivityRecommendations(
+    generateRecommendationsDto: GenerateActivityRecommendationsDto
+  ): Promise<ActivityRecommendationsResponseDto> {
+    try {
+      const { 
+        socialNetworks, 
+        onboardingQuestionAndAnswers, 
+        feelingToday, 
+        age, 
+        taskTrackingMethod,
+        count = '5'
+      } = generateRecommendationsDto;
+
+      const activityCount = parseInt(count, 10) || 5;
+
+      // Create comprehensive patterns object for ChatGPT
+      const patterns = {
+        socialNetworks,
+        onboardingQuestionAndAnswers,
+        feelingToday,
+        age: age || 'not specified',
+        taskTrackingMethod: taskTrackingMethod || 'not specified',
+        timestamp: new Date().toISOString(),
+        preferences: {
+          energyLevel: this.determineEnergyLevel(feelingToday),
+          socialActivity: this.determineSocialActivity(socialNetworks),
+          productivityStyle: this.determineProductivityStyle(taskTrackingMethod || '')
+        }
+      };
+
+      // Generate activity recommendations using ChatGPT
+      const recommendations: ActivityRecommendationDto[] = [];
+      
+      for (let i = 0; i < activityCount; i++) {
+        try {
+          const activityContent = await this.chatGPTService.generateActivityContent(
+            'recommendation',
+            patterns,
+            i
+          );
+
+          // Generate reasoning for this specific recommendation
+          const reasoning = await this.chatGPTService.generateReasoning(
+            { ...patterns, activityIndex: i, activityName: activityContent.activityName },
+            'recommendation',
+            0.8
+          );
+
+          // Determine category based on activity content
+          const category = this.categorizeActivity(activityContent.activityName, activityContent.content);
+
+          // Calculate confidence score based on various factors
+          const confidenceScore = this.calculateConfidenceScore(patterns, activityContent);
+
+          recommendations.push({
+            activityName: activityContent.activityName,
+            content: activityContent.content,
+            category,
+            confidenceScore,
+            reasoning: reasoning || 'This activity is recommended based on your preferences and current state.'
+          });
+        } catch (error) {
+          console.error(`Error generating recommendation ${i}:`, error);
+          // Continue with other recommendations even if one fails
+        }
+      }
+
+      // Generate overall reasoning for all recommendations
+      let overallReasoning = 'These activities are tailored to your preferences and current state of mind.';
+      try {
+        overallReasoning = await this.chatGPTService.generateReasoning(
+          { ...patterns, recommendations: recommendations.map(r => r.activityName) },
+          'overall_recommendation',
+          0.9
+        );
+      } catch (error) {
+        console.error('Error generating overall reasoning:', error);
+        // Use default reasoning if ChatGPT fails
+      }
+
+      return {
+        recommendations,
+        overallReasoning,
+        totalCount: recommendations.length
+      };
+    } catch (error) {
+      console.error('Error generating activity recommendations:', error);
+      throw AppException.internal(ErrorCode.SUGGESTED_ACTIVITY_CHATGPT_API_ERROR, 'Failed to generate activity recommendations');
+    }
+  }
+
+  /**
+   * Determine energy level based on feeling
+   */
+  private determineEnergyLevel(feelingToday: string): string {
+    const lowEnergyFeelings = ['tired', 'exhausted', 'burned_out', 'drained'];
+    const highEnergyFeelings = ['energetic', 'excited', 'motivated', 'pumped'];
+    
+    if (lowEnergyFeelings.some(feeling => feelingToday.toLowerCase().includes(feeling))) {
+      return 'low';
+    } else if (highEnergyFeelings.some(feeling => feelingToday.toLowerCase().includes(feeling))) {
+      return 'high';
+    }
+    return 'medium';
+  }
+
+  /**
+   * Determine social activity preference based on social networks
+   */
+  private determineSocialActivity(socialNetworks: string[]): string {
+    const professionalNetworks = ['linkedin', 'github', 'stackoverflow'];
+    const socialPlatforms = ['facebook', 'instagram', 'twitter', 'tiktok', 'snapchat'];
+    
+    const hasProfessional = socialNetworks.some(network => 
+      professionalNetworks.some(prof => network.toLowerCase().includes(prof))
+    );
+    const hasSocial = socialNetworks.some(network => 
+      socialPlatforms.some(soc => network.toLowerCase().includes(soc))
+    );
+
+    if (hasProfessional && hasSocial) return 'mixed';
+    if (hasProfessional) return 'professional';
+    if (hasSocial) return 'social';
+    return 'minimal';
+  }
+
+  /**
+   * Determine productivity style based on task tracking method
+   */
+  private determineProductivityStyle(taskTrackingMethod: string): string {
+    if (!taskTrackingMethod) return 'flexible';
+    
+    const method = taskTrackingMethod.toLowerCase();
+    if (method.includes('app') || method.includes('digital')) return 'digital';
+    if (method.includes('paper') || method.includes('notebook')) return 'analog';
+    if (method.includes('both') || method.includes('mix')) return 'hybrid';
+    return 'flexible';
+  }
+
+  /**
+   * Categorize activity based on name and content
+   */
+  private categorizeActivity(activityName: string, content: string): string {
+    const text = `${activityName} ${content}`.toLowerCase();
+    
+    if (text.includes('meditation') || text.includes('mindfulness') || text.includes('breathing')) {
+      return 'wellness';
+    } else if (text.includes('exercise') || text.includes('workout') || text.includes('fitness')) {
+      return 'fitness';
+    } else if (text.includes('read') || text.includes('learn') || text.includes('study')) {
+      return 'learning';
+    } else if (text.includes('social') || text.includes('meet') || text.includes('connect')) {
+      return 'social';
+    } else if (text.includes('work') || text.includes('project') || text.includes('task')) {
+      return 'productivity';
+    } else if (text.includes('creative') || text.includes('art') || text.includes('music')) {
+      return 'creative';
+    }
+    
+    return 'general';
+  }
+
+  /**
+   * Calculate confidence score for recommendation
+   */
+  private calculateConfidenceScore(patterns: any, activityContent: { activityName: string; content: string }): number {
+    let score = 0.5; // Base score
+    
+    // Increase score based on feeling match
+    if (patterns.feelingToday && activityContent.content.toLowerCase().includes(patterns.feelingToday.toLowerCase())) {
+      score += 0.2;
+    }
+    
+    // Increase score based on social network alignment
+    if (patterns.socialNetworks && patterns.socialNetworks.length > 0) {
+      score += 0.1;
+    }
+    
+    // Increase score based on onboarding answers
+    if (patterns.onboardingQuestionAndAnswers && Object.keys(patterns.onboardingQuestionAndAnswers).length > 0) {
+      score += 0.1;
+    }
+    
+    // Increase score based on age appropriateness
+    if (patterns.age && patterns.age !== 'not specified') {
+      score += 0.1;
+    }
+    
+    return Math.min(score, 1.0); // Cap at 1.0
   }
 }

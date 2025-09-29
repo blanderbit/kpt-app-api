@@ -10,6 +10,8 @@ import { TooltipModule } from './tooltips/tooltip.module';
 import { MoodTypesAdminModule } from './mood-types/mood-types-admin.module';
 import { ActivityTypesAdminModule } from './activity-types/activity-types-admin.module';
 import { MoodSurveyAdminModule } from './mood-survey/mood-survey-admin.module';
+import { SocialNetworksAdminModule } from './social-networks/social-networks.module';
+import { OnboardingQuestionsAdminModule } from './onboarding-questions/onboarding-questions.module';
 import { jwtConfig } from '../config/jwt.config';
 import { User } from '../users/entities/user.entity';
 
@@ -22,6 +24,8 @@ import { User } from '../users/entities/user.entity';
     MoodTypesAdminModule,
     ActivityTypesAdminModule,
     MoodSurveyAdminModule,
+    SocialNetworksAdminModule,
+    OnboardingQuestionsAdminModule,
     JwtModule.register(jwtConfig),
   ],
   controllers: [AdminController],

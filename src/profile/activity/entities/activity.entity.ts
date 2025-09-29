@@ -61,10 +61,10 @@ export class Activity {
   userId: number;
 
   // Relations
-  @ManyToOne(() => User, (user) => user.activities)
+  @ManyToOne(() => User, (user) => user.activities, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId', referencedColumnName: 'id' })
   user: User;
 
-  @OneToMany(() => RateActivity, (rateActivity) => rateActivity.activity, { cascade: true })
+  @OneToMany(() => RateActivity, (rateActivity) => rateActivity.activity, { onDelete: 'CASCADE' })
   rateActivities: RateActivity[];
 }

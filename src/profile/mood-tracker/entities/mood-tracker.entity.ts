@@ -49,7 +49,7 @@ export class MoodTracker {
   updatedAt: Date;
 
   // Relations
-  @ManyToOne(() => User, (user) => user.moodTrackers)
+  @ManyToOne(() => User, (user) => user.moodTrackers, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
 

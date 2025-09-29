@@ -60,7 +60,6 @@ export class CreateAdminCommand extends CommandRunner {
         email: options.email,
         passwordHash,
         firstName: options.firstName || 'Admin',
-        lastName: options.lastName || 'User',
         emailVerified: true,
         roles: this.roleService.stringifyRoles(['admin']),
       };
@@ -69,7 +68,7 @@ export class CreateAdminCommand extends CommandRunner {
 
       console.log('✅ Administrator created successfully!');
       console.log(`📧 Email: ${admin.email}`);
-      console.log(`👤 Name: ${admin.firstName} ${admin.lastName}`);
+      console.log(`👤 Name: ${admin.firstName}`);
       console.log(`🔑 Roles: ${this.roleService.parseRoles(admin.roles).join(', ')}`);
       console.log(`🆔 ID: ${admin.id}`);
 
@@ -105,14 +104,6 @@ export class CreateAdminCommand extends CommandRunner {
     description: 'Administrator first name',
   })
   parseFirstName(val: string): string {
-    return val;
-  }
-
-  @Option({
-    flags: '--lastName <lastName>',
-    description: 'Administrator last name',
-  })
-  parseLastName(val: string): string {
     return val;
   }
 }

@@ -108,12 +108,6 @@ export class ProfileResponseDto {
   firstName: string;
 
   @ApiProperty({
-    description: 'User last name',
-    example: 'Doe',
-  })
-  lastName: string;
-
-  @ApiProperty({
     description: 'Avatar URL',
     example: 'https://example.com/avatar.jpg',
   })

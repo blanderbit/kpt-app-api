@@ -37,13 +37,11 @@ export class ListAdminsCommand extends CommandRunner {
       console.log('─'.repeat(80));
 
       adminsResult.data.forEach((admin, index) => {
-        console.log(`${index + 1}. 👤 ${admin.firstName || 'N/A'} ${admin.lastName || 'N/A'}`);
+        console.log(`${index + 1}. 👤 ${admin.firstName || 'N/A'}`);
         console.log(`   📧 Email: ${admin.email}`);
         console.log(`   🆔 ID: ${admin.id}`);
         console.log(`   🔑 Roles: ${Array.isArray(admin.roles) ? admin.roles.join(', ') : admin.roles || 'N/A'}`);
         console.log(`   📅 Created: ${admin.createdAt ? admin.createdAt.toLocaleDateString('en-US') : 'N/A'}`);
-        // console.log(`   ✉️ Email verified: ${admin.isVerified ? '✅' : '❌'}`);
-        // console.log(`   🟢 Active: ${admin.isActive ? '✅' : '❌'}`);
         console.log('─'.repeat(80));
       });
 

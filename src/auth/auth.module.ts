@@ -11,6 +11,7 @@ import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
 import { FirebaseModule } from '../firebase/firebase.module';
 import { SuggestedActivityModule } from '../suggested-activity/suggested-activity.module';
+import { ChatGPTModule } from '../core/chatgpt';
 import { jwtConfig } from '../config/jwt.config';
 import { RedisBlacklistService } from './redis-blacklist.service';
 import { BlacklistGuard } from './guards/blacklist.guard';
@@ -31,6 +32,7 @@ import { CleanupVerificationCodesCron } from './cron/cleanup-verification-codes.
     EmailModule,
     FirebaseModule,
     SuggestedActivityModule,
+    ChatGPTModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, RedisBlacklistService, BlacklistGuard, JwtAuthGuard, CleanupVerificationCodesCron],

@@ -7,7 +7,7 @@ import { Activity } from '../../profile/activity/entities/activity.entity';
 import { RateActivity } from '../../profile/activity/entities/rate-activity.entity';
 import { ActivityTypesService } from '../../core/activity-types';
 import { CreateSuggestedActivityDto, SuggestedActivityResponseDto } from '../dto/suggested-activity.dto';
-import { ChatGPTService } from './chatgpt.service';
+import { ChatGPTService } from '../../core/chatgpt';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { User } from 'src/users/entities/user.entity';

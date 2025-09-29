@@ -6,7 +6,7 @@ import { SuggestedActivity } from './entities/suggested-activity.entity';
 import { SuggestedActivityController } from './controllers/suggested-activity.controller';
 import { QueueManagementController } from './controllers/queue-management.controller';
 import { SuggestedActivityService } from './services/suggested-activity.service';
-import { ChatGPTService } from './services/chatgpt.service';
+import { ChatGPTModule } from '../core/chatgpt';
 import { Activity } from '../profile/activity/entities/activity.entity';
 import { RateActivity } from '../profile/activity/entities/rate-activity.entity';
 import { ActivityModule } from '../profile/activity/activity.module';
@@ -34,12 +34,12 @@ import { UsersModule } from '../users/users.module';
     }),
     UsersModule,
     ActivityModule,
-    ActivityTypesModule
+    ActivityTypesModule,
+    ChatGPTModule
   ],
   controllers: [SuggestedActivityController, QueueManagementController],
   providers: [
     SuggestedActivityService, 
-    ChatGPTService, 
     SuggestedActivityCronService,
     SuggestedActivityProcessor,
     SuggestedActivityQueueService,

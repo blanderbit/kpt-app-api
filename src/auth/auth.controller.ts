@@ -23,6 +23,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { FirebaseAuthDto, FirebaseAuthResponseDto } from './dto/firebase-auth.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { GenerateActivityRecommendationsDto, ActivityRecommendationsResponseDto } from './dto/generate-activity-recommendations.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { BlacklistGuard } from './guards/blacklist.guard';
 
@@ -85,7 +86,6 @@ export class AuthController {
             id: { type: 'number', example: 1 },
             email: { type: 'string', example: 'user@example.com' },
             firstName: { type: 'string', example: 'Иван' },
-            lastName: { type: 'string', example: 'Иванов' },
           },
         },
       },
@@ -227,5 +227,29 @@ export class AuthController {
     const userId = req.user.sub;
     const token = req.headers.authorization?.replace('Bearer ', '');
     return this.authService.logout(userId, token);
+  }
+
+  @Post('generate-activity-recommendations')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Generate personalized activity recommendations using ChatGPT',
+    description: 'Generates personalized activity recommendations with categories, confidence scores, and reasoning based on user data',
+  })
+  @ApiBody({ type: GenerateActivityRecommendationsDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully generated activity recommendations',
+    type: ActivityRecommendationsResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input data',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error generating recommendations with ChatGPT',
+  })
+  async generateActivityRecommendations(@Body() generateRecommendationsDto: GenerateActivityRecommendationsDto): Promise<ActivityRecommendationsResponseDto> {
+    return this.authService.generateActivityRecommendations(generateRecommendationsDto);
   }
 }

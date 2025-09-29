@@ -1,0 +1,178 @@
+{
+  "onboardingSteps": [
+    {
+      "stepName": "improvement_goal",
+      "stepQuestion": "What's the #1 thing you'd love to improve with KPT?",
+      "answers": [
+        {
+          "id": "more_energy",
+          "text": "More energy",
+          "subtitle": "Boost your daily vitality and feel more energized",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#FFD700'><path d='M7 2v11h3v9l7-12h-4l4-8z'/></svg>"
+        },
+        {
+          "id": "work_life_balance",
+          "text": "Work–life balance",
+          "subtitle": "Find harmony between your personal and professional life",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#4CAF50'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/></svg>"
+        },
+        {
+          "id": "healthy_habits",
+          "text": "Building healthy habits",
+          "subtitle": "Create sustainable routines that stick",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#2196F3'><path d='M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z'/></svg>"
+        },
+        {
+          "id": "reducing_stress",
+          "text": "Reducing stress",
+          "subtitle": "Manage daily pressures and find inner calm",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#9C27B0'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z'/></svg>"
+        }
+      ],
+      "inputType": "single",
+      "required": true
+    },
+    {
+      "stepName": "main_challenge",
+      "stepQuestion": "Which challenge do you want to tackle first?",
+      "answers": [
+        {
+          "id": "burned_out",
+          "text": "Feeling burned out",
+          "subtitle": "Overwhelmed and exhausted from daily demands",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#FF5722'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93z' opacity='0.3'/></svg>"
+        },
+        {
+          "id": "no_progress",
+          "text": "Lacking a sense of progress",
+          "subtitle": "Stuck in a rut and not seeing meaningful change",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#FF9800'><path d='M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z'/></svg>"
+        },
+        {
+          "id": "hard_motivated",
+          "text": "Hard to stay motivated",
+          "subtitle": "Struggling to maintain enthusiasm and drive",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#FFC107'><path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/></svg>"
+        },
+        {
+          "id": "busy_no_joy",
+          "text": "Busy days with little joy",
+          "subtitle": "Filled with tasks but lacking fulfillment",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#607D8B'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93z' opacity='0.3'/></svg>"
+        }
+      ],
+      "inputType": "single",
+      "required": true
+    },
+    {
+      "stepName": "life_approach",
+      "stepQuestion": "If you had to choose, what does your life feel more like?",
+      "answers": [
+        {
+          "id": "chasing_results",
+          "text": "Mostly chasing results",
+          "subtitle": "Focused on achievements and outcomes",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#2196F3'><path d='M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z'/></svg>"
+        },
+        {
+          "id": "about_enjoyment",
+          "text": "Mostly about enjoyment",
+          "subtitle": "Prioritizing happiness and fun experiences",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#4CAF50'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/></svg>"
+        },
+        {
+          "id": "mix_chaotic",
+          "text": "A mix / feels chaotic",
+          "subtitle": "Unpredictable blend of different approaches",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#FF9800'><path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/><path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' opacity='0.3' transform='rotate(15 12 12)'/></svg>"
+        }
+      ],
+      "inputType": "single",
+      "required": true
+    },
+    {
+      "stepName": "biggest_change",
+      "stepQuestion": "Where would you love to see the biggest change?",
+      "answers": [
+        {
+          "id": "health_body",
+          "text": "Health & body",
+          "subtitle": "Physical wellness and fitness",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#E91E63'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/></svg>"
+        },
+        {
+          "id": "productivity_focus",
+          "text": "Productivity & focus",
+          "subtitle": "Getting more done with better concentration",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#FF5722'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/></svg>"
+        },
+        {
+          "id": "emotional_wellbeing",
+          "text": "Emotional well-being",
+          "subtitle": "Mental health and emotional balance",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#9C27B0'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/></svg>"
+        },
+        {
+          "id": "relationships_social",
+          "text": "Relationships & social life",
+          "subtitle": "Connections with others and social fulfillment",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#3F51B5'><path d='M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2.01.99L12 11l-1.99-2.01A2.5 2.5 0 0 0 8 8H5.46c-.8 0-1.54.37-2.01.99L1 15.37V22h2v-6h2.5l2.5 7.5h2L8 16h2l2.5 7.5h2L14 16h2l2.5 7.5h2L18 16h2v6h2z'/></svg>"
+        }
+      ],
+      "inputType": "single",
+      "required": true
+    },
+    {
+      "stepName": "starting_approach",
+      "stepQuestion": "What's the easiest way for you to start?",
+      "answers": [
+        {
+          "id": "small_steps",
+          "text": "Small daily steps",
+          "subtitle": "Gradual, manageable changes over time",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#4CAF50'><path d='M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z'/></svg>"
+        },
+        {
+          "id": "challenges_goals",
+          "text": "Challenges & bigger goals",
+          "subtitle": "Ambitious targets that push your limits",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#FF5722'><path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/></svg>"
+        },
+        {
+          "id": "mix_both",
+          "text": "A mix of both",
+          "subtitle": "Combination of small steps and bigger challenges",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#9C27B0'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/><path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' opacity='0.3' transform='rotate(15 12 12)'/></svg>"
+        }
+      ],
+      "inputType": "single",
+      "required": true
+    },
+    {
+      "stepName": "time_investment",
+      "stepQuestion": "How much time do you want to invest in yourself each day?",
+      "answers": [
+        {
+          "id": "up_to_5_min",
+          "text": "Up to 5 minutes",
+          "subtitle": "Quick daily check-ins and micro-habits",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#4CAF50'><path d='M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'/></svg>"
+        },
+        {
+          "id": "10_15_min",
+          "text": "10–15 minutes",
+          "subtitle": "Short focused sessions for meaningful progress",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#FF9800'><path d='M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'/></svg>"
+        },
+        {
+          "id": "20_plus_min",
+          "text": "20+ minutes",
+          "subtitle": "Dedicated time for deep personal development",
+          "icon": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='#F44336'><path d='M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'/></svg>"
+        }
+      ],
+      "inputType": "single",
+      "required": true
+    }
+  ]
+}

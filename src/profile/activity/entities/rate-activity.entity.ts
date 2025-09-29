@@ -32,7 +32,7 @@ export class RateActivity {
   createdAt: Date;
 
   // Relations
-  @ManyToOne(() => Activity, (activity) => activity.rateActivities)
+  @ManyToOne(() => Activity, (activity) => activity.rateActivities, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'activityId' })
   activity: Activity;
 }

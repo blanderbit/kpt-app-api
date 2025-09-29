@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, IsObject, ValidateIf } from 'class-validator';
+import { CreateActivityDto } from '../../profile/activity/dto/activity.dto';
+
+export enum AuthType {
+  LOGIN = 'login',
+  REGISTER = 'register'
+}
 
 export class FirebaseAuthDto {
   @ApiProperty({
@@ -9,6 +15,76 @@ export class FirebaseAuthDto {
   @IsString()
   @IsNotEmpty()
   idToken: string;
+
+  @ApiProperty({
+    description: 'Type of authentication',
+    enum: AuthType,
+    example: AuthType.LOGIN,
+  })
+  @IsEnum(AuthType)
+  authType: AuthType;
+
+  // Registration fields (required when authType is 'register')
+  @ApiProperty({
+    description: 'User age (required for registration)',
+    example: '25-30',
+    required: false,
+  })
+  @ValidateIf((o) => o.authType === AuthType.REGISTER)
+  @IsString()
+  @IsNotEmpty()
+  age?: string;
+
+  @ApiProperty({
+    description: 'How user feels today (required for registration)',
+    example: 'good',
+    required: false,
+  })
+  @ValidateIf((o) => o.authType === AuthType.REGISTER)
+  @IsString()
+  @IsNotEmpty()
+  feelingToday?: string;
+
+  @ApiProperty({
+    description: 'Social networks user uses (required for registration)',
+    example: ['facebook', 'instagram', 'twitter'],
+    required: false,
+  })
+  @ValidateIf((o) => o.authType === AuthType.REGISTER)
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty()
+  socialNetworks?: string[];
+
+  @ApiProperty({
+    description: 'Onboarding questions and answers (required for registration)',
+    example: { step1: 'more_energy', step2: 'burned_out' },
+    required: false,
+  })
+  @ValidateIf((o) => o.authType === AuthType.REGISTER)
+  @IsObject()
+  @IsNotEmpty()
+  onboardingQuestionAndAnswers?: object;
+
+  @ApiProperty({
+    description: 'Initial activities for the user (required for registration)',
+    type: [CreateActivityDto],
+    required: false,
+  })
+  @ValidateIf((o) => o.authType === AuthType.REGISTER)
+  @IsArray()
+  @IsNotEmpty()
+  activities?: CreateActivityDto[];
+
+  @ApiProperty({
+    description: 'How user usually tracks tasks and goals (required for registration)',
+    example: 'I use a combination of apps and paper notes',
+    required: false,
+  })
+  @ValidateIf((o) => o.authType === AuthType.REGISTER)
+  @IsString()
+  @IsNotEmpty()
+  taskTrackingMethod?: string;
 }
 
 export class FirebaseAuthResponseDto {
@@ -31,7 +107,6 @@ export class FirebaseAuthResponseDto {
       id: { type: 'number', description: 'User ID' },
       email: { type: 'string', description: 'User email' },
       firstName: { type: 'string', description: 'User first name', nullable: true },
-      lastName: { type: 'string', description: 'User last name', nullable: true },
       avatarUrl: { type: 'string', description: 'User avatar URL', nullable: true },
       firebaseUid: { type: 'string', description: 'Firebase user ID' }
     }
@@ -40,7 +115,6 @@ export class FirebaseAuthResponseDto {
     id: number;
     email: string;
     firstName?: string;
-    lastName?: string;
     avatarUrl?: string;
     firebaseUid: string;
   };

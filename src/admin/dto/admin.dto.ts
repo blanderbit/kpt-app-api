@@ -41,7 +41,6 @@ export class AdminLoginResponseDto {
     id: number;
     email: string;
     firstName: string;
-    lastName: string;
     roles: string[];
   };
 }
@@ -55,7 +54,6 @@ export class UserListResponseDto {
     id: number;
     email: string;
     firstName: string;
-    lastName: string;
     roles: string[];
     emailVerified: boolean;
     createdAt: string;
