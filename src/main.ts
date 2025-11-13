@@ -17,10 +17,19 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:8085';
+  const corsEnv = process.env.CORS_ORIGIN ?? 'http://localhost:8085';
+  const corsOrigins = corsEnv
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+  console.log('CORS Origins:', corsOrigins);
+
   app.enableCors({
-    // Example: CORS_ORIGIN="https://admin.example.com"
-    origin: corsOrigin,
+    // Examples:
+    //   CORS_ORIGIN="https://admin.example.com"
+    //   CORS_ORIGIN="https://admin.example.com,https://kpt.admin.example.com"
+    origin: corsOrigins,
     credentials: true,
   });
 
