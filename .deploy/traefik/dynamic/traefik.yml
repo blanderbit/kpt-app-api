@@ -11,7 +11,8 @@ http:
           - OPTIONS
         accessControlAllowOriginList:
           - "http://localhost:3000"
-          - "https://kpt.local"
+          - "http://localhost:8085"
+          - "https://kpt.admin.the-displaycontrol.com"
         accessControlAllowHeaders:
           - "*"
         accessControlAllowCredentials: true
