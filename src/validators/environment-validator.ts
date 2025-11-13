@@ -31,6 +31,7 @@ export function validateEnvironmentVariables(): void {
     'EMAIL_FROM',
     'EMAIL_SECURE',
     'FRONTEND_URL',
+    'CORS_ORIGINS',
     
     // OpenAI/ChatGPT
     'OPENAI_API_KEY',

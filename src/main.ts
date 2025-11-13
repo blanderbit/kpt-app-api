@@ -17,7 +17,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  const corsEnv = process.env.CORS_ORIGIN ?? 'http://localhost:8085';
+  const corsEnv = process.env.CORS_ORIGINS ?? 'http://localhost:8085';
   const corsOrigins = corsEnv
     .split(',')
     .map(origin => origin.trim())
@@ -27,10 +27,10 @@ async function bootstrap() {
 
   app.enableCors({
     // Examples:
-    //   CORS_ORIGIN="https://admin.example.com"
-    //   CORS_ORIGIN="https://admin.example.com,https://kpt.admin.example.com"
-    origin:  corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
- 
+    //   CORS_ORIGINS="https://admin.example.com"
+    //   CORS_ORIGINS="https://admin.example.com,https://kpt.admin.example.com"
+    origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
