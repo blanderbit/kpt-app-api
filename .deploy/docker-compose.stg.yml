@@ -46,8 +46,8 @@ services:
 
   admin:
     build:
-      context: ..
-      dockerfile: ./kpt-admin/Dockerfile
+      context: ../
+      dockerfile: kpt-admin/Dockerfile
       args:
         VUE_APP_API_BASE_URL: ${VUE_APP_API_BASE_URL}
     container_name: kpt-admin-stg
