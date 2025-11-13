@@ -17,9 +17,10 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS for port 8085
+  const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:8085';
   app.enableCors({
-    origin: 'http://localhost:8085',
+    // Example: CORS_ORIGIN="https://admin.example.com"
+    origin: corsOrigin,
     credentials: true,
   });
 
