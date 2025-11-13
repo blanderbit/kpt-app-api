@@ -65,7 +65,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['vue', 'vue-router', 'vuetify'],
-          mdi: ['@mdi/font']
+          mdi: ['@mdi/font/css/materialdesignicons.css']
         }
       }
     }
