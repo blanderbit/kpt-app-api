@@ -1,0 +1,68 @@
+{
+  "name": "kpt-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "serve": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
+  },
+  "dependencies": {
+    "@mdi/font": "^7.4.47",
+    "@tinymce/tinymce-vue": "^6.3.0",
+    "@unhead/vue": "^1.0.0",
+    "@vueup/vue-quill": "^1.2.0",
+    "axios": "^1.6.0",
+    "core-js": "^3.8.3",
+    "dayjs": "^1.11.19",
+    "quill": "^2.0.3",
+    "tinymce": "^8.2.0",
+    "vue": "^3.2.13",
+    "vue-router": "^4.2.5",
+    "vue3-toastify": "^0.2.8",
+    "vue3-ts-jsoneditor": "^3.0.4",
+    "vuetify": "^3.4.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.12.16",
+    "@babel/eslint-parser": "^7.12.16",
+    "@iconify-json/fa": "1.1.4",
+    "@iconify-json/tabler": "1.1.74",
+    "@iconify/tools": "2.2.6",
+    "@iconify/vue": "4.1.1",
+    "@intlify/unplugin-vue-i18n": "0.10.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "@vue/cli-plugin-babel": "~5.0.0",
+    "@vue/cli-plugin-eslint": "~5.0.0",
+    "@vue/cli-service": "~5.0.0",
+    "eslint": "^7.32.0",
+    "eslint-plugin-vue": "^8.0.3",
+    "sass-embedded": "^1.93.2",
+    "vite": "^5.0.0",
+    "vite-plugin-pages": "^0.32.0",
+    "vite-plugin-vue-layouts": "^0.11.0",
+    "vite-plugin-vuetify": "^2.1.2"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "extends": [
+      "plugin:vue/vue3-essential",
+      "eslint:recommended"
+    ],
+    "parserOptions": {
+      "parser": "@babel/eslint-parser"
+    },
+    "rules": {}
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ]
+}

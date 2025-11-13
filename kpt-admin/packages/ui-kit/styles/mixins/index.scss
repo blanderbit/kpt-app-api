@@ -1,0 +1,62 @@
+@mixin flexVerticalCenter {
+  display: flex;
+  align-items: center;
+}
+@mixin flexVerticalStart {
+  display: flex;
+  align-items: flex-start;
+}
+@mixin flexVerticalBaseline {
+  display: flex;
+  align-items: baseline;
+}
+@mixin flexHorizontalCenter {
+  display: flex;
+  justify-content: center;
+}
+
+@mixin flexFullCenter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@mixin flexHorizontalLeft {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+@mixin flexHorizontalRight {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+@mixin flexHorizontalBetween {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin PositionFixedFullScreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+@mixin PositionAbsoluteFullScreen {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+@mixin FlexColVerticalBottom {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+@mixin CenterBlockMargin {
+  display: block;
+  margin: 0 auto;
+}

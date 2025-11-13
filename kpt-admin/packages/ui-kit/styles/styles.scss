@@ -1,0 +1,87 @@
+// Стандартные стили Vuetify
+// Минимальные кастомные стили, если необходимо
+
+// Базовые стили
+* {
+  box-sizing: border-box;
+}
+
+// Убираем лишние бордеры
+.v-card {
+  border: none !important;
+}
+
+.v-text-field {
+  .v-field__outline {
+    border-width: 1px !important;
+  }
+  
+  // Гарантируем правильную opacity для input в text-field
+  .v-field__input > input {
+    opacity: 0 !important;
+  }
+}
+
+.v-select {
+  .v-field__outline {
+    border-width: 1px !important;
+  }
+  
+  // Гарантируем правильную opacity для input в select
+  .v-field__input > input {
+    opacity: 0 !important;
+    align-self: flex-start !important;
+    flex: 0 0 !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    transition: none !important;
+    pointer-events: none !important;
+    caret-color: transparent !important;
+    padding-inline: inherit !important;
+  }
+}
+
+.v-textarea {
+  .v-field__outline {
+    border-width: 1px !important;
+  }
+}
+
+// Базовые стили для кнопок
+.v-btn {
+  // Убираем лишние бордеры у кнопок
+  &.v-btn--variant-outlined {
+    border-width: 1px !important;
+  }
+}
+
+// Убираем лишние бордеры у других компонентов
+.v-data-table {
+  border: none !important;
+  
+  .v-data-table__wrapper {
+    border: none !important;
+  }
+}
+
+.v-divider {
+  border-width: 1px !important;
+}
+
+// Базовые стили для табов - используем стандартное поведение Vuetify
+
+// Защита для активного элемента сайдбара - сохраняем оригинальные стили
+.v-navigation-drawer .v-list-item.v-list-item--active {
+  background-color: rgba(var(--v-theme-primary), 0.08) !important;
+  
+  .v-list-item-title {
+    color: rgb(var(--v-theme-primary)) !important;
+    font-weight: 600 !important;
+  }
+  
+  .v-icon {
+    color: rgb(var(--v-theme-primary)) !important;
+  }
+}
