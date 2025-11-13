@@ -29,8 +29,8 @@ async function bootstrap() {
     // Examples:
     //   CORS_ORIGIN="https://admin.example.com"
     //   CORS_ORIGIN="https://admin.example.com,https://kpt.admin.example.com"
-    origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
-    credentials: true,
+    origin: corsOrigins,
+ 
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
