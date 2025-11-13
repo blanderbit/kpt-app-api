@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleDriveFilesService } from '../../common/services/google-drive-files.service';
+import { SettingsService } from '../../admin/settings/settings.service';
 export interface MoodType {
   id: string;
   name: string;
@@ -18,7 +19,7 @@ export interface MoodTypesData {
 }
 
 @Injectable()
-export class MoodTypesService {
+export class MoodTypesService implements OnModuleInit {
   private readonly logger = new Logger(MoodTypesService.name);
   private moodTypesData: MoodTypesData;
   private readonly fileId: string;
@@ -26,9 +27,19 @@ export class MoodTypesService {
   constructor(
     private readonly configService: ConfigService,
     private readonly googleDriveFilesService: GoogleDriveFilesService,
+    @Inject(forwardRef(() => SettingsService))
+    private readonly settingsService?: SettingsService,
   ) {
+    this.moodTypesData = {
+      moodTypes: [],
+      categories: {},
+      defaultMood: '',
+    };
     this.fileId = this.configService.get<string>('MOOD_TYPES_FILE_ID') || '';
-    this.loadMoodTypes();
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.loadMoodTypes();
   }
 
   /**
@@ -46,42 +57,20 @@ export class MoodTypesService {
       // Если Google Drive недоступен, используем базовые типы
       this.logger.warn('Google Drive not available, using fallback mood types');
       this.moodTypesData = {
-        moodTypes: [
-          {
-            id: 'fine',
-            name: 'Нормально',
-            description: 'Нормальное настроение',
-            emoji: '😐',
-            color: '#FFEB3B',
-            score: 7,
-            category: 'neutral'
-          }
-        ],
-        categories: {
-          'neutral': 'Нейтральное'
-        },
-        defaultMood: 'fine'
+        moodTypes: [],
+        categories: {},
+        defaultMood: ''
       };
     } catch (error) {
       this.logger.error('Ошибка загрузки типов настроения:', error);
       // Fallback к базовым типам
       this.moodTypesData = {
-        moodTypes: [
-          {
-            id: 'fine',
-            name: 'Нормально',
-            description: 'Нормальное настроение',
-            emoji: '😐',
-            color: '#FFEB3B',
-            score: 7,
-            category: 'neutral'
-        }
-        ],
-        categories: {
-          'neutral': 'Нейтральное'
-        },
-        defaultMood: 'fine'
+        moodTypes: [],
+        categories: {},
+        defaultMood: ''
       };
+    } finally {
+      this.settingsService?.updateLastSync('moodTypes');
     }
   }
 
@@ -124,28 +113,25 @@ export class MoodTypesService {
    * Получить статистику по типам настроения
    */
   getMoodTypesStats(): {
-    totalTypes: number;
-    totalCategories: number;
-    typesByCategory: Record<string, number>;
+    totalCount: number;
+    categoryCounts: Record<string, number>;
     averageScore: number;
   } {
-    const totalTypes = this.moodTypesData.moodTypes.length;
-    const totalCategories = Object.keys(this.moodTypesData.categories).length;
+    const totalCount = this.moodTypesData.moodTypes.length;
     
-    const typesByCategory: Record<string, number> = {};
+    const categoryCounts: Record<string, number> = {};
     let totalScore = 0;
     
     this.moodTypesData.moodTypes.forEach(type => {
-      typesByCategory[type.category] = (typesByCategory[type.category] || 0) + 1;
+      categoryCounts[type.category] = (categoryCounts[type.category] || 0) + 1;
       totalScore += type.score;
     });
 
-    const averageScore = totalScore / totalTypes;
+    const averageScore = totalCount > 0 ? totalScore / totalCount : 0;
 
     return {
-      totalTypes,
-      totalCategories,
-      typesByCategory,
+      totalCount,
+      categoryCounts,
       averageScore: Math.round(averageScore * 100) / 100,
     };
   }

@@ -16,10 +16,24 @@ export function IsValidTooltipJson(validationOptions?: any) {
         const tooltipType = object.type;
         
         switch (tooltipType) {
-          case TooltipType.SWIPE:
-            return 'title' in value && 'steps' in value && Array.isArray(value.steps);
+          case TooltipType.SWIPE: {
+            if (!('title' in value)) {
+              return false;
+            }
+            const steps = Array.isArray(value.steps) ? value.steps : Array.isArray(value.slides) ? value.slides : null;
+            return !!steps && steps.length > 0;
+          }
           case TooltipType.TEXT:
             return 'title' in value && 'description' in value;
+          case TooltipType.TEXT_WITH_LINK:
+            return (
+              'title' in value &&
+              'description' in value &&
+              value.link &&
+              typeof value.link === 'object' &&
+              typeof value.link.label === 'string' &&
+              typeof value.link.url === 'string'
+            );
           default:
             return false;
         }
@@ -64,7 +78,7 @@ export class CreateTooltipDto {
     if (!options?.object) return Object;
     const obj = options.object as CreateTooltipDto;
     if (obj.type === TooltipType.SWIPE) return SwipeModel;
-    if (obj.type === TooltipType.TEXT) return TextModel;
+    if (obj.type === TooltipType.TEXT || obj.type === TooltipType.TEXT_WITH_LINK) return TextModel;
     return Object;
   })
   json: SwipeModel | TextModel;

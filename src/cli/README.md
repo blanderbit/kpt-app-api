@@ -34,7 +34,7 @@ npm run cli:build
 npm run cli:create-admin -- --email admin@example.com --password password123
 
 # With additional parameters
-npm run cli:create-admin -- --email admin@example.com --password password123 --firstName "John" --lastName "Doe"
+npm run cli:create-admin -- --email admin@example.com --password password123 --firstName "John" 
 
 # Remove administrator
 npm run cli:remove-admin -- --email admin@example.com

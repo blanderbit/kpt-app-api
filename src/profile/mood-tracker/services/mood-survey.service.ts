@@ -20,10 +20,12 @@ export class MoodSurveyService {
    */
   async getAllActiveMoodSurveys(): Promise<MoodSurveyResponseDto[]> {
     try {
-      const surveys = await this.moodSurveyRepository.find({
-        where: { isArchived: false },
-        order: { createdAt: 'DESC' },
-      });
+      const surveys = await this.moodSurveyRepository
+        .createQueryBuilder('survey')
+        .loadRelationCountAndMap('survey.responsesCount', 'survey.moodTrackers')
+        .where('survey.isArchived = :isArchived', { isArchived: false })
+        .orderBy('survey.createdAt', 'DESC')
+        .getMany();
 
       return surveys.map(survey => this.mapToResponseDto(survey));
     } catch (error) {
@@ -40,9 +42,12 @@ export class MoodSurveyService {
    */
   async getActiveMoodSurveyById(id: number): Promise<MoodSurveyResponseDto> {
     try {
-      const survey = await this.moodSurveyRepository.findOne({
-        where: { id, isArchived: false },
-      });
+      const survey = await this.moodSurveyRepository
+        .createQueryBuilder('survey')
+        .loadRelationCountAndMap('survey.responsesCount', 'survey.moodTrackers')
+        .where('survey.id = :id', { id })
+        .andWhere('survey.isArchived = :isArchived', { isArchived: false })
+        .getOne();
 
       if (!survey) {
         throw AppException.notFound(ErrorCode.PROFILE_MOOD_SURVEY_NOT_FOUND, 'Mood survey not found or archived');
@@ -67,6 +72,8 @@ export class MoodSurveyService {
    * Map entity to response DTO
    */
   private mapToResponseDto(survey: MoodSurvey): MoodSurveyResponseDto {
+    const responsesCount = (survey as MoodSurvey & { responsesCount?: number }).responsesCount ?? 0;
+
     return {
       id: survey.id,
       title: survey.title,
@@ -77,6 +84,7 @@ export class MoodSurveyService {
       updatedAt: survey.updatedAt,
       archivedAt: survey.archivedAt,
       archivedBy: survey.archivedBy,
+      responsesCount,
     };
   }
 }

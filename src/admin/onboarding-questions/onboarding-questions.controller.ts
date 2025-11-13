@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Query,
 } from '@nestjs/common';
 import {
@@ -12,8 +13,8 @@ import {
 import { OnboardingQuestionsAdminService } from './onboarding-questions-admin.service';
 import { OnboardingStepDto, OnboardingQuestionsStatsDto } from '../../core/onboarding-questions';
 
-@ApiTags('onboarding-questions')
-@Controller('onboarding-questions')
+@ApiTags('admin/onboarding-questions')
+@Controller('admin/onboarding-questions')
 export class OnboardingQuestionsController {
   constructor(private readonly onboardingQuestionsService: OnboardingQuestionsAdminService) {}
 
@@ -97,5 +98,28 @@ export class OnboardingQuestionsController {
   })
   async getOnboardingQuestionsStats(): Promise<OnboardingQuestionsStatsDto> {
     return this.onboardingQuestionsService.getOnboardingQuestionsStats();
+  }
+
+  @Post('sync-with-drive')
+  @ApiOperation({
+    summary: 'Sync onboarding questions with Google Drive',
+    description: 'Synchronizes onboarding questions data with Google Drive',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Onboarding questions successfully synchronized with Google Drive',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Onboarding questions successfully synchronized with Google Drive'
+        }
+      }
+    }
+  })
+  async syncWithDrive(): Promise<{ message: string }> {
+    await this.onboardingQuestionsService.syncWithDrive();
+    return { message: 'Onboarding questions successfully synchronized with Google Drive' };
   }
 }

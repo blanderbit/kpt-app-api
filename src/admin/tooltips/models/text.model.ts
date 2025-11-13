@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsUrl } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsUrl, ValidateNested } from 'class-validator';
+import { TooltipLinkModel } from './link.model';
 
 export class TextModel {
   @ApiProperty({ description: 'Main title for the text tooltip' })
@@ -33,4 +35,10 @@ export class TextModel {
   @ApiProperty({ description: 'Maximum width in pixels (optional)', required: false })
   @IsOptional()
   maxWidth?: number;
+
+  @ApiProperty({ description: 'Optional link for the tooltip', required: false, type: () => TooltipLinkModel })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TooltipLinkModel)
+  link?: TooltipLinkModel;
 }

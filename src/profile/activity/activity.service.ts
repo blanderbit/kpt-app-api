@@ -12,6 +12,7 @@ import { ACTIVITY_PAGINATION_CONFIG } from './activity.config';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { User } from 'src/users/entities/user.entity';
+import { ChatGPTService } from '../../core/chatgpt/chatgpt.service';
 
 @Injectable()
 export class ActivityService {
@@ -23,7 +24,8 @@ export class ActivityService {
     @InjectRepository(RateActivity)
     private readonly rateActivityRepository: Repository<RateActivity>,
     private readonly activityTypesService: ActivityTypesService,
-  ) {}
+    private readonly chatGPTService: ChatGPTService,
+  ) { }
 
   /**
    * Get user activities list with filtering and pagination
@@ -34,7 +36,7 @@ export class ActivityService {
       ...ACTIVITY_PAGINATION_CONFIG,
       filter: { user: { id: user.id } }, // Add userId filter
     };
-    
+
     return paginate(query, this.activityRepository, config);
   }
 
@@ -45,7 +47,7 @@ export class ActivityService {
   async createActivity(user: User, createActivityDto: CreateActivityDto): Promise<ActivityResponseDto> {
     // Determine activity type through ActivityTypesService
     const activityType = this.activityTypesService.determineActivityType(
-      createActivityDto.activityName, 
+      createActivityDto.activityName,
       createActivityDto.content
     );
 
@@ -69,6 +71,8 @@ export class ActivityService {
     // Save the new activity
     const savedActivity = await this.activityRepository.save(activity);
 
+    this.classifyAndUpdateActivityType(savedActivity)
+
     this.logger.log(`New activity created at position ${nextPosition} (user has ${activitiesCount} existing activities)`);
     return this.mapToResponseDto(savedActivity);
   }
@@ -78,15 +82,15 @@ export class ActivityService {
    */
   @Transactional()
   async closeActivity(
-    user: User, 
-    activityId: number, 
+    user: User,
+    activityId: number,
     createRateActivityDto: CreateRateActivityDto
   ): Promise<ActivityResponseDto> {
     // Check that activity exists and belongs to user
     const activity = await this.activityRepository.findOne({
-      where: { 
-        id: activityId, 
-        user: { id: user.id } 
+      where: {
+        id: activityId,
+        user: { id: user.id }
       },
       relations: ['user', 'rateActivities'],
     });
@@ -110,7 +114,7 @@ export class ActivityService {
     // Mark activity as closed
     activity.status = 'closed';
     activity.closedAt = new Date();
-    
+
     const updatedActivity = await this.activityRepository.save(activity);
     return this.mapToResponseDto(updatedActivity);
   }
@@ -120,9 +124,9 @@ export class ActivityService {
    */
   async getActivityById(userId: number, activityId: number): Promise<ActivityResponseDto> {
     const activity = await this.activityRepository.findOne({
-      where: { 
-        id: activityId, 
-        user: { id: userId } 
+      where: {
+        id: activityId,
+        user: { id: userId }
       },
       relations: ['user', 'rateActivities'],
     });
@@ -139,14 +143,14 @@ export class ActivityService {
    */
   @Transactional()
   async updateActivity(
-    userId: number, 
-    activityId: number, 
+    userId: number,
+    activityId: number,
     updateActivityDto: UpdateActivityDto
   ): Promise<ActivityResponseDto> {
     const activity = await this.activityRepository.findOne({
-      where: { 
-        id: activityId, 
-        user: { id: userId } 
+      where: {
+        id: activityId,
+        user: { id: userId }
       },
       relations: ['user', 'rateActivities'],
     });
@@ -162,7 +166,7 @@ export class ActivityService {
     // If name changed, redetermine type through ActivityTypesService
     if (updateActivityDto.activityName && updateActivityDto.activityName !== activity.activityName) {
       const newActivityType = this.activityTypesService.determineActivityType(
-        updateActivityDto.activityName, 
+        updateActivityDto.activityName,
         updateActivityDto.content || activity.content
       );
       updateActivityDto['activityType'] = newActivityType;
@@ -170,7 +174,11 @@ export class ActivityService {
 
     Object.assign(activity, updateActivityDto);
     const updatedActivity = await this.activityRepository.save(activity);
-    
+
+    this.classifyAndUpdateActivityType(updatedActivity).catch((error) =>
+      this.logger.warn(`Failed to re-classify activity ${updatedActivity.id}: ${error.message}`),
+    );
+
     return this.mapToResponseDto(updatedActivity);
   }
 
@@ -180,9 +188,9 @@ export class ActivityService {
   @Transactional()
   async deleteActivity(userId: number, activityId: number): Promise<void> {
     const activity = await this.activityRepository.findOne({
-      where: { 
-        id: activityId, 
-        user: { id: userId } 
+      where: {
+        id: activityId,
+        user: { id: userId }
       },
       relations: ['user', 'rateActivities'],
     });
@@ -199,7 +207,7 @@ export class ActivityService {
 
     // Get all activities with position greater than the deleted one
     const activitiesToShift = await this.activityRepository.find({
-      where: { 
+      where: {
         user: { id: userId },
         position: MoreThan(deletedPosition)
       },
@@ -215,7 +223,7 @@ export class ActivityService {
     if (activitiesToShift.length > 0) {
       await this.activityRepository.save(activitiesToShift);
     }
-    
+
     await this.activityRepository.remove(activity);
 
     this.logger.log(`Activity ${activityId} deleted from position ${deletedPosition}, shifted ${activitiesToShift.length} activities`);
@@ -268,6 +276,35 @@ export class ActivityService {
     };
   }
 
+  private async classifyAndUpdateActivityType(activity: Activity): Promise<void> {
+    try {
+      const allTypes = this.activityTypesService.getAllActivityTypes();
+      if (allTypes.length === 0) {
+        return;
+      }
+
+      const availableTypeIds = allTypes.map((type) => type.id);
+      const keywordsMap = allTypes.reduce<Record<string, string[]>>((acc, type) => {
+        acc[type.id] = type.keywords || [];
+        return acc;
+      }, {});
+
+      const classification = await this.chatGPTService.getActivityType(
+        activity.activityName,
+        availableTypeIds,
+        keywordsMap,
+      );
+
+      const resolvedType = classification?.activityType ?? 'unknown';
+
+      if (resolvedType !== activity.activityType) {
+        await this.activityRepository.update(activity.id, { activityType: resolvedType });
+      }
+    } catch (error) {
+      this.logger.warn(`ChatGPT classification failed for activity ${activity.id}: ${error.message}`);
+    }
+  }
+
   /**
    * Change activity position
    */
@@ -288,7 +325,7 @@ export class ActivityService {
       }
 
       const oldPosition = activity.position;
-      
+
       // If position hasn't changed, no need to update
       if (oldPosition === newPosition) {
         return this.mapToResponseDto(activity);
@@ -305,7 +342,7 @@ export class ActivityService {
 
       // Create new positions array
       const newPositions = otherActivities.map(a => a.position);
-      
+
       // Insert new position in the correct place
       if (newPosition < 0) {
         newPosition = 0;

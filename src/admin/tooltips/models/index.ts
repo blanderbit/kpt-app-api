@@ -1,7 +1,8 @@
 import { SwipeModel } from './swipe.model';
 import { TextModel } from './text.model';
+import { TooltipLinkModel } from './link.model';
 
-export { SwipeModel, TextModel };
+export { SwipeModel, TextModel, TooltipLinkModel };
 
 // Union type for all tooltip models
 export type TooltipModel = SwipeModel | TextModel;

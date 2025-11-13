@@ -71,16 +71,28 @@ export class UsersService {
    * Get users with pagination for cron jobs
    * Optimized for bulk processing
    */
-  async findUsersWithPagination(page: number = 1, limit: number = 100): Promise<{ users: User[]; total: number }> {
+  async findUsersWithPagination(
+    page: number = 1,
+    limit: number = 100,
+    options?: { excludeRoles?: string[] },
+  ): Promise<{ users: User[]; total: number }> {
     const skip = (page - 1) * limit;
-    
-    const [users, total] = await this.usersRepository.findAndCount({
-      select: ['id', 'email', 'createdAt'], // Select only needed fields
-      skip,
-      take: limit,
-      order: { createdAt: 'DESC' },
-      // where: { isActive: true }, // Only active users TODO need to check
+
+    const queryBuilder = this.usersRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.createdAt'])
+      .orderBy('user.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    options?.excludeRoles?.forEach((role, index) => {
+      queryBuilder.andWhere(
+        `(user.roles IS NULL OR user.roles = '' OR user.roles NOT LIKE :excludeRole${index})`,
+        { [`excludeRole${index}`]: `%${role}%` },
+      );
     });
+
+    const [users, total] = await queryBuilder.getManyAndCount();
 
     return { users, total };
   }

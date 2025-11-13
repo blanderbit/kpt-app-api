@@ -5,7 +5,9 @@ import { MoodTypesService } from '../../core/mood-types';
 export class MoodTypesAdminService {
   private readonly logger = new Logger(MoodTypesAdminService.name);
 
-  constructor(private readonly moodTypesService: MoodTypesService) {}
+  constructor(
+    private readonly moodTypesService: MoodTypesService,
+  ) {}
 
   /**
    * Синхронизация типов настроения с Google Drive

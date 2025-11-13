@@ -14,12 +14,31 @@ services:
       - /app/node_modules
     depends_on:
       - mysql
-      # - minio
+      - minio
       - redis
     networks:
       - kpt-network
     env_file:
       - env.dev
+
+  admin:
+    image: node:20-alpine
+    container_name: kpt-admin-dev
+    restart: unless-stopped
+    working_dir: /app
+    command: >
+      sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 8085"
+    ports:
+      - "8085:8085"
+    volumes:
+      - ../kpt-admin:/app
+      - /app/node_modules
+    networks:
+      - kpt-network
+    env_file:
+      - env.dev
+    environment:
+      - VUE_APP_API_BASE_URL=${VUE_APP_API_BASE_URL}
 
   mysql:
     image: mysql:8.0
@@ -48,20 +67,20 @@ services:
     env_file:
       - env.dev
 
-  # minio:
-  #   image: minio/minio:latest
-  #   container_name: kpt-minio-dev
-  #   restart: unless-stopped
-  #   ports:
-  #     - "9002:9000"
-  #     - "9003:9001"
-  #   volumes:
-  #     - minio_data_dev:/data
-  #   command: server /data --console-address ":9001"
-  #   networks:
-  #     - kpt-network
-  #   env_file:
-  #     - env.dev
+  minio:
+    image: minio/minio:latest
+    container_name: kpt-minio-dev
+    restart: unless-stopped
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    volumes:
+      - minio_data_dev:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - kpt-network
+    env_file:
+      - env.dev
 
   redis:
     image: redis:7-alpine
@@ -74,6 +93,8 @@ services:
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     networks:
       - kpt-network
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     env_file:
       - env.dev
 
@@ -87,4 +108,6 @@ volumes:
 
 networks:
   kpt-network:
+    name: kpt-network
     driver: bridge
+    external: false

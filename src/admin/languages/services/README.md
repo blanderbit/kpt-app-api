@@ -4,37 +4,37 @@
 
 The Language Service has been optimized for better performance and efficiency by implementing the following improvements:
 
-1. **Simplified getAllLanguages**: Returns only basic language information (id, name, code) instead of full language data
-2. **Optimized getLanguageDataFromGoogleDrive**: Reads file content directly without saving files locally
-3. **Efficient data loading**: Full language data is loaded only when needed
+1. **Optimized getLanguagesFromGoogleDrive**: Reads all metadata from Google Drive appProperties without file downloads
+2. **Efficient data loading**: All metadata is stored in appProperties for instant access
+3. **Minimal API calls**: Single API call to get all languages with full metadata
 
 ## Key Changes
 
-### 1. getAllLanguages Method
+### 1. getLanguagesFromGoogleDrive Method
 
-**Before**: Returned full `LanguageResponseDto[]` with all language details
-**After**: Returns simplified `Array<{ id: string; name: string; code: string }>`
+**Before**: Returned only basic file information, required additional API calls for full data
+**After**: Returns full `LanguageResponseDto[]` with all metadata from appProperties
 
 **Benefits:**
-- Faster execution (no need to parse full language files)
-- Reduced memory usage
-- Better performance for listing operations
+- Single API call instead of N+1 calls
+- All metadata available instantly
+- No file downloads required
+- Better performance for all operations
 
 **Usage:**
 ```typescript
-// Get basic language list
-const languages = await languageService.getAllLanguages();
-// Returns: [{ id: 'file123', name: 'en.json', code: 'en' }, ...]
+// Get all languages with full metadata
+const languages = await languageService.getLanguagesFromGoogleDrive();
+// Returns: LanguageResponseDto[] with all fields
 ```
 
 ### 2. getActiveLanguages Method
 
-**Before**: Used `getAllLanguages()` then processed files one by one
+**Before**: Used multiple API calls to get language data
 **After**: Fetches all files at once and processes them in parallel
 
 **Benefits:**
 - Parallel processing of all language files
-- No dependency on `getAllLanguages()`
 - Better performance for large numbers of languages
 - Uses `Promise.allSettled()` for robust error handling
 
@@ -56,7 +56,7 @@ const results = await Promise.allSettled(languagePromises);
 
 ### 3. getLanguageByCode Method
 
-**Before**: Used `getAllLanguages()` then searched through results
+**Before**: Required loading all languages first
 **After**: Direct file search by name pattern
 
 **Benefits:**
@@ -66,8 +66,8 @@ const results = await Promise.allSettled(languagePromises);
 
 ### 4. createLanguage Method
 
-**Before**: Used `getAllLanguages()` to check for duplicates, read template from file system
-**After**: Direct file existence check, accepts JSON template in request
+**Before**: Required loading all languages to check for duplicates
+**After**: Direct file existence check, all metadata stored in appProperties
 
 **Benefits:**
 - Faster duplicate checking
@@ -117,51 +117,43 @@ const languageData = JSON.parse(fileContent);
 
 ### 3. New Helper Methods
 
-#### getBasicLanguageInfo
-- Extracts basic language information from file names
-- No need to download and parse full files
-- Handles invalid file names gracefully
-
-#### getFullLanguageById
-- Internal method for getting complete language data
-- Used when full information is actually needed
-- Maintains backward compatibility
+All language metadata is now stored in Google Drive appProperties for fast access without file downloads.
 
 ## Performance Improvements
 
 ### Before Optimization
-- **getAllLanguages**: O(n × file_size) - had to download and parse each file
-- **getActiveLanguages**: O(n) - sequential processing through getAllLanguages
+- **getLanguagesFromGoogleDrive**: O(n × file_size) - had to download and parse each file
+- **getActiveLanguages**: O(n) - sequential processing with file downloads
 - **getLanguageByCode**: O(n) - had to load all languages first
-- **createLanguage**: O(n) - duplicate checking through getAllLanguages
+- **createLanguage**: O(n) - duplicate checking required loading all languages
 - **Memory**: High - stored full language objects in memory
-- **I/O**: High - multiple file operations per language
+- **I/O**: High - N+1 API calls for N languages
 
 ### After Optimization
-- **getAllLanguages**: O(n) - only metadata operations
-- **getActiveLanguages**: O(n) - parallel processing of all files
+- **getLanguagesFromGoogleDrive**: O(1) - single API call with appProperties
+- **getActiveLanguages**: O(1) - single API call, parallel processing
 - **getLanguageByCode**: O(1) - direct file lookup
 - **createLanguage**: O(1) - direct file existence check
-- **Memory**: Low - only basic info stored when needed
-- **I/O**: Minimal - direct API calls without local storage
+- **Memory**: Low - metadata in appProperties, files loaded only when needed
+- **I/O**: Minimal - single API call for metadata, file content only when updating
 - **Parallelization**: Uses Promise.allSettled for concurrent processing
 
 ## API Compatibility
 
-All existing public methods maintain the same interface:
+All public methods now return full `LanguageResponseDto[]` efficiently:
 
-- `getAllLanguages()` - Returns simplified data (breaking change for internal use)
-- `getActiveLanguages()` - Still returns full `LanguageResponseDto[]`
-- `getLanguageByCode()` - Still returns full `LanguageResponseDto`
-- `getLanguageById()` - Still returns full `LanguageResponseDto`
+- `getLanguagesFromGoogleDrive()` - Returns full `LanguageResponseDto[]` from appProperties
+- `getActiveLanguages()` - Returns full `LanguageResponseDto[]` for active languages
+- `getLanguageByCode()` - Returns full `LanguageResponseDto`
+- `getLanguageById()` - Returns full `LanguageResponseDto`
 
 ## Usage Patterns
 
 ### For Listing Languages (UI dropdowns, navigation)
 ```typescript
-// Use getAllLanguages for basic info
-const languages = await languageService.getAllLanguages();
-// Fast, lightweight
+// Get all languages with full metadata
+const languages = await languageService.getLanguagesFromGoogleDrive();
+// Single API call, all data available
 ```
 
 ### For Language Details (editing, statistics)

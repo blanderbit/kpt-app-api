@@ -5,7 +5,9 @@ import { OnboardingQuestionsService } from '../../core/onboarding-questions';
 export class OnboardingQuestionsAdminService {
   private readonly logger = new Logger(OnboardingQuestionsAdminService.name);
 
-  constructor(private readonly onboardingQuestionsService: OnboardingQuestionsService) {}
+  constructor(
+    private readonly onboardingQuestionsService: OnboardingQuestionsService,
+  ) {}
 
   /**
    * Sync onboarding questions with Google Drive

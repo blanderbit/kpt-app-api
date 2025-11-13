@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { MoodTracker } from './mood-tracker.entity';
+import { Expose } from 'class-transformer';
 
 @Entity('mood_surveys')
 export class MoodSurvey {
@@ -51,4 +52,7 @@ export class MoodSurvey {
   @ManyToMany(() => MoodTracker, (moodTracker) => moodTracker.moodSurveys)
   @ApiProperty({ description: 'Mood tracker entries using this survey', type: () => [MoodTracker] })
   moodTrackers: MoodTracker[];
+
+  @Expose() 
+  responsesCount?: number;
 }

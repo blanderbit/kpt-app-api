@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
-import { GoogleDriveService } from '../core/google-drive';
-import { ErrorCode } from '../common/error-codes';
-import { AppException } from '../common/exceptions/app.exception';
-import { databaseConfig } from '../config/database.config';
+import { GoogleDriveService } from '../../core/google-drive';
+import { ErrorCode } from '../../common/error-codes';
+import { AppException } from '../../common/exceptions/app.exception';
+import { databaseConfig } from '../../config/database.config';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
@@ -350,45 +350,61 @@ export class BackupDatabaseService {
   }
 
   /**
-   * Очищает старые бэкапы на Google Drive (удаляет файлы старше 5 дней)
+   * Очищает старые бэкапы на Google Drive (удаляет файлы старше 15 дней)
    */
   async cleanupOldBackupsOnDrive(): Promise<void> {
     try {
-      this.logger.log('Cleaning up old backups on Google Drive (older than 5 days)...');
+      this.logger.log('Cleaning up old backups on Google Drive (older than 15 days)...');
 
       const files = await this.googleDriveService.listFiles(this.backupFolderId);
       const backupFiles = files.filter(file => 
         file.name.startsWith('kpt-backup-') && file.name.endsWith('.sql')
       );
 
-      const fiveDaysAgo = new Date();
-      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+      const fifteenDaysAgo = new Date();
+      fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
 
       let deletedCount = 0;
 
       for (const file of backupFiles) {
         try {
-          // Извлекаем дату из имени файла (формат: kpt-backup-YYYY-MM-DDTHH-mm-ss-sssZ.sql)
-          const fileName = file.name;
-          const dateMatch = fileName.match(/kpt-backup-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.sql/);
+          // Используем modifiedTime из объекта файла (более надежно, чем парсинг имени)
+          const modifiedTime = (file as any).modifiedTime;
           
-          if (dateMatch) {
-            const fileDate = new Date(dateMatch[1].replace(/-/g, ':').replace('T', 'T').replace('Z', 'Z'));
+          if (modifiedTime) {
+            const fileDate = new Date(modifiedTime);
             
-            if (fileDate < fiveDaysAgo) {
+            if (fileDate < fifteenDaysAgo) {
               await this.googleDriveService.deleteFile(file.id);
-              this.logger.log(`Deleted old backup: ${file.name} (created: ${fileDate.toISOString()})`);
+              this.logger.log(`Deleted old backup: ${file.name} (modified: ${fileDate.toISOString()})`);
               deletedCount++;
             }
           } else {
-            this.logger.warn(`Could not parse date from backup filename: ${file.name}`);
+            // Fallback: если modifiedTime недоступен, пытаемся извлечь дату из имени файла
+            const fileName = file.name;
+            const dateMatch = fileName.match(/kpt-backup-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.sql/);
+            
+            if (dateMatch) {
+              // Преобразуем формат из имени файла в ISO формат
+              // Формат в имени: 2024-01-15T10-30-00-000Z -> ISO: 2024-01-15T10:30:00.000Z
+              const dateStr = dateMatch[1].replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/, 'T$1:$2:$3.$4Z');
+              const fileDate = new Date(dateStr);
+              
+              if (fileDate < fifteenDaysAgo) {
+                await this.googleDriveService.deleteFile(file.id);
+                this.logger.log(`Deleted old backup: ${file.name} (parsed from filename: ${fileDate.toISOString()})`);
+                deletedCount++;
+              }
+            } else {
+              this.logger.warn(`Could not determine date for backup file: ${file.name} (no modifiedTime and cannot parse filename)`);
+            }
           }
         } catch (error) {
           this.logger.warn(`Failed to delete old backup ${file.name}:`, error);
         }
       }
 
-      this.logger.log(`Cleanup completed. Deleted ${deletedCount} backup files older than 5 days`);
+      this.logger.log(`Cleanup completed. Deleted ${deletedCount} backup files older than 15 days`);
 
     } catch (error) {
       this.logger.error('Failed to cleanup old backups:', error);

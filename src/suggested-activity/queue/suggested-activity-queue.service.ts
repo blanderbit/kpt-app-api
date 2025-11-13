@@ -106,19 +106,21 @@ export class SuggestedActivityQueueService {
    */
   async getQueueStats() {
     try {
-      const [waiting, active, completed, failed] = await Promise.all([
+      const [waiting, active, completed, failed, isPaused] = await Promise.all([
         this.suggestedActivityQueue.getWaiting(),
         this.suggestedActivityQueue.getActive(),
         this.suggestedActivityQueue.getCompleted(),
         this.suggestedActivityQueue.getFailed(),
+        this.suggestedActivityQueue.isPaused(),
       ]);
-
+      
       return {
         waiting: waiting.length,
         active: active.length,
         completed: completed.length,
         failed: failed.length,
         total: waiting.length + active.length + completed.length + failed.length,
+        isPaused: isPaused
       };
     } catch (error) {
       this.logger.error(`Error getting queue statistics: ${error.message}`);
@@ -126,31 +128,6 @@ export class SuggestedActivityQueueService {
         error: error.message,
         operation: 'getQueueStats'
       });
-    }
-  }
-
-  /**
-   * Get queue status
-   */
-  async getQueueStatus() {
-    try {
-      const stats = await this.getQueueStats();
-      const isActive = stats.active > 0 || stats.waiting > 0;
-      
-      return {
-        status: isActive ? 'active' : 'idle',
-        timestamp: new Date().toISOString(),
-        stats,
-        error: null,
-      };
-    } catch (error) {
-      this.logger.error(`Error getting queue status: ${error.message}`);
-      return {
-        status: 'error',
-        timestamp: new Date().toISOString(),
-        stats: { waiting: 0, active: 0, completed: 0, failed: 0, total: 0 },
-        error: error.message,
-      };
     }
   }
 

@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleDriveFilesService } from '../../common/services/google-drive-files.service';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { OnboardingStepDto, OnboardingQuestionsDto, OnboardingQuestionsStatsDto } from './onboarding-question.dto';
+import { SettingsService } from '../../admin/settings/settings.service';
 
 export interface OnboardingAnswer {
   id: string;
@@ -25,7 +26,7 @@ export interface OnboardingQuestionsData {
 }
 
 @Injectable()
-export class OnboardingQuestionsService {
+export class OnboardingQuestionsService implements OnModuleInit {
   private readonly logger = new Logger(OnboardingQuestionsService.name);
   private onboardingQuestionsData: OnboardingQuestionsData;
   private readonly fileId: string;
@@ -33,9 +34,15 @@ export class OnboardingQuestionsService {
   constructor(
     private readonly configService: ConfigService,
     private readonly googleDriveFilesService: GoogleDriveFilesService,
+    @Inject(forwardRef(() => SettingsService))
+    private readonly settingsService?: SettingsService,
   ) {
+    this.onboardingQuestionsData = { onboardingSteps: [] };
     this.fileId = this.configService.get<string>('ONBOARDING_QUESTIONS_FILE_ID') || '';
-    this.loadOnboardingQuestions();
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.loadOnboardingQuestions();
   }
 
   /**
@@ -61,6 +68,8 @@ export class OnboardingQuestionsService {
       this.onboardingQuestionsData = {
         onboardingSteps: []
       };
+    } finally {
+      this.settingsService?.updateLastSync('onboardingQuestions');
     }
   }
 

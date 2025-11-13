@@ -82,4 +82,12 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   taskTrackingMethod?: string;
+
+  @ApiProperty({
+    description: 'RevenueCat app user identifier',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  appUserId?: string;
 }

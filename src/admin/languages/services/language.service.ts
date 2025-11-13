@@ -1,43 +1,270 @@
-import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ConflictException, OnModuleInit } from '@nestjs/common';
 import { ErrorCode } from '../../../common/error-codes';
 import { AppException } from '../../../common/exceptions/app.exception';
 import * as fs from 'fs';
 import * as path from 'path';
 import { GoogleDriveService } from '../../../core/google-drive';
 import { CreateLanguageDto, UpdateLanguageDto, LanguageResponseDto, DownloadTemplateDto } from '../dto/language.dto';
+import { SettingsService } from '../../settings/settings.service';
 
 @Injectable()
-export class LanguageService {
+export class LanguageService implements OnModuleInit {
   private readonly logger = new Logger(LanguageService.name);
+  private languagesCache: LanguageResponseDto[] = [];
+  private archivedLanguagesCache: LanguageResponseDto[] = [];
+  private lastSyncDate: Date | null = null;
+  private lastArchivedSyncDate: Date | null = null;
 
   constructor(
     private readonly googleDriveService: GoogleDriveService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   /**
-   * Получить все языки из Google Drive
+   * Initialize languages on application startup
    */
-  async getAllLanguages(): Promise<Array<Record<string, any>>> {
+  async onModuleInit() {
+    this.logger.log('Initializing language service - loading languages from Google Drive...');
+    await this.syncLanguagesFromGoogleDrive();
+    await this.syncArchivedLanguagesFromGoogleDrive();
+  }
+
+  /**
+   * Get languages from cache
+   */
+  getLanguagesFromCache(): LanguageResponseDto[] {
+    return this.languagesCache;
+  }
+
+  /**
+   * Get archived languages from cache
+   */
+  getArchivedLanguagesFromCache(): LanguageResponseDto[] {
+    return this.archivedLanguagesCache;
+  }
+
+  /**
+   * Get last sync date
+   */
+  getLastSyncDate(): Date | null {
+    return this.lastSyncDate;
+  }
+
+  /**
+   * Get last archived sync date
+   */
+  getLastArchivedSyncDate(): Date | null {
+    return this.lastArchivedSyncDate;
+  }
+
+  /**
+   * Sync languages from Google Drive to cache
+   */
+  async syncLanguagesFromGoogleDrive(): Promise<{ languages: LanguageResponseDto[], syncedAt: Date }> {
     try {
-      const files = await this.googleDriveService.listFiles(
-        await this.googleDriveService.getOrCreateLanguagesRootFolder()
+      this.logger.log('Syncing languages from Google Drive...');
+      const languages = await this.getLanguagesFromGoogleDrive();
+      this.languagesCache = languages;
+      this.lastSyncDate = new Date();
+      this.settingsService.updateLastSync('languages');
+      this.logger.log(`Successfully synced ${languages.length} languages from Google Drive`);
+      
+      return {
+        languages: this.languagesCache,
+        syncedAt: this.lastSyncDate,
+      };
+    } catch (error) {
+      this.logger.error('Failed to sync languages from Google Drive', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync archived languages from Google Drive to cache
+   */
+  async syncArchivedLanguagesFromGoogleDrive(): Promise<{ languages: LanguageResponseDto[], syncedAt: Date }> {
+    try {
+      this.logger.log('Syncing archived languages from Google Drive...');
+      const languages = await this.getArchivedLanguages();
+      this.archivedLanguagesCache = languages;
+      this.lastArchivedSyncDate = new Date();
+      this.logger.log(`Successfully synced ${languages.length} archived languages from Google Drive`);
+      
+      return {
+        languages: this.archivedLanguagesCache,
+        syncedAt: this.lastArchivedSyncDate,
+      };
+    } catch (error) {
+      this.logger.error('Failed to sync archived languages from Google Drive', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить архивированные языки
+   */
+  async getArchivedLanguages(): Promise<LanguageResponseDto[]> {
+    try {
+      const archiveFolderId = await this.googleDriveService.getArchiveFolder();
+      const files = await this.googleDriveService.listFiles(archiveFolderId);
+      const archivedFiles = files.filter(file => file.mimeType === 'application/json');
+      
+      // Загружаем каждый файл параллельно
+      const languages = await Promise.all(
+        archivedFiles.map(async (file) => {
+          try {
+            const props = file.appProperties || {};
+            
+            // Читаем содержимое файла для получения translations
+            const fileContent = await this.googleDriveService.getFileContent(file.id);
+            const translations = JSON.parse(fileContent);
+            
+            // Подсчитываем ключи
+            const totalKeys = this.countTranslationKeys(translations);
+            
+            return {
+              id: file.id as any,
+              code: props.code || '',
+              name: props.name || '',
+              nativeName: props.nativeName || '',
+              direction: (props.direction as 'ltr' | 'rtl') || 'ltr',
+              isActive: false, // Archived languages are always inactive
+              isDefault: false, // Archived languages are never default
+              version: props.version || '1.0.0',
+              googleDriveFileId: file.id,
+              googleDriveFileUrl: file.webViewLink,
+              googleDriveFolderId: archiveFolderId,
+              totalKeys: totalKeys,
+              totalTranslations: totalKeys,
+              completionRate: 100,
+              notes: props.notes,
+              svgLogo: props.svgLogo,
+              translations,
+              createdBy: props.createdBy,
+              updatedBy: props.updatedBy,
+              createdAt: new Date(props.createdAt || Date.now()),
+              updatedAt: new Date(props.updatedAt || Date.now()),
+              isArchived: true,
+            };
+          } catch (error) {
+            this.logger.error(`Failed to load archived file ${file.name}: ${error.message}`);
+            return null;
+          }
+        })
       );
 
-      const languages: Array<Record<string, any>> = [];
+      // Filter out failed loads
+      return languages.filter(lang => lang !== null).sort((a, b) => a.code.localeCompare(b.code));
+    } catch (error) {
+      this.logger.error('Failed to get archived languages from Google Drive', error);
+      throw new BadRequestException('Failed to get archived languages from Google Drive');
+    }
+  }
+
+  /**
+   * Permanently delete archived language
+   */
+  async deleteArchivedLanguage(fileId: string, adminUser: string): Promise<{ message: string }> {
+    try {
+      // Verify file is in archive folder
+      const fileInfo = await this.googleDriveService.getFileInfo(fileId);
+      const currentFolderId = (fileInfo as any).parents?.[0];
+      const archiveFolderId = await this.googleDriveService.getArchiveFolder();
       
-      for (const file of files) {
-        if (file.mimeType === 'application/json' && !file.name.includes('archived')) {
-          try {
-            // Получаем только базовую информацию о языке без полной загрузки
-            const basicInfo = await this.getBasicLanguageInfo(file.id);
-            if (basicInfo) {
-              languages.push(basicInfo);
-            }
-          } catch (error) {
-            this.logger.warn(`Failed to get basic info for language file: ${file.name}`, error);
-          }
-        }
+      if (currentFolderId !== archiveFolderId) {
+        throw AppException.validation(ErrorCode.ADMIN_LANGUAGE_NOT_IN_ARCHIVE, 'Language is not in archive folder');
       }
+
+      // Delete file from Google Drive
+      await this.googleDriveService.deleteFile(fileId);
+      
+      this.logger.log(`Language ${fileId} permanently deleted by ${adminUser}`);
+      
+      return {
+        message: 'Language permanently deleted from archive'
+      };
+    } catch (error) {
+      this.logger.error(`Failed to delete archived language: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить все языки из Google Drive (читаем файлы с translations)
+   */
+  async getLanguagesFromGoogleDrive(): Promise<LanguageResponseDto[]> {
+    try {
+      const files = await this.getLanguageFiles();
+      const filteredFiles = files.filter(file => !file.name.includes('archived'));
+      
+      // Загружаем каждый файл параллельно
+      const languages = await Promise.all(
+        filteredFiles.map(async (file) => {
+          try {
+            const props = file.appProperties || {};
+            
+            // Читаем содержимое файла для получения translations
+            const fileContent = await this.googleDriveService.getFileContent(file.id);
+            const translations = JSON.parse(fileContent);
+            
+            // Подсчитываем ключи
+            const totalKeys = this.countTranslationKeys(translations);
+            
+            return {
+              id: file.id as any,
+              code: props.code || '',
+              name: props.name || '',
+              nativeName: props.nativeName || '',
+              direction: (props.direction as 'ltr' | 'rtl') || 'ltr',
+              isActive: props.isActive === 'true',
+              isDefault: props.isDefault === 'true',
+              version: props.version || '1.0.0',
+              googleDriveFileId: file.id,
+              googleDriveFileUrl: file.webViewLink,
+              googleDriveFolderId: '', // Не нужен для списка
+              totalKeys: totalKeys,
+              totalTranslations: totalKeys,
+              completionRate: 100, // Если есть все ключи, то 100%
+              notes: props.notes,
+              svgLogo: props.svgLogo,
+              translations,
+              createdBy: props.createdBy,
+              updatedBy: props.updatedBy,
+              createdAt: new Date(props.createdAt || Date.now()),
+              updatedAt: new Date(props.updatedAt || Date.now()),
+              isArchived: false,
+            };
+          } catch (error) {
+            this.logger.error(`Failed to load file ${file.name}: ${error.message}`);
+            // Возвращаем базовую информацию если не удалось загрузить
+            const props = file.appProperties || {};
+            return {
+              id: file.id as any,
+              code: props.code || '',
+              name: props.name || '',
+              nativeName: props.nativeName || '',
+              direction: (props.direction as 'ltr' | 'rtl') || 'ltr',
+              isActive: props.isActive === 'true',
+              isDefault: props.isDefault === 'true',
+              version: props.version || '1.0.0',
+              googleDriveFileId: file.id,
+              googleDriveFileUrl: file.webViewLink,
+              googleDriveFolderId: '',
+              totalKeys: 0,
+              totalTranslations: 0,
+              translations: {},
+              completionRate: 0,
+              notes: props.notes,
+              svgLogo: props.svgLogo,
+              createdBy: props.createdBy,
+              updatedBy: props.updatedBy,
+              createdAt: new Date(props.createdAt || Date.now()),
+              updatedAt: new Date(props.updatedAt || Date.now()),
+              isArchived: false,
+            };
+          }
+        })
+      );
 
       return languages.sort((a, b) => a.code.localeCompare(b.code));
     } catch (error) {
@@ -47,11 +274,32 @@ export class LanguageService {
   }
 
   /**
+   * Подсчет ключей в объекте translations (рекурсивно)
+   */
+  private countTranslationKeys(obj: any, count = 0): number {
+    if (typeof obj !== 'object' || obj === null) {
+      return count;
+    }
+
+    for (const key in obj) {
+      if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+        // Рекурсивно считаем вложенные объекты
+        count = this.countTranslationKeys(obj[key], count);
+      } else {
+        // Считаем только конечные ключи (не объекты)
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  /**
    * Получить активные языки
    */
   async getActiveLanguages(): Promise<LanguageResponseDto[]> {
     try {
-      const rootFolderId = await this.googleDriveService.getOrCreateLanguagesRootFolder();
+      const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
       const files = await this.googleDriveService.listFiles(rootFolderId);
       
       const activeLanguages: LanguageResponseDto[] = [];
@@ -96,9 +344,10 @@ export class LanguageService {
     try {
       const fileInfo = await this.googleDriveService.getFileInfo(fileId);
       
-      if (fileInfo.mimeType !== 'application/json') {
-        throw new BadRequestException('File is not a valid language file');
-      }
+      // if (fileInfo.mimeType !== 'application/json') {
+        // throw new BadRequestException('File is not a valid language file');
+      // }
+
 
       return await this.getLanguageDataFromGoogleDrive(fileId);
     } catch (error) {
@@ -108,18 +357,11 @@ export class LanguageService {
   }
 
   /**
-   * Получить полную информацию о языке по ID (для внутреннего использования)
-   */
-  async getFullLanguageById(fileId: string): Promise<LanguageResponseDto> {
-    return this.getLanguageDataFromGoogleDrive(fileId);
-  }
-
-  /**
    * Получить язык по коду
    */
   async getLanguageByCode(code: string): Promise<LanguageResponseDto> {
     try {
-      const rootFolderId = await this.googleDriveService.getOrCreateLanguagesRootFolder();
+      const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
       const files = await this.googleDriveService.listFiles(rootFolderId);
       
       // Ищем файл по коду языка
@@ -149,7 +391,7 @@ export class LanguageService {
   async createLanguage(createLanguageDto: CreateLanguageDto, adminUser: string): Promise<LanguageResponseDto> {
     try {
       // Проверяем, не существует ли уже язык с таким кодом
-      const rootFolderId = await this.googleDriveService.getOrCreateLanguagesRootFolder();
+      const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
       const files = await this.googleDriveService.listFiles(rootFolderId);
       
       const existingFile = files.find(file => 
@@ -162,18 +404,54 @@ export class LanguageService {
         throw new ConflictException(`Language with code ${createLanguageDto.code} already exists`);
       }
 
+      // Проверяем, есть ли уже дефолтный язык
+      const hasDefault = await this.hasDefaultLanguage(files);
+      const isDefault = createLanguageDto.isDefault ?? !hasDefault;
+
       // Создаем временный файл
       const tempFilePath = path.join(process.cwd(), 'data/languages', `temp-${createLanguageDto.code}-${Date.now()}.json`);
       
       try {
-        // Записываем шаблон во временный файл
-        fs.writeFileSync(tempFilePath, JSON.stringify(createLanguageDto.template, null, 2));
+        // Создаем структуру языка только с переводами
+        const languageTemplate = {
+          translations: createLanguageDto.translations || {},
+          language: {
+            code: createLanguageDto.code,
+            name: createLanguageDto.name,
+            svgLogo: createLanguageDto.svgLogo,
+            nativeName: createLanguageDto.nativeName,
+            direction: createLanguageDto.direction || 'ltr',
+            isActive: String(createLanguageDto.isActive ?? true),
+            isDefault: String(isDefault),
+            version: createLanguageDto.version || '1.0.0',
+          }
+        };
+        
+        // Записываем созданный шаблон во временный файл
+        fs.writeFileSync(tempFilePath, JSON.stringify(languageTemplate, null, 2));
 
-        // Загружаем файл в Google Drive
+        const translations = createLanguageDto.translations || {};
+        const totalKeys = this.countTotalKeys(translations);
+        const totalTranslations = this.countTotalTranslations(translations);
+        const completionRate = this.calculateCompletionRate(translations);
+
+        // Загружаем файл в Google Drive с appProperties (все метаданные здесь)
         const uploadResult = await this.googleDriveService.uploadFile(
           tempFilePath,
           `${createLanguageDto.code}.json`,
-          rootFolderId
+          rootFolderId,
+          {
+            code: createLanguageDto.code,
+            name: createLanguageDto.name,
+            nativeName: createLanguageDto.nativeName,
+            direction: createLanguageDto.direction || 'ltr',
+            isActive: String(createLanguageDto.isActive ?? true),
+            isDefault: String(isDefault),
+            version: createLanguageDto.version || '1.0.0',
+            totalKeys: String(totalKeys),
+            totalTranslations: String(totalTranslations),
+            completionRate: String(completionRate),
+          }
         );
 
         this.logger.log(`Created language: ${createLanguageDto.code} with file ID: ${uploadResult.fileId}`);
@@ -186,15 +464,16 @@ export class LanguageService {
           nativeName: createLanguageDto.nativeName,
           direction: createLanguageDto.direction || 'ltr',
           isActive: createLanguageDto.isActive ?? true,
-          isDefault: createLanguageDto.isDefault ?? false,
+          isDefault: isDefault,
           version: createLanguageDto.version || '1.0.0',
           googleDriveFileId: uploadResult.fileId,
           googleDriveFileUrl: uploadResult.fileUrl,
           googleDriveFolderId: rootFolderId,
-          totalKeys: this.countTotalKeys(createLanguageDto.template.translations || {}),
-          totalTranslations: this.countTotalTranslations(createLanguageDto.template.translations || {}),
-          completionRate: this.calculateCompletionRate(createLanguageDto.template.translations || {}),
+          totalKeys,
+          totalTranslations,
+          completionRate,
           notes: createLanguageDto.notes,
+          svgLogo: createLanguageDto.svgLogo,
           createdBy: adminUser,
           updatedBy: adminUser,
           createdAt: new Date(),
@@ -218,48 +497,62 @@ export class LanguageService {
    */
   async updateLanguage(fileId: string, updateLanguageDto: UpdateLanguageDto, adminUser: string): Promise<LanguageResponseDto> {
     try {
-      // Получаем текущий язык
-      const currentLanguage = await this.getLanguageById(fileId);
-      
-      // Скачиваем файл из Google Drive
-      const localFilePath = path.join(process.cwd(), 'data/languages', `${currentLanguage.code}-temp.json`);
-      await this.googleDriveService.downloadFile(fileId, localFilePath);
+      // Получаем текущий язык и файл
+      const fileInfo = await this.googleDriveService.getFileInfo(fileId);
+      const currentProps = fileInfo.appProperties || {};
 
-      // Читаем и обновляем файл
-      if (fs.existsSync(localFilePath)) {
-        const languageData = JSON.parse(fs.readFileSync(localFilePath, 'utf8'));
+      // Обновляем переводы, если они предоставлены
+      if (updateLanguageDto.translations !== undefined) {
+        const fileContent = await this.googleDriveService.getFileContent(fileId);
+        const languageData = JSON.parse(fileContent);
         
-        // Обновляем метаданные
-        if (updateLanguageDto.name) languageData.language.name = updateLanguageDto.name;
-        if (updateLanguageDto.nativeName) languageData.language.nativeName = updateLanguageDto.nativeName;
-        if (updateLanguageDto.direction) languageData.language.direction = updateLanguageDto.direction;
-        if (updateLanguageDto.version) languageData.language.version = updateLanguageDto.version;
-        if (updateLanguageDto.notes) languageData.metadata.notes = updateLanguageDto.notes;
+        languageData.translations = updateLanguageDto.translations;
         
-        languageData.language.lastUpdated = new Date().toISOString();
-        languageData.metadata.updatedBy = adminUser;
-        languageData.metadata.updatedAt = new Date().toISOString();
+        // Пересчитываем статистику переводов
+        const totalKeys = this.countTotalKeys(updateLanguageDto.translations);
+        const totalTranslations = this.countTotalTranslations(updateLanguageDto.translations);
+        const completionRate = this.calculateCompletionRate(updateLanguageDto.translations);
 
-        // Сохраняем обновленный файл
-        fs.writeFileSync(localFilePath, JSON.stringify(languageData, null, 2));
-
-        // Обновляем файл в Google Drive
-        await this.googleDriveService.updateFile(fileId, localFilePath);
-
-        // Удаляем временный файл
-        fs.unlinkSync(localFilePath);
-
-        // Возвращаем обновленный язык
-        return {
-          ...currentLanguage,
-          ...updateLanguageDto,
-          updatedBy: adminUser,
-          updatedAt: new Date(),
-          lastSyncAt: new Date(),
-        };
+        // Создаем временный файл для обновления
+        const tempFilePath = path.join(process.cwd(), 'data/languages', `temp-${currentProps.code}-${Date.now()}.json`);
+        
+        try {
+          fs.writeFileSync(tempFilePath, JSON.stringify(languageData, null, 2));
+          await this.googleDriveService.updateFile(fileId, tempFilePath);
+          
+          // Обновляем статистику в appProperties
+          currentProps.totalKeys = String(totalKeys);
+          currentProps.totalTranslations = String(totalTranslations);
+          currentProps.completionRate = String(completionRate);
+        } finally {
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+        }
       }
 
-      throw new BadRequestException('Failed to update language file');
+      // Обновляем метаданные в appProperties
+      const updatedProperties = { ...currentProps };
+      
+      if (updateLanguageDto.name !== undefined) updatedProperties.name = updateLanguageDto.name;
+      if (updateLanguageDto.nativeName !== undefined) updatedProperties.nativeName = updateLanguageDto.nativeName;
+      if (updateLanguageDto.direction !== undefined) updatedProperties.direction = updateLanguageDto.direction;
+      if (updateLanguageDto.version !== undefined) updatedProperties.version = updateLanguageDto.version;
+      if (updateLanguageDto.notes !== undefined) updatedProperties.notes = updateLanguageDto.notes;
+      if (updateLanguageDto.svgLogo !== undefined) updatedProperties.svgLogo = updateLanguageDto.svgLogo;
+      if (updateLanguageDto.isActive !== undefined) updatedProperties.isActive = String(updateLanguageDto.isActive);
+      if (updateLanguageDto.isDefault !== undefined) updatedProperties.isDefault = String(updateLanguageDto.isDefault);
+      
+      updatedProperties.updatedBy = adminUser;
+      updatedProperties.updatedAt = new Date().toISOString();
+
+      // Обновляем appProperties
+      await this.googleDriveService.updateFileProperties(fileId, updatedProperties);
+
+      this.logger.log(`Updated language: ${updatedProperties.code || fileId}`);
+
+      // Возвращаем обновленный язык
+      return await this.getLanguageById(fileId);
     } catch (error) {
       this.logger.error(`Failed to update language: ${fileId}`, error);
       throw error;
@@ -270,25 +563,43 @@ export class LanguageService {
    * Архивировать язык (переместить в архивную папку)
    */
   async archiveLanguage(fileId: string, adminUser: string, reason?: string): Promise<{ message: string }> {
+
     try {
       const language = await this.getLanguageById(fileId);
-
-      if (language.isDefault) {
-        throw AppException.validation(ErrorCode.ADMIN_LANGUAGE_CANNOT_ARCHIVE_DEFAULT, 'Cannot archive default language');
-      }
+      const isDefaultLanguage = language.isDefault;
 
       // Проверяем, не находится ли файл уже в архиве
       const fileInfo = await this.googleDriveService.getFileInfo(fileId);
       const currentFolderId = (fileInfo as any).parents?.[0];
-      const rootFolderId = await this.googleDriveService.getOrCreateLanguagesRootFolder();
+      const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
       
-      if (currentFolderId === await this.googleDriveService.getOrCreateArchiveFolder(rootFolderId)) {
+      if (currentFolderId === await this.googleDriveService.getArchiveFolder()) {
         throw AppException.validation(ErrorCode.ADMIN_LANGUAGE_ALREADY_ARCHIVED, 'Language is already archived');
       }
 
-      // Перемещаем файл в архивную папку в Google Drive
-      const archiveFolderId = await this.googleDriveService.getOrCreateArchiveFolder(rootFolderId);
-      await this.googleDriveService.moveToArchive(fileId, archiveFolderId);
+      // Если архивируем дефолтный язык, находим первый доступный язык и делаем его дефолтным
+      if (isDefaultLanguage) {
+        this.logger.log('Archiving default language, setting another language as default...');
+        
+        const files = await this.googleDriveService.listFiles(rootFolderId);
+        const jsonFiles = files.filter(file => 
+          file.mimeType === 'application/json' && 
+          !file.name.includes('archived') &&
+          file.id !== fileId
+        );
+
+        if (jsonFiles.length > 0) {
+          const firstAvailableFile = jsonFiles[0];
+          this.logger.log(`Setting ${firstAvailableFile.name} as new default language`);
+          
+          // Устанавливаем первый доступный файл как дефолтный
+          await this.setDefaultLanguage(firstAvailableFile.id, adminUser);
+        }
+      }
+
+      // Перемещаем файл в архивную папку в Google Drive, передаем уже полученный fileInfo
+      const archiveFolderId = await this.googleDriveService.getArchiveFolder();
+      await this.googleDriveService.moveToArchive(fileId, archiveFolderId, fileInfo);
 
       // Обновляем метаданные файла (добавляем информацию об архивировании)
       await this.updateLanguageArchiveMetadata(fileId, adminUser, reason);
@@ -310,8 +621,8 @@ export class LanguageService {
       // Проверяем, находится ли файл действительно в архиве
       const fileInfo = await this.googleDriveService.getFileInfo(fileId);
       const currentFolderId = (fileInfo as any).parents?.[0];
-      const rootFolderId = await this.googleDriveService.getOrCreateLanguagesRootFolder();
-      const archiveFolderId = await this.googleDriveService.getOrCreateArchiveFolder(rootFolderId);
+      const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
+      const archiveFolderId = await this.googleDriveService.getArchiveFolder();
       
       if (currentFolderId !== archiveFolderId) {
         throw AppException.validation(ErrorCode.ADMIN_LANGUAGE_NOT_IN_ARCHIVE, 'Language is not in archive');
@@ -336,22 +647,23 @@ export class LanguageService {
    * Скачать дефолтный шаблон для языка
    */
   async downloadDefaultTemplate(downloadTemplateDto: DownloadTemplateDto): Promise<{ message: string; filePath: string }> {
-    const templatePath = path.join(process.cwd(), 'data/languages/templates/default-language-template.json');
+    const translationsTemplatePath = path.join(process.cwd(), 'data/languages/templates/translations-template.json');
     const outputPath = path.join(process.cwd(), 'data/languages', `${downloadTemplateDto.code}.json`);
 
-    if (!fs.existsSync(templatePath)) {
-      throw new BadRequestException('Default language template not found');
+    if (!fs.existsSync(translationsTemplatePath)) {
+      throw new BadRequestException('Translations template not found');
     }
 
-    // Читаем шаблон и обновляем его для нового языка
-    const template = JSON.parse(fs.readFileSync(templatePath, 'utf8'));
-    template.language.code = downloadTemplateDto.code;
-    template.language.name = downloadTemplateDto.name;
-    template.language.nativeName = downloadTemplateDto.nativeName;
-    template.language.lastUpdated = new Date().toISOString();
+    // Читаем шаблон переводов
+    const translations = JSON.parse(fs.readFileSync(translationsTemplatePath, 'utf8'));
+    
+    // Создаем структуру языка только с переводами (метаданные будут в appProperties)
+    const languageTemplate = {
+      translations: translations
+    };
 
     // Сохраняем файл
-    fs.writeFileSync(outputPath, JSON.stringify(template, null, 2));
+    fs.writeFileSync(outputPath, JSON.stringify(languageTemplate, null, 2));
 
     this.logger.log(`Downloaded template for language: ${downloadTemplateDto.code}`);
 
@@ -364,10 +676,10 @@ export class LanguageService {
 
 
   /**
-   * Получить языки из Google Drive папки
+   * Получить файлы языков из Google Drive (приватный метод для внутреннего использования)
    */
-  async getLanguagesFromGoogleDrive(): Promise<Array<{ id: string; name: string; mimeType: string; webViewLink: string }>> {
-    const rootFolderId = await this.googleDriveService.getOrCreateLanguagesRootFolder();
+  private async getLanguageFiles(): Promise<Array<{ id: string; name: string; mimeType: string; webViewLink: string; appProperties?: any }>> {
+    const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
     const files = await this.googleDriveService.listFiles(rootFolderId);
 
     // Фильтруем только JSON файлы
@@ -375,72 +687,51 @@ export class LanguageService {
   }
 
   /**
-   * Получить данные языка из Google Drive
+   * Get language data including translations (public method)
+   */
+  async getLanguageData(fileId: string): Promise<{ translations: Record<string, any> }> {
+    const languageData = await this.getLanguageDataFromGoogleDrive(fileId);
+    
+    // Return only translations for editor
+    return {
+      translations: languageData
+    };
+  }
+
+  /**
+   * Получить данные языка из Google Drive (читаем из appProperties)
    */
   private async getLanguageDataFromGoogleDrive(fileId: string): Promise<LanguageResponseDto> {
     try {
       const fileInfo = await this.googleDriveService.getFileInfo(fileId);
-      
-      // Получаем содержимое файла напрямую без сохранения локально
-      const fileContent = await this.googleDriveService.getFileContent(fileId);
-      
-      if (!fileContent) {
-        throw new BadRequestException('Failed to read language file content');
-      }
-
-      const languageData = JSON.parse(fileContent);
+      const props = fileInfo.appProperties || {};
 
       return {
-        id: fileId as any, // ID теперь строка из Google Drive
-        code: languageData.language.code,
-        name: languageData.language.name,
-        nativeName: languageData.language.nativeName,
-        direction: languageData.language.direction,
-        isActive: languageData.language.isActive ?? true,
-        isDefault: languageData.language.isDefault ?? false,
-        version: languageData.language.version,
+        id: fileId as any,
+        code: props.code || '',
+        name: props.name || '',
+        nativeName: props.nativeName || '',
+        direction: (props.direction as 'ltr' | 'rtl') || 'ltr',
+        isActive: props.isActive === 'true',
+        isDefault: props.isDefault === 'true',
+        version: props.version || '1.0.0',
         googleDriveFileId: fileId,
         googleDriveFileUrl: fileInfo.webViewLink,
-        googleDriveFolderId: (fileInfo as any).parents?.[0] || '',
-        totalKeys: this.countTotalKeys(languageData.translations),
-        totalTranslations: this.countTotalTranslations(languageData.translations),
-        completionRate: this.calculateCompletionRate(languageData.translations),
-        notes: languageData.metadata?.notes,
-        createdBy: languageData.metadata?.createdBy,
-        updatedBy: languageData.metadata?.updatedBy,
-        createdAt: new Date(languageData.metadata?.createdAt || Date.now()),
-        updatedAt: new Date(languageData.metadata?.updatedAt || Date.now()),
+        googleDriveFolderId: fileInfo.parents?.[0] || '',
+        totalKeys: parseInt(props.totalKeys || '0', 10),
+        totalTranslations: parseInt(props.totalTranslations || '0', 10),
+        completionRate: parseInt(props.completionRate || '0', 10),
+        notes: props.notes,
+        svgLogo: props.svgLogo,
+        createdBy: props.createdBy,
+        updatedBy: props.updatedBy,
+        createdAt: new Date(props.createdAt || Date.now()),
+        updatedAt: new Date(props.updatedAt || Date.now()),
         isArchived: false, // Определяется по расположению файла
       };
     } catch (error) {
       this.logger.error(`Failed to get language data from Google Drive: ${fileId}`, error);
       throw new BadRequestException('Failed to read language file');
-    }
-  }
-
-  /**
-   * Получить базовую информацию о языке из Google Drive
-   */
-  private async getBasicLanguageInfo(fileId: string): Promise<{ id: string; name: string; code: string } | null> {
-    try {
-      const fileInfo = await this.googleDriveService.getFileInfo(fileId);
-      const fileName = fileInfo.name;
-      const codeMatch = fileName.match(/^([a-zA-Z0-9_-]+)\.json$/);
-
-      if (!codeMatch) {
-        this.logger.warn(`Skipping file with invalid name: ${fileName}`);
-        return null; // Skip files with invalid names
-      }
-
-      const code = codeMatch[1];
-      return {
-        id: fileId,
-        name: fileName,
-        code: code,
-      };
-    } catch (error) {
-      this.logger.warn(`Failed to get basic info for file: ${fileId}`, error);
-      return null;
     }
   }
 
@@ -496,32 +787,18 @@ export class LanguageService {
    */
   private async updateLanguageArchiveMetadata(fileId: string, adminUser: string, reason?: string): Promise<void> {
     try {
-      // Получаем текущее содержимое файла
-      const fileContent = await this.googleDriveService.getFileContent(fileId);
-      if (!fileContent) return;
+      const fileInfo = await this.googleDriveService.getFileInfo(fileId);
+      const updatedProperties = {
+        ...fileInfo.appProperties,
+        isArchived: 'true',
+        archivedAt: new Date().toISOString(),
+        archivedBy: adminUser,
+        archiveReason: reason || '',
+      };
 
-      const languageData = JSON.parse(fileContent);
-      
-      // Добавляем информацию об архивировании
-      if (!languageData.metadata) languageData.metadata = {};
-      languageData.metadata.archivedAt = new Date().toISOString();
-      languageData.metadata.archivedBy = adminUser;
-      languageData.metadata.archiveReason = reason;
-      languageData.language.isArchived = true;
-
-      // Создаем временный файл для обновления
-      const tempPath = path.join(process.cwd(), 'data/languages', `temp-archive-${Date.now()}.json`);
-      try {
-        fs.writeFileSync(tempPath, JSON.stringify(languageData, null, 2));
-        await this.googleDriveService.updateFile(fileId, tempPath);
-      } finally {
-        if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath);
-        }
-      }
+      await this.googleDriveService.updateFileProperties(fileId, updatedProperties);
     } catch (error) {
       this.logger.warn(`Failed to update archive metadata for language: ${fileId}`, error);
-      // Не прерываем основную операцию архивирования, но логируем ошибку
       this.logger.error(`Archive metadata update failed for language: ${fileId}`, {
         error: error.message,
         errorCode: ErrorCode.ADMIN_LANGUAGE_ARCHIVE_METADATA_UPDATE_FAILED
@@ -530,40 +807,195 @@ export class LanguageService {
   }
 
   /**
+   * Установить язык как дефолтный
+   */
+  async setDefaultLanguage(fileId: string, adminUser: string): Promise<LanguageResponseDto> {
+    try {
+      // Получаем список всех языков
+      const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
+      const files = await this.googleDriveService.listFiles(rootFolderId);
+      
+      const jsonFiles = files.filter(file => 
+        file.mimeType === 'application/json' && 
+        !file.name.includes('archived')
+      );
+
+      // Убираем isDefault у всех языков через appProperties
+      const updatePromises: Promise<void>[] = [];
+      
+      for (const file of jsonFiles) {
+        if ((file.appProperties?.isDefault === 'true' || file.appProperties?.isDefault === true) && file.id !== fileId) {
+          // Обновляем только appProperties, без чтения и записи файла
+          const updatedProperties = {
+            ...file.appProperties,
+            isDefault: 'false'
+          };
+          updatePromises.push(
+            this.googleDriveService.updateFileProperties(file.id, updatedProperties)
+          );
+        }
+      }
+
+      // Выполняем все обновления параллельно
+      await Promise.all(updatePromises);
+
+      // Устанавливаем isDefault для текущего языка
+      const currentFile = jsonFiles.find(f => f.id === fileId);
+      if (!currentFile) {
+        throw new BadRequestException('Language file not found');
+      }
+
+      const updatedProperties = {
+        ...currentFile.appProperties,
+        isDefault: 'true'
+      };
+      
+      await this.googleDriveService.updateFileProperties(fileId, updatedProperties);
+      
+      this.logger.log(`Set language ${currentFile.appProperties?.code || fileId} as default`);
+      
+      // Получаем полные данные для ответа
+      const languageData = await this.getLanguageById(fileId);
+      
+      return {
+        ...languageData,
+        isDefault: true,
+        updatedBy: adminUser,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      this.logger.error(`Failed to set default language: ${fileId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Установить язык как активный/неактивный
+   */
+  async setActiveLanguage(fileId: string, isActive: boolean, adminUser: string): Promise<LanguageResponseDto> {
+    try {
+      // Получаем информацию о файле
+      const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
+      const files = await this.googleDriveService.listFiles(rootFolderId);
+      
+      const currentFile = files.find(f => f.id === fileId);
+      if (!currentFile) {
+        throw new BadRequestException('Language file not found');
+      }
+
+      // Обновляем appProperties
+      const updatedProperties = {
+        ...currentFile.appProperties,
+        isActive: String(isActive)
+      };
+      
+      await this.googleDriveService.updateFileProperties(fileId, updatedProperties);
+      
+      this.logger.log(`Set language ${currentFile.appProperties?.code || fileId} as ${isActive ? 'active' : 'inactive'}`);
+      
+      // Получаем полные данные для ответа
+      const languageData = await this.getLanguageById(fileId);
+      
+      return {
+        ...languageData,
+        isActive: isActive,
+        updatedBy: adminUser,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      this.logger.error(`Failed to set active language: ${fileId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Установить все языки как активные
+   */
+  async setAllLanguagesActive(adminUser: string): Promise<{ message: string; updatedCount: number }> {
+    try {
+      const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
+      const files = await this.googleDriveService.listFiles(rootFolderId);
+      
+      const jsonFiles = files.filter(file => 
+        file.mimeType === 'application/json' && 
+        !file.name.includes('archived')
+      );
+
+      // Обновляем isActive для всех языков
+      const updatePromises: Promise<void>[] = [];
+      
+      for (const file of jsonFiles) {
+        if (file.appProperties?.isActive !== 'true') {
+          const updatedProperties = {
+            ...file.appProperties,
+            isActive: 'true'
+          };
+          updatePromises.push(
+            this.googleDriveService.updateFileProperties(file.id, updatedProperties)
+          );
+        }
+      }
+
+      // Выполняем все обновления параллельно
+      await Promise.all(updatePromises);
+      
+      this.logger.log(`Set all ${updatePromises.length} languages as active by ${adminUser}`);
+      
+      return {
+        message: `Successfully set ${updatePromises.length} language(s) as active`,
+        updatedCount: updatePromises.length,
+      };
+    } catch (error) {
+      this.logger.error('Failed to set all languages as active', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Проверить, есть ли дефолтный язык
+   */
+  private async hasDefaultLanguage(files: Array<{ id: string; name: string; mimeType: string; webViewLink: string; appProperties?: any }>): Promise<boolean> {
+    try {
+      const jsonFiles = files.filter(file => 
+        file.mimeType === 'application/json' && 
+        !file.name.includes('archived')
+      );
+
+      for (const file of jsonFiles) {
+        // Проверяем appProperties вместо чтения файла
+        if (file.appProperties?.isDefault === 'true' || file.appProperties?.isDefault === true) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      this.logger.error('Failed to check for default language', error);
+      return false;
+    }
+  }
+
+  /**
    * Обновить метаданные восстановления языка
    */
   private async updateLanguageRestoreMetadata(fileId: string, adminUser: string): Promise<void> {
     try {
-      // Получаем текущее содержимое файла
-      const fileContent = await this.googleDriveService.getFileContent(fileId);
-      if (!fileContent) return;
-
-      const languageData = JSON.parse(fileContent);
+      const fileInfo = await this.googleDriveService.getFileInfo(fileId);
+      const updatedProperties = { ...fileInfo.appProperties };
       
       // Убираем информацию об архивировании
-      if (languageData.metadata) {
-        delete languageData.metadata.archivedAt;
-        delete languageData.metadata.archivedBy;
-        delete languageData.metadata.archiveReason;
-      }
-      languageData.language.isArchived = false;
-      languageData.metadata = languageData.metadata || {};
-      languageData.metadata.restoredAt = new Date().toISOString();
-      languageData.metadata.restoredBy = adminUser;
+      delete updatedProperties.isArchived;
+      delete updatedProperties.archivedAt;
+      delete updatedProperties.archivedBy;
+      delete updatedProperties.archiveReason;
+      
+      // Добавляем информацию о восстановлении
+      updatedProperties.restoredAt = new Date().toISOString();
+      updatedProperties.restoredBy = adminUser;
 
-      // Создаем временный файл для обновления
-      const tempPath = path.join(process.cwd(), 'data/languages', `temp-restore-${Date.now()}.json`);
-      try {
-        fs.writeFileSync(tempPath, JSON.stringify(languageData, null, 2));
-        await this.googleDriveService.updateFile(fileId, tempPath);
-      } finally {
-        if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath);
-        }
-      }
+      await this.googleDriveService.updateFileProperties(fileId, updatedProperties);
     } catch (error) {
       this.logger.warn(`Failed to update restore metadata for language: ${fileId}`, error);
-      // Не прерываем основную операцию восстановления, но логируем ошибку
       this.logger.error(`Restore metadata update failed for language: ${fileId}`, {
         error: error.message,
         errorCode: ErrorCode.ADMIN_LANGUAGE_RESTORE_METADATA_UPDATE_FAILED

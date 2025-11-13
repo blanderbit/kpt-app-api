@@ -1,10 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
 import { SuggestedActivity } from './entities/suggested-activity.entity';
 import { SuggestedActivityController } from './controllers/suggested-activity.controller';
-import { QueueManagementController } from './controllers/queue-management.controller';
 import { SuggestedActivityService } from './services/suggested-activity.service';
 import { ChatGPTModule } from '../core/chatgpt';
 import { Activity } from '../profile/activity/entities/activity.entity';
@@ -15,6 +14,8 @@ import { SuggestedActivityCronService } from './cron/suggested-activity-cron.ser
 import { SuggestedActivityProcessor } from './queue/suggested-activity.processor';
 import { SuggestedActivityQueueService } from './queue/suggested-activity-queue.service';
 import { UsersModule } from '../users/users.module';
+import { SettingsModule } from '../admin/settings/settings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -35,15 +36,17 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
     ActivityModule,
     ActivityTypesModule,
-    ChatGPTModule
+    ChatGPTModule,
+    forwardRef(() => SettingsModule),
+    NotificationsModule,
   ],
-  controllers: [SuggestedActivityController, QueueManagementController],
+  controllers: [SuggestedActivityController],
   providers: [
     SuggestedActivityService, 
     SuggestedActivityCronService,
     SuggestedActivityProcessor,
     SuggestedActivityQueueService,
   ],
-  exports: [SuggestedActivityService, BullModule],
+  exports: [SuggestedActivityService, SuggestedActivityQueueService, SuggestedActivityCronService, BullModule],
 })
 export class SuggestedActivityModule {}

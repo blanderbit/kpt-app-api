@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleDriveFilesService } from '../../common/services/google-drive-files.service';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { SocialNetworkDto, SocialNetworksStatsDto } from './social-network.dto';
+import { SettingsService } from '../../admin/settings/settings.service';
 
 export interface SocialNetwork {
   id: string;
@@ -20,17 +21,25 @@ export interface SocialNetworksData {
 }
 
 @Injectable()
-export class SocialNetworksService {
+export class SocialNetworksService implements OnModuleInit {
   private readonly logger = new Logger(SocialNetworksService.name);
-  private socialNetworksData: SocialNetworksData;
+  private socialNetworksData: SocialNetworksData = {
+    socialNetworks: [],
+    categories: {}
+  };
   private readonly fileId: string;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly googleDriveFilesService: GoogleDriveFilesService,
+    @Inject(forwardRef(() => SettingsService))
+    private readonly settingsService?: SettingsService,
   ) {
     this.fileId = this.configService.get<string>('SOCIAL_NETWORKS_FILE_ID') || '';
-    this.loadSocialNetworks();
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.loadSocialNetworks();
   }
 
   /**
@@ -44,7 +53,6 @@ export class SocialNetworksService {
         this.socialNetworksData = await this.googleDriveFilesService.getFileContent(this.fileId);
         return;
       }
-
       // If Google Drive is unavailable, use empty array
       this.logger.warn('Google Drive not available, using empty social networks');
       this.socialNetworksData = {
@@ -58,6 +66,8 @@ export class SocialNetworksService {
         socialNetworks: [],
         categories: {}
       };
+    } finally {
+      this.settingsService?.updateLastSync('socialNetworks');
     }
   }
 
@@ -65,14 +75,22 @@ export class SocialNetworksService {
    * Get all social networks
    */
   getAllSocialNetworks(): SocialNetworkDto[] {
-    return this.socialNetworksData.socialNetworks;
+    if (!this.socialNetworksData) {
+      this.logger.warn('Social networks data not loaded yet, returning empty array');
+      return [];
+    }
+    return this.socialNetworksData.socialNetworks || [];
   }
 
   /**
    * Get social networks by category
    */
   getSocialNetworksByCategory(category: string): SocialNetworkDto[] {
-    return this.socialNetworksData.socialNetworks.filter(
+    if (!this.socialNetworksData) {
+      this.logger.warn('Social networks data not loaded yet, returning empty array');
+      return [];
+    }
+    return (this.socialNetworksData.socialNetworks || []).filter(
       network => network.category === category
     );
   }
@@ -81,14 +99,29 @@ export class SocialNetworksService {
    * Get all available categories
    */
   getSocialNetworkCategories(): Record<string, string> {
-    return this.socialNetworksData.categories;
+    if (!this.socialNetworksData) {
+      this.logger.warn('Social networks data not loaded yet, returning empty object');
+      return {};
+    }
+    return this.socialNetworksData.categories || {};
   }
 
   /**
    * Get social networks statistics
    */
   getSocialNetworksStats(): SocialNetworksStatsDto {
-    const networks = this.socialNetworksData.socialNetworks;
+    // Initialize if not loaded yet
+    if (!this.socialNetworksData) {
+      this.logger.warn('Social networks data not loaded yet, returning empty stats');
+      return {
+        totalCount: 0,
+        categoryCounts: {},
+        categories: []
+      };
+    }
+
+    const networks = this.socialNetworksData.socialNetworks || [];
+    const categories = this.socialNetworksData.categories || {};
     const categoryCounts: Record<string, number> = {};
     
     networks.forEach(network => {
@@ -98,7 +131,7 @@ export class SocialNetworksService {
     return {
       totalCount: networks.length,
       categoryCounts,
-      categories: Object.keys(this.socialNetworksData.categories)
+      categories: Object.keys(categories)
     };
   }
 
@@ -106,6 +139,10 @@ export class SocialNetworksService {
    * Get social network by ID
    */
   getSocialNetworkById(id: string): SocialNetworkDto | undefined {
-    return this.socialNetworksData.socialNetworks.find(network => network.id === id);
+    if (!this.socialNetworksData) {
+      this.logger.warn('Social networks data not loaded yet');
+      return undefined;
+    }
+    return (this.socialNetworksData.socialNetworks || []).find(network => network.id === id);
   }
 }

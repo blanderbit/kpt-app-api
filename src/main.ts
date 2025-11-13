@@ -17,6 +17,12 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // Enable CORS for port 8085
+  app.enableCors({
+    origin: 'http://localhost:8085',
+    credentials: true,
+  });
+
   // Get the TypeORM DataSource and add it to transactional context
   const dataSource = app.get(DataSource);
   addTransactionalDataSource(dataSource);

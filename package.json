@@ -23,6 +23,7 @@
     "cli:create-admin": "ts-node src/cli/cli.ts create-admin",
     "cli:remove-admin": "ts-node src/cli/cli.ts remove-admin",
     "cli:list-admins": "ts-node src/cli/cli.ts list-admins",
+    "db:seed": "ts-node src/cli/cli.ts seed-database",
     "docker:dev": "docker-compose -f .deploy/docker-compose.dev.yml --env-file .deploy/env.dev up -d",
     "docker:dev:build": "docker-compose -f .deploy/docker-compose.dev.yml --env-file .deploy/env.dev up -d --build",
     "docker:dev:down": "docker-compose -f .deploy/docker-compose.dev.yml --env-file .deploy/env.dev down",
@@ -37,6 +38,9 @@
     "docker:clean:all": "docker system prune -a -f && docker volume prune -f"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.918.0",
+    "@aws-sdk/s3-request-presigner": "^3.918.0",
+    "@faker-js/faker": "^9.9.0",
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/bull": "^11.0.0",
     "@nestjs/cli": "^11.0.0",
@@ -77,6 +81,7 @@
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
     "@types/passport-google-oauth20": "^2.0.14",
     "@types/passport-jwt": "^4.0.1",

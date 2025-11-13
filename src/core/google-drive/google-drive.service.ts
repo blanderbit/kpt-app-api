@@ -30,34 +30,11 @@ export class GoogleDriveService {
     }
   }
 
-  /**
-   * Создать папку в Google Drive
-   */
-  async createFolder(folderName: string, parentFolderId?: string): Promise<string> {
-    try {
-      const fileMetadata = {
-        name: folderName,
-        mimeType: 'application/vnd.google-apps.folder',
-        ...(parentFolderId && { parents: [parentFolderId] }),
-      };
-
-      const response = await this.drive.files.create({
-        requestBody: fileMetadata,
-        fields: 'id',
-      });
-
-      this.logger.log(`Created folder: ${folderName} with ID: ${response.data.id}`);
-      return response.data.id;
-    } catch (error) {
-      this.logger.error(`Failed to create folder: ${folderName}`, error);
-      throw new BadRequestException(`Failed to create folder: ${folderName}`);
-    }
-  }
 
   /**
    * Загрузить файл в Google Drive
    */
-  async uploadFile(filePath: string, fileName: string, folderId?: string): Promise<{ fileId: string; fileUrl: string }> {
+  async uploadFile(filePath: string, fileName: string, folderId?: string, appProperties?: any): Promise<{ fileId: string; fileUrl: string }> {
     try {
       if (!fs.existsSync(filePath)) {
         throw new BadRequestException(`File not found: ${filePath}`);
@@ -65,6 +42,8 @@ export class GoogleDriveService {
 
       const fileMetadata = {
         name: fileName,
+        mimeType: 'application/json',
+        appProperties: appProperties ? appProperties : {},
         ...(folderId && { parents: [folderId] }),
       };
 
@@ -94,6 +73,27 @@ export class GoogleDriveService {
   }
 
   /**
+   * Обновить appProperties файла в Google Drive
+   */
+  async updateFileProperties(fileId: string, appProperties: any): Promise<void> {
+    try {
+      await this.drive.files.update({
+        fileId: fileId,
+        requestBody: {
+          appProperties: appProperties,
+        },
+        fields: 'id, appProperties',
+        supportsAllDrives: true,
+      });
+
+      this.logger.log(`Updated appProperties for file: ${fileId}`);
+    } catch (error) {
+      this.logger.error(`Failed to update appProperties for file: ${fileId}`, error);
+      throw new BadRequestException(`Failed to update appProperties for file: ${fileId}`);
+    }
+  }
+
+  /**
    * Обновить файл в Google Drive
    */
   async updateFile(fileId: string, filePath: string): Promise<{ fileId: string; fileUrl: string }> {
@@ -102,15 +102,19 @@ export class GoogleDriveService {
         throw new BadRequestException(`File not found: ${filePath}`);
       }
 
+      // Проверяем, существует ли файл в Google Drive
       const media = {
         mimeType: 'application/json',
         body: fs.createReadStream(filePath),
       };
 
+      this.logger.log(`Updating file ${fileId} with content from ${filePath}`);
+      
       const response = await this.drive.files.update({
         fileId: fileId,
         media: media,
         fields: 'id, webViewLink',
+        supportsAllDrives: true,
       });
 
       this.logger.log(`Updated file with ID: ${response.data.id}`);
@@ -121,7 +125,10 @@ export class GoogleDriveService {
       };
     } catch (error) {
       this.logger.error(`Failed to update file: ${fileId}`, error);
-      throw new BadRequestException(`Failed to update file: ${fileId}`);
+      if (error.response) {
+        this.logger.error(`Google Drive API error: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new BadRequestException(`Failed to update file: ${fileId} - ${error.message}`);
     }
   }
 
@@ -158,6 +165,7 @@ export class GoogleDriveService {
     try {
       await this.drive.files.delete({
         fileId: fileId,
+        supportsAllDrives: true,
       });
 
       this.logger.log(`Deleted file with ID: ${fileId}`);
@@ -170,15 +178,12 @@ export class GoogleDriveService {
   /**
    * Переместить файл в архивную папку
    */
-  async moveToArchive(fileId: string, archiveFolderId: string): Promise<void> {
+  async moveToArchive(fileId: string, archiveFolderId: string, fileInfo?: { parents?: string[] }): Promise<void> {
     try {
-      // Получаем текущие родительские папки
-      const file = await this.drive.files.get({
-        fileId: fileId,
-        fields: 'parents',
-      });
+      // Используем переданный fileInfo или получаем новый
+      const file = fileInfo || await this.getFileInfo(fileId);
 
-      const previousParents = file.data.parents?.join(',') || '';
+      const previousParents = file.parents?.join(',') || '';
 
       // Перемещаем файл в архивную папку
       await this.drive.files.update({
@@ -186,6 +191,7 @@ export class GoogleDriveService {
         addParents: archiveFolderId,
         removeParents: previousParents,
         fields: 'id, parents',
+        supportsAllDrives: true,
       });
 
       this.logger.log(`Moved file ${fileId} to archive folder ${archiveFolderId}`);
@@ -198,14 +204,17 @@ export class GoogleDriveService {
   /**
    * Получить список файлов в папке
    */
-  async listFiles(folderId: string): Promise<Array<{ id: string; name: string; mimeType: string; webViewLink: string }>> {
+  async listFiles(folderId: string): Promise<Array<{ id: string; name: string; mimeType: string; webViewLink: string; appProperties?: any }>> {
     try {
       const response = await this.drive.files.list({
         q: `'${folderId}' in parents and trashed=false`,
-        fields: 'files(id, name, mimeType, webViewLink)',
+        fields: 'files(id,name,mimeType,size,modifiedTime,appProperties),nextPageToken',
+        pageSize: 1000,
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true,
       });
 
-      return response.data.files || [];
+      return response.data.files || [] as any;
     } catch (error) {
       this.logger.error(`Failed to list files in folder: ${folderId}`, error);
       throw new BadRequestException(`Failed to list files in folder: ${folderId}`);
@@ -215,11 +224,12 @@ export class GoogleDriveService {
   /**
    * Получить информацию о файле
    */
-  async getFileInfo(fileId: string): Promise<{ id: string; name: string; mimeType: string; webViewLink: string; size: string }> {
+  async getFileInfo(fileId: string): Promise<{ id: string; name: string; mimeType: string; webViewLink: string; size: string; appProperties?: any; parents?: string[] }> {
     try {
       const response = await this.drive.files.get({
         fileId: fileId,
-        fields: 'id, name, mimeType, webViewLink, size',
+        fields: 'id, name, mimeType, webViewLink, size, appProperties, parents',
+        supportsAllDrives: true,
       });
 
       return response.data;
@@ -237,9 +247,38 @@ export class GoogleDriveService {
       const response = await this.drive.files.get({
         fileId: fileId,
         alt: 'media',
-      });
+        supportsAllDrives: true,
+      }, { responseType: 'stream' });
 
-      return response.data;
+      // Преобразуем поток в строку
+      return new Promise((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        let timeoutId: NodeJS.Timeout;
+        
+        // Устанавливаем таймаут (30 секунд)
+        timeoutId = setTimeout(() => {
+          reject(new Error('Timeout: File content download took too long'));
+        }, 30000);
+        
+        response.data.on('data', (chunk: Buffer) => {
+          chunks.push(chunk);
+        });
+        
+        response.data.on('end', () => {
+          clearTimeout(timeoutId);
+          try {
+            const content = Buffer.concat(chunks).toString('utf8');
+            resolve(content);
+          } catch (error) {
+            reject(new Error(`Failed to convert stream to string: ${error.message}`));
+          }
+        });
+        
+        response.data.on('error', (error: any) => {
+          clearTimeout(timeoutId);
+          reject(new Error(`Stream error: ${error.message}`));
+        });
+      });
     } catch (error) {
       this.logger.error(`Failed to get file content: ${fileId}`, error);
       throw new BadRequestException(`Failed to get file content: ${fileId}`);
@@ -247,72 +286,54 @@ export class GoogleDriveService {
   }
 
   /**
-   * Создать или получить корневую папку для языков
+   * Получить корневую папку для языков
    */
-  async getOrCreateLanguagesRootFolder(): Promise<string> {
+  async getLanguagesRootFolder(): Promise<string> {
     try {
-      // Пытаемся получить существующую папку из переменной окружения
       const rootFolderId = process.env.LANGUAGES_FOLDER_ID;
       
-      if (rootFolderId) {
-        try {
-          await this.drive.files.get({ fileId: rootFolderId });
-          this.logger.log('Using existing root folder for languages from environment');
-          return rootFolderId;
-        } catch (error) {
-          this.logger.warn('Configured root folder not found, creating new one');
-        }
+      if (!rootFolderId) {
+        throw new BadRequestException('LANGUAGES_FOLDER_ID environment variable is not set');
       }
 
-      const folderName = 'KPT App Languages';
-      
-      // Ищем существующую папку
-      const response = await this.drive.files.list({
-        q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-        fields: 'files(id)',
+      // Проверяем, что папка существует
+      await this.drive.files.get({ 
+        fileId: rootFolderId,
+        fields: 'id,name,mimeType,driveId,parents,webViewLink,capabilities',
+        supportsAllDrives: true,
       });
-
-      if (response.data.files && response.data.files.length > 0) {
-        const folderId = response.data.files[0].id;
-        this.logger.log(`Found existing root folder for languages: ${folderName} with ID: ${folderId}`);
-        this.logger.warn(`Please update LANGUAGES_FOLDER_ID in your environment to: ${folderId}`);
-        return folderId;
-      }
-
-      // Создаем новую папку
-      const folderId = await this.createFolder(folderName);
-      this.logger.log(`Created new root folder for languages: ${folderName} with ID: ${folderId}`);
-      this.logger.warn(`Please update LANGUAGES_FOLDER_ID in your environment to: ${folderId}`);
       
-      return folderId;
+      return rootFolderId;
+      
     } catch (error) {
-      this.logger.error('Failed to get or create languages root folder', error);
-      throw new BadRequestException('Failed to setup languages root folder');
+      this.logger.error('Failed to get languages root folder', error);
+      throw new BadRequestException('Failed to get languages root folder. Please check LANGUAGES_FOLDER_ID environment variable.');
     }
   }
 
   /**
-   * Создать или получить архивную папку
+   * Получить архивную папку
    */
-  async getOrCreateArchiveFolder(rootFolderId: string): Promise<string> {
+  async getArchiveFolder(): Promise<string> {
     try {
-      const folderName = 'Archived Languages';
+      const archiveFolderId = process.env.ARCHIVE_FOLDER_ID;
       
-      // Ищем существующую папку
-      const response = await this.drive.files.list({
-        q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${rootFolderId}' in parents and trashed=false`,
-        fields: 'files(id)',
-      });
-
-      if (response.data.files && response.data.files.length > 0) {
-        return response.data.files[0].id;
+      if (!archiveFolderId) {
+        throw new BadRequestException('ARCHIVE_FOLDER_ID environment variable is not set');
       }
 
-      // Создаем новую папку
-      return await this.createFolder(folderName, rootFolderId);
+      // Проверяем, что папка существует
+      await this.drive.files.get({ 
+        fileId: archiveFolderId,
+        fields: 'id,name,mimeType,driveId,parents,webViewLink,capabilities',
+        supportsAllDrives: true,
+      });
+      
+      return archiveFolderId;
+      
     } catch (error) {
-      this.logger.error('Failed to get or create archive folder', error);
-      throw new BadRequestException('Failed to get or create archive folder');
+      this.logger.error('Failed to get archive folder', error);
+      throw new BadRequestException('Failed to get archive folder. Please check ARCHIVE_FOLDER_ID environment variable.');
     }
   }
 

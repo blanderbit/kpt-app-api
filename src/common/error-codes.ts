@@ -436,6 +436,11 @@ export enum ErrorCode {
   FIREBASE_API_ERROR = '7303',
   FIREBASE_SERVICE_UNAVAILABLE = '7304',
 
+  // Firebase Messaging (7400-7499)
+  FIREBASE_MESSAGING_SEND_FAILED = '7401',
+  FIREBASE_MESSAGING_INVALID_TOKEN = '7402',
+  FIREBASE_MESSAGING_TOKEN_NOT_REGISTERED = '7403',
+
   // Generic Errors (7900-7999)
   FIREBASE_INTERNAL_SERVER_ERROR = '7901',
   FIREBASE_UNKNOWN_ERROR = '7999',
@@ -808,6 +813,9 @@ export const ErrorDescription: Record<ErrorCode, string> = {
   [ErrorCode.FIREBASE_NETWORK_ERROR]: 'Firebase network error',
   [ErrorCode.FIREBASE_API_ERROR]: 'Firebase API error',
   [ErrorCode.FIREBASE_SERVICE_UNAVAILABLE]: 'Firebase service unavailable',
+  [ErrorCode.FIREBASE_MESSAGING_SEND_FAILED]: 'Failed to send Firebase push notification',
+  [ErrorCode.FIREBASE_MESSAGING_INVALID_TOKEN]: 'Firebase push token is invalid',
+  [ErrorCode.FIREBASE_MESSAGING_TOKEN_NOT_REGISTERED]: 'Firebase push token is not registered',
   [ErrorCode.FIREBASE_INTERNAL_SERVER_ERROR]: 'Firebase internal server error',
   [ErrorCode.FIREBASE_UNKNOWN_ERROR]: 'Unknown Firebase error occurred',
 

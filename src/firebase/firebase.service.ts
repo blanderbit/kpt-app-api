@@ -50,6 +50,68 @@ export class FirebaseService implements OnModuleInit {
     return this.firebaseApp.auth();
   }
 
+  getMessaging(): admin.messaging.Messaging {
+    if (!this.firebaseApp) {
+      throw AppException.serviceUnavailable(
+        ErrorCode.FIREBASE_SERVICE_UNAVAILABLE,
+        'Firebase service is not initialized'
+      );
+    }
+    return this.firebaseApp.messaging();
+  }
+
+  async sendMulticastNotification(
+    tokens: string[],
+    payload: {
+      title: string;
+      body: string;
+      data?: Record<string, string>;
+    },
+  ): Promise<admin.messaging.BatchResponse> {
+    if (!tokens || tokens.length === 0) {
+      return {
+        successCount: 0,
+        failureCount: 0,
+        responses: [],
+      };
+    }
+
+    try {
+      const messaging = this.getMessaging();
+      const message: admin.messaging.MulticastMessage = {
+        tokens,
+        notification: {
+          title: payload.title,
+          body: payload.body,
+        },
+        data: payload.data,
+      };
+
+      return await messaging.sendMulticast(message, false);
+    } catch (error) {
+
+      if (error?.code === 'messaging/invalid-registration-token') {
+        throw AppException.validation(
+          ErrorCode.FIREBASE_MESSAGING_INVALID_TOKEN,
+          `Invalid Firebase messaging token: ${error.message}`,
+        );
+      }
+
+      if (error?.code === 'messaging/registration-token-not-registered') {
+        throw AppException.validation(
+          ErrorCode.FIREBASE_MESSAGING_TOKEN_NOT_REGISTERED,
+          `Firebase messaging token not registered: ${error.message}`,
+        );
+      }
+
+      throw AppException.internal(
+        ErrorCode.FIREBASE_MESSAGING_SEND_FAILED,
+        `Failed to send Firebase push notification: ${error?.message || 'Unknown error'}`,
+        { error: error?.message, code: error?.code },
+      );
+    }
+  }
+
   async verifyIdToken(idToken: string): Promise<admin.auth.DecodedIdToken> {
     try {
       const decodedToken = await this.firebaseApp.auth().verifyIdToken(idToken);

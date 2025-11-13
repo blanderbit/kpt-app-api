@@ -1,5 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { SuggestedActivityService } from '../services/suggested-activity.service';
 import { SuggestedActivityQueueService } from '../queue/suggested-activity-queue.service';
 import { UsersService } from '../../users/users.service';
@@ -12,6 +11,7 @@ export class SuggestedActivityCronService {
   private isProcessing = false;
 
   constructor(
+    @Inject(forwardRef(() => SuggestedActivityService))
     private readonly suggestedActivityService: SuggestedActivityService,
     private readonly suggestedActivityQueueService: SuggestedActivityQueueService,
     private readonly usersService: UsersService,
@@ -19,9 +19,8 @@ export class SuggestedActivityCronService {
 
   /**
    * Daily generation of suggested activities for all users
-   * Runs every day at 6:00 AM
+   * Called by SettingsService cron job
    */
-  @Cron(CronExpression.EVERY_DAY_AT_6AM)
   async generateDailySuggestions() {
     if (this.isProcessing) {
       this.logger.warn('Generation of suggestions already in progress, skipping...');
@@ -105,9 +104,8 @@ export class SuggestedActivityCronService {
 
   /**
    * Weekly cleanup of old suggested activities
-   * Runs every Sunday at 3:00 AM
+   * Called by SettingsService cron job
    */
-  @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupOldSuggestions() {
     if (this.isProcessing) {
       this.logger.warn('Cleanup already in progress, skipping...');
@@ -137,18 +135,15 @@ export class SuggestedActivityCronService {
 
   /**
    * Daily check of queue health and performance
-   * Runs every day at 12:00 PM
+   * Can be called manually or via cron
    */
-  @Cron(CronExpression.EVERY_DAY_AT_NOON)
   async checkQueueHealth() {
     this.logger.log('Starting daily queue health check...');
     
     try {
       const queueStats = await this.suggestedActivityQueueService.getQueueStats();
-      const queueStatus = await this.suggestedActivityQueueService.getQueueStatus();
       
       this.logger.log(`Queue health check completed. Stats: ${JSON.stringify(queueStats)}`);
-      this.logger.log(`Queue status: ${JSON.stringify(queueStatus)}`);
       
       // Check for potential issues
       if (queueStats.failed > 0) {

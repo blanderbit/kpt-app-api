@@ -66,8 +66,8 @@ export class MoodSurveyAdminController {
     description: 'Returns a list of all mood surveys (including archived)',
   })
   @ApiQuery({
-    name: 'archived',
-    description: 'Include archived surveys',
+    name: 'isArchived',
+    description: 'Include isArchived surveys',
     required: false,
     type: Boolean,
   })
@@ -79,9 +79,9 @@ export class MoodSurveyAdminController {
   @ApiResponse({ status: 401, description: 'Unauthorized access' })
   @ApiResponse({ status: 403, description: 'Insufficient permissions (admin required)' })
   async getAllMoodSurveys(
-    @Query('archived') archived?: boolean,
+    @Query('isArchived') archived?: string,
   ): Promise<MoodSurveyResponseDto[]> {
-    return this.moodSurveyAdminService.getAllMoodSurveys(archived);
+    return this.moodSurveyAdminService.getAllMoodSurveys(archived === 'true' ? 1 : 0);
   }
 
   @Get(':id')

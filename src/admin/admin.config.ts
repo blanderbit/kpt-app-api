@@ -38,7 +38,6 @@ export const ADMIN_USERS_PAGINATION_CONFIG: PaginateConfig<User> = {
     'id',
     'email',
     'firstName',
-    'lastName',
     'avatarUrl',
     'emailVerified',
     'theme',
@@ -52,5 +51,4 @@ export const ADMIN_USERS_PAGINATION_CONFIG: PaginateConfig<User> = {
   defaultLimit: 20,
   maxLimit: 100,
   relations: [],
-  nullSort: 'last',
 };

@@ -69,12 +69,6 @@ export class ActivityRecommendationDto {
   content: string;
 
   @ApiProperty({
-    description: 'Category of the activity',
-    example: 'wellness',
-  })
-  category: string;
-
-  @ApiProperty({
     description: 'Confidence score for this recommendation (0-1)',
     example: 0.85,
   })

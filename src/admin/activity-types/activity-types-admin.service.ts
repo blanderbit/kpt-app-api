@@ -5,7 +5,9 @@ import { ActivityTypesService } from '../../core/activity-types';
 export class ActivityTypesAdminService {
   private readonly logger = new Logger(ActivityTypesAdminService.name);
 
-  constructor(private readonly activityTypesService: ActivityTypesService) {}
+  constructor(
+    private readonly activityTypesService: ActivityTypesService,
+  ) {}
 
   /**
    * Синхронизация типов активности с Google Drive

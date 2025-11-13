@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleDriveFilesService } from '../../common/services/google-drive-files.service';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
+import { SettingsService } from '../../admin/settings/settings.service';
 
 export interface ActivityType {
   id: string;
@@ -20,7 +21,7 @@ export interface ActivityTypesData {
 }
 
 @Injectable()
-export class ActivityTypesService {
+export class ActivityTypesService implements OnModuleInit {
   private readonly logger = new Logger(ActivityTypesService.name);
   private activityTypesData: ActivityTypesData;
   private readonly fileId: string;
@@ -28,9 +29,18 @@ export class ActivityTypesService {
   constructor(
     private readonly configService: ConfigService,
     private readonly googleDriveFilesService: GoogleDriveFilesService,
+    @Inject(forwardRef(() => SettingsService))
+    private readonly settingsService?: SettingsService,
   ) {
+    this.activityTypesData = {
+      activityTypes: [],
+      categories: {},
+    };
     this.fileId = this.configService.get<string>('ACTIVITY_TYPES_FILE_ID') || '';
-    this.loadActivityTypes();
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.loadActivityTypes();
   }
 
   /**
@@ -48,40 +58,18 @@ export class ActivityTypesService {
       // If Google Drive is unavailable, use basic types
       this.logger.warn('Google Drive not available, using fallback activity types');
       this.activityTypesData = {
-        activityTypes: [
-          {
-            id: 'general',
-            name: 'General activities',
-            description: 'Other types of activities',
-            keywords: ['activity', 'task', 'occupation'],
-            category: 'other',
-            icon: '⭐',
-            color: '#9E9E9E'
-          }
-        ],
-        categories: {
-          'other': 'Other'
-        }
+        activityTypes: [],
+        categories: {}
       };
     } catch (error) {
       this.logger.error('Error loading activity types:', error);
       // Fallback to basic types
       this.activityTypesData = {
-        activityTypes: [
-          {
-            id: 'general',
-            name: 'General activities',
-            description: 'Other types of activities',
-            keywords: ['activity', 'task', 'occupation'],
-            category: 'other',
-            icon: '⭐',
-            color: '#9E9E9E'
-          }
-        ],
-        categories: {
-          'other': 'Other'
-        }
+        activityTypes: [],
+        categories: {}
       };
+    } finally {
+      this.settingsService?.updateLastSync('activityTypes');
     }
   }
 

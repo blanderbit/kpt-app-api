@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { Repository, Between } from 'typeorm';
@@ -7,13 +7,18 @@ import { Activity } from '../../profile/activity/entities/activity.entity';
 import { RateActivity } from '../../profile/activity/entities/rate-activity.entity';
 import { ActivityTypesService } from '../../core/activity-types';
 import { CreateSuggestedActivityDto, SuggestedActivityResponseDto } from '../dto/suggested-activity.dto';
-import { ChatGPTService } from '../../core/chatgpt';
+import { ChatGPTService } from '../../core/chatgpt/chatgpt.service';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { User } from 'src/users/entities/user.entity';
+import { SettingsService } from '../../admin/settings/settings.service';
+import { NotificationsService } from '../../notifications/notifications.service';
+import { ActivityService } from '../../profile/activity/activity.service';
 
 @Injectable()
 export class SuggestedActivityService {
+  private readonly logger = new Logger(SuggestedActivityService.name);
+
   constructor(
     @InjectRepository(SuggestedActivity)
     private readonly suggestedActivityRepository: Repository<SuggestedActivity>,
@@ -23,6 +28,11 @@ export class SuggestedActivityService {
     private readonly rateActivityRepository: Repository<RateActivity>,
     private readonly activityTypesService: ActivityTypesService,
     private readonly chatGPTService: ChatGPTService,
+    @Inject(forwardRef(() => SettingsService))
+    private readonly settingsService: SettingsService,
+    private readonly notificationsService: NotificationsService,
+    @Inject(forwardRef(() => ActivityService))
+    private readonly activityService: ActivityService,
   ) {}
 
   /**
@@ -180,7 +190,7 @@ export class SuggestedActivityService {
       
       // Generate suggestions based on patterns
       const suggestions: SuggestedActivity[] = [];
-      const maxSuggestions = 6; // Maximum suggestions per day
+      const maxSuggestions = this.settingsService.getSuggestedActivitiesCount();
       
       for (let i = 0; i < maxSuggestions; i++) {
         // Select activity type based on patterns
@@ -193,20 +203,13 @@ export class SuggestedActivityService {
           i
         );
         
-        // Generate reasoning
-        const reasoning = await this.chatGPTService.generateReasoning(
-          patterns,
-          selectedType,
-          this.calculateConfidenceScore(patterns, selectedType)
-        );
-        
         // Create suggestion
         const suggestion = this.suggestedActivityRepository.create({
           userId,
           activityName,
           activityType: selectedType,
           content,
-          reasoning,
+          reasoning: 'This activity aligns with your recent behavior and preferences.',
           confidenceScore: this.calculateConfidenceScore(patterns, selectedType),
           suggestedDate: targetDate,
           isUsed: false,
@@ -217,7 +220,19 @@ export class SuggestedActivityService {
       
       // Save all suggestions
       const savedSuggestions = await this.suggestedActivityRepository.save(suggestions);
-      
+
+      for (const suggestion of savedSuggestions) {
+        await this.classifyAndUpdateSuggestedActivityType(suggestion.id, suggestion.activityName);
+      }
+
+      try {
+        await this.notificationsService.notifySuggestedActivitiesGenerated(userId);
+      } catch (notificationError) {
+        this.logger.warn(
+          `Failed to send suggested activities notification for user ${userId}: ${notificationError.message}`,
+        );
+      }
+
       return savedSuggestions;
       
     } catch (error) {
@@ -227,6 +242,36 @@ export class SuggestedActivityService {
         userId,
         targetDate
       });
+    }
+  }
+
+  private async classifyAndUpdateSuggestedActivityType(suggestionId: number, activityName: string): Promise<void> {
+    try {
+      const suggestion = await this.suggestedActivityRepository.findOne({ where: { id: suggestionId } });
+      if (!suggestion) {
+        return;
+      }
+
+      const allTypes = this.activityTypesService.getAllActivityTypes();
+      if (allTypes.length === 0) {
+        return;
+      }
+
+      const availableTypeIds = allTypes.map((type) => type.id);
+      const keywordsMap = allTypes.reduce<Record<string, string[]>>((acc, type) => {
+        acc[type.id] = type.keywords || [];
+        return acc;
+      }, {});
+
+      const classification = await this.chatGPTService.getActivityType(activityName, availableTypeIds, keywordsMap);
+      const resolvedType = classification?.activityType ?? 'unknown';
+
+      if (resolvedType !== suggestion.activityType) {
+        suggestion.activityType = resolvedType;
+        await this.suggestedActivityRepository.save(suggestion);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to classify suggested activity ${suggestionId}: ${error.message}`);
     }
   }
 

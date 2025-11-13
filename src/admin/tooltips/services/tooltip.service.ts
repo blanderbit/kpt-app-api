@@ -36,20 +36,20 @@ export class TooltipService {
 
   async findAll(searchDto?: SearchTooltipDto): Promise<Tooltip[]> {
     try {
-      const where: any = {};
+      const query = this.tooltipRepository
+        .createQueryBuilder('tooltip')
+        .loadRelationCountAndMap('tooltip.closedCount', 'tooltip.closedTooltips')
+        .orderBy('tooltip.createdAt', 'DESC');
 
       if (searchDto?.type) {
-        where.type = searchDto.type;
+        query.andWhere('tooltip.type = :type', { type: searchDto.type });
       }
 
       if (searchDto?.page) {
-        where.page = searchDto.page;
+        query.andWhere('tooltip.page = :page', { page: searchDto.page });
       }
 
-      return await this.tooltipRepository.find({
-        where,
-        order: { createdAt: 'DESC' },
-      });
+      return await query.getMany();
     } catch (error) {
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
         error: error.message,
@@ -85,7 +85,11 @@ export class TooltipService {
 
   async findOne(id: number): Promise<Tooltip> {
     try {
-      const tooltip = await this.tooltipRepository.findOne({ where: { id } });
+      const tooltip = await this.tooltipRepository
+        .createQueryBuilder('tooltip')
+        .loadRelationCountAndMap('tooltip.closedCount', 'tooltip.closedTooltips')
+        .where('tooltip.id = :id', { id })
+        .getOne();
       if (!tooltip) {
         throw AppException.notFound(ErrorCode.ADMIN_TOOLTIP_NOT_FOUND, undefined, {
           tooltipId: id
@@ -169,35 +173,11 @@ export class TooltipService {
   }
 
   async getTooltipTypes(): Promise<TooltipType[]> {
-    try {
-      const result = await this.tooltipRepository
-        .createQueryBuilder('tooltip')
-        .select('DISTINCT tooltip.type', 'type')
-        .getRawMany();
-      
-      return result.map(item => item.type);
-    } catch (error) {
-      throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
-        error: error.message,
-        operation: 'getTooltipTypes'
-      });
-    }
+    return Object.values(TooltipType);
   }
 
   async getPages(): Promise<TooltipPage[]> {
-    try {
-      const result = await this.tooltipRepository
-        .createQueryBuilder('tooltip')
-        .select('DISTINCT tooltip.page', 'page')
-        .getRawMany();
-      
-      return result.map(item => item.page);
-    } catch (error) {
-      throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
-        error: error.message,
-        operation: 'getPages'
-      });
-    }
+    return Object.values(TooltipPage);
   }
 
   /**

@@ -80,6 +80,12 @@ export class MoodSurveyResponseDto {
     nullable: true,
   })
   archivedBy: string | null;
+
+  @ApiProperty({
+    description: 'Number of mood tracker responses linked to this survey',
+    example: 12,
+  })
+  responsesCount: number;
 }
 
 export class ArchiveMoodSurveyDto {

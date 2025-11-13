@@ -52,19 +52,18 @@ export class MoodSurveyAdminService {
    * Get all mood surveys
    */
   async getAllMoodSurveys(
-    includeArchived?: boolean,
+    includeArchived?: number,
   ): Promise<MoodSurveyResponseDto[]> {
     try {
-      const query = this.moodSurveyRepository.createQueryBuilder('survey');
-
-      if (!includeArchived) {
-        query.andWhere('survey.isArchived = :isArchived', { isArchived: false });
-      }
-
-      query.orderBy('survey.createdAt', 'DESC');
+      console.log('includeArchived', includeArchived);
+      const query = this.moodSurveyRepository
+        .createQueryBuilder('survey')
+        .loadRelationCountAndMap('survey.responsesCount', 'survey.moodTrackers')
+        .where('survey.isArchived = :isArchived', { isArchived: includeArchived })
+        .orderBy('survey.createdAt', 'DESC');
 
       const surveys = await query.getMany();
-      return surveys.map(survey => this.mapToResponseDto(survey));
+      return surveys.map((survey) => this.mapToResponseDto(survey));
     } catch (error) {
       this.logger.error('Failed to get mood surveys:', error);
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
@@ -79,7 +78,11 @@ export class MoodSurveyAdminService {
    */
   async getMoodSurveyById(id: number): Promise<MoodSurveyResponseDto> {
     try {
-      const survey = await this.moodSurveyRepository.findOne({ where: { id } });
+      const survey = await this.moodSurveyRepository
+        .createQueryBuilder('survey')
+        .loadRelationCountAndMap('survey.responsesCount', 'survey.moodTrackers')
+        .where('survey.id = :id', { id })
+        .getOne();
 
       if (!survey) {
         throw AppException.notFound(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, 'Mood survey not found');
@@ -227,6 +230,8 @@ export class MoodSurveyAdminService {
    * Map entity to response DTO
    */
   private mapToResponseDto(survey: MoodSurvey): MoodSurveyResponseDto {
+    const responsesCount = (survey as MoodSurvey & { responsesCount?: number }).responsesCount ?? 0;
+
     return {
       id: survey.id,
       title: survey.title,
@@ -237,6 +242,7 @@ export class MoodSurveyAdminService {
       updatedAt: survey.updatedAt,
       archivedAt: survey.archivedAt,
       archivedBy: survey.archivedBy,
+      responsesCount,
     };
   }
 }

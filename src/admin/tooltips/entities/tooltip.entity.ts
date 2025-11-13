@@ -1,5 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { OneToMany, RelationCount } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { UserClosedTooltip } from './user-closed-tooltip.entity';
 
 // Enum for tooltip pages
 export enum TooltipPage {
@@ -18,7 +20,8 @@ export enum TooltipPage {
 // Enum for tooltip types
 export enum TooltipType {
   SWIPE = 'swipe',
-  TEXT = 'text'
+  TEXT = 'text',
+  TEXT_WITH_LINK = 'textWithLink',
 }
 
 @Entity('tooltips')
@@ -54,6 +57,12 @@ export class Tooltip {
   @Column({ type: 'json', nullable: false })
   @ApiProperty({ description: 'Tooltip content in JSON format based on type' })
   json: any;
+
+  @OneToMany(() => UserClosedTooltip, (closed) => closed.tooltip)
+  closedTooltips: UserClosedTooltip[];
+
+  @RelationCount((tooltip: Tooltip) => tooltip.closedTooltips)
+  closedCount: number;
 
   @CreateDateColumn()
   @ApiProperty({ description: 'Creation timestamp' })

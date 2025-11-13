@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -11,6 +12,7 @@ import {
   ParseIntPipe,
   Res,
 } from '@nestjs/common';
+import * as fs from 'fs';
 import {
   ApiTags,
   ApiOperation,
@@ -29,12 +31,13 @@ import {
   LanguageResponseDto,
   DownloadTemplateDto,
   ArchiveLanguageDto,
-  RestoreLanguageDto,
+  SetActiveLanguageDto,
 } from '../dto/language.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { SettingsService } from '../../settings/settings.service';
 
 @ApiTags('admin-languages')
 @Controller('admin/languages')
@@ -45,6 +48,7 @@ export class LanguageController {
   constructor(
     private readonly languageService: LanguageService,
     private readonly googleDriveService: GoogleDriveService,
+    private readonly settingsService: SettingsService,
   ) {}
 
 
@@ -142,7 +146,6 @@ export class LanguageController {
     type: String,
     example: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
   })
-  @ApiBody({ type: RestoreLanguageDto })
   @ApiResponse({
     status: 200,
     description: 'Language successfully restored',
@@ -153,10 +156,85 @@ export class LanguageController {
   })
   async restoreLanguage(
     @Param('id') id: string,
-    @Body() restoreLanguageDto: RestoreLanguageDto,
     @CurrentUser('email') adminUser: string,
   ) {
     return this.languageService.restoreLanguage(id, adminUser);
+  }
+
+  @Patch(':id/set-default')
+  @ApiOperation({
+    summary: 'Set language as default',
+    description: 'Set a language as the default language. All other languages will have isDefault set to false.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Google Drive file ID of the language',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Language set as default',
+    type: LanguageResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Language not found',
+  })
+  async setDefaultLanguage(
+    @Param('id') id: string,
+    @CurrentUser('email') adminUser: string,
+  ) {
+    return this.languageService.setDefaultLanguage(id, adminUser);
+  }
+
+  @Patch(':id/set-active')
+  @ApiOperation({
+    summary: 'Set language active status',
+    description: 'Set a language as active or inactive',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Google Drive file ID of the language',
+    type: String,
+  })
+  @ApiBody({ type: SetActiveLanguageDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Language active status updated',
+    type: LanguageResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Language not found',
+  })
+  async setActiveLanguage(
+    @Param('id') id: string,
+    @Body() setActiveLanguageDto: SetActiveLanguageDto,
+    @CurrentUser('email') adminUser: string,
+  ) {
+    return this.languageService.setActiveLanguage(id, setActiveLanguageDto.isActive, adminUser);
+  }
+
+  @Patch('set-all-active')
+  @ApiOperation({
+    summary: 'Set all languages as active',
+    description: 'Set all languages (except archived) as active',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'All languages set as active',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        updatedCount: { type: 'number' },
+      },
+    },
+  })
+  async setAllLanguagesActive(
+    @CurrentUser('email') adminUser: string,
+  ) {
+    return this.languageService.setAllLanguagesActive(adminUser);
   }
 
   @Post('download-template')
@@ -169,8 +247,51 @@ export class LanguageController {
     status: 201,
     description: 'Template successfully downloaded',
   })
-  async downloadDefaultTemplate(@Body() downloadTemplateDto: DownloadTemplateDto) {
-    return this.languageService.downloadDefaultTemplate(downloadTemplateDto);
+  async downloadDefaultTemplate(
+    @Body() downloadTemplateDto: DownloadTemplateDto,
+    @Res() res: Response,
+  ) {
+    const result = await this.languageService.downloadDefaultTemplate(downloadTemplateDto);
+    
+    try {
+      // Устанавливаем заголовки для скачивания файла
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="${downloadTemplateDto.code}.json"`);
+      
+      // Читаем файл и отправляем его
+      const fileContent = fs.readFileSync(result.filePath, 'utf8');
+      res.send(fileContent);
+    } finally {
+      // Удаляем временный файл после отправки
+      if (fs.existsSync(result.filePath)) {
+        fs.unlinkSync(result.filePath);
+      }
+    }
+  }
+
+  @Delete('archived/:id')
+  @ApiOperation({
+    summary: 'Permanently delete archived language',
+    description: 'Permanently deletes a language from archive folder',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Google Drive file ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Language permanently deleted',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Language not found in archive',
+  })
+  async deleteArchivedLanguage(
+    @Param('id') id: string,
+    @CurrentUser('email') adminUser: string,
+  ) {
+    return this.languageService.deleteArchivedLanguage(id, adminUser);
   }
 
   @Get('google-drive/files')
@@ -214,8 +335,8 @@ export class LanguageController {
     description: 'Folder information',
   })
   async getGoogleDriveFolders() {
-    const rootFolderId = await this.googleDriveService.getOrCreateLanguagesRootFolder();
-    const archiveFolderId = await this.googleDriveService.getOrCreateArchiveFolder(rootFolderId);
+    const rootFolderId = await this.googleDriveService.getLanguagesRootFolder();
+    const archiveFolderId = await this.googleDriveService.getArchiveFolder();
 
     return {
       rootFolder: {
@@ -241,7 +362,7 @@ export class LanguageController {
     description: 'Language statistics',
   })
   async getLanguageStatistics() {
-    const languages = await this.languageService.getAllLanguages();
+    const languages = await this.languageService.getLanguagesFromGoogleDrive();
     
     const totalLanguages = languages.length;
     const activeLanguages = languages.filter(lang => lang.isActive).length;
@@ -262,6 +383,123 @@ export class LanguageController {
       totalKeys,
       totalTranslations,
       averageCompletionRate,
+    };
+  }
+
+  @Get('cache')
+  @ApiOperation({
+    summary: 'Get languages from cache',
+    description: 'Returns cached languages with last sync date',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Cached languages',
+    schema: {
+      type: 'object',
+      properties: {
+        languages: { type: 'array', items: { $ref: '#/components/schemas/LanguageResponseDto' } },
+        total: { type: 'number' },
+        lastSyncDate: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  async getLanguagesFromCache() {
+    const languages = this.languageService.getLanguagesFromCache();
+    const lastSyncDate = this.languageService.getLastSyncDate();
+    
+    return {
+      languages,
+      total: languages.length,
+      lastSyncDate,
+    };
+  }
+
+  @Get('archived/cache')
+  @ApiOperation({
+    summary: 'Get archived languages from cache',
+    description: 'Returns cached archived languages with last sync date',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Cached archived languages',
+    schema: {
+      type: 'object',
+      properties: {
+        languages: { type: 'array', items: { $ref: '#/components/schemas/LanguageResponseDto' } },
+        total: { type: 'number' },
+        lastSyncDate: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  async getArchivedLanguagesFromCache() {
+    const languages = this.languageService.getArchivedLanguagesFromCache();
+    const lastSyncDate = this.languageService.getLastArchivedSyncDate();
+    
+    return {
+      languages,
+      total: languages.length,
+      lastSyncDate,
+    };
+  }
+
+  @Post('sync')
+  @ApiOperation({
+    summary: 'Sync languages from Google Drive',
+    description: 'Manually triggers synchronization of languages from Google Drive to cache',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Languages successfully synchronized',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        languages: { type: 'array', items: { $ref: '#/components/schemas/LanguageResponseDto' } },
+        total: { type: 'number' },
+        syncedAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  async syncLanguages() {
+    const result = await this.languageService.syncLanguagesFromGoogleDrive();
+    
+    // Update last sync timestamp
+    this.settingsService.updateLastSync('languages');
+    
+    return {
+      message: 'Languages successfully synchronized from Google Drive',
+      languages: result.languages,
+      total: result.languages.length,
+      syncedAt: result.syncedAt,
+    };
+  }
+
+  @Post('archived/sync')
+  @ApiOperation({
+    summary: 'Sync archived languages from Google Drive',
+    description: 'Manually triggers synchronization of archived languages from Google Drive to cache',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Archived languages successfully synchronized',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        languages: { type: 'array', items: { $ref: '#/components/schemas/LanguageResponseDto' } },
+        total: { type: 'number' },
+        syncedAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  async syncArchivedLanguages() {
+    const result = await this.languageService.syncArchivedLanguagesFromGoogleDrive();
+    
+    return {
+      message: 'Archived languages successfully synchronized from Google Drive',
+      languages: result.languages,
+      total: result.languages.length,
+      syncedAt: result.syncedAt,
     };
   }
 }

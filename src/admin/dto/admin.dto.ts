@@ -45,6 +45,61 @@ export class AdminLoginResponseDto {
   };
 }
 
+export class AdminProfileResponseDto {
+  @ApiProperty({
+    description: 'Administrator ID',
+    example: 1,
+  })
+  id: number;
+
+  @ApiProperty({
+    description: 'Administrator email',
+    example: 'admin@example.com',
+  })
+  email: string;
+
+  @ApiProperty({
+    description: 'Administrator first name',
+    example: 'John',
+    required: false,
+    nullable: true,
+  })
+  firstName?: string | null;
+
+  @ApiProperty({
+    description: 'Administrator avatar URL',
+    example: 'https://example.com/avatar.png',
+    required: false,
+    nullable: true,
+  })
+  avatarUrl?: string | null;
+
+  @ApiProperty({
+    description: 'Whether administrator email is verified',
+    example: true,
+  })
+  emailVerified: boolean;
+
+  @ApiProperty({
+    description: 'Administrator roles list',
+    example: ['admin'],
+    type: [String],
+  })
+  roles: string[];
+
+  @ApiProperty({
+    description: 'Account creation date',
+    example: '2024-01-01T12:00:00.000Z',
+  })
+  createdAt: Date;
+
+  @ApiProperty({
+    description: 'Account last update date',
+    example: '2024-05-01T08:30:00.000Z',
+  })
+  updatedAt: Date;
+}
+
 export class UserListResponseDto {
   @ApiProperty({
     description: 'List of users',
@@ -84,18 +139,12 @@ export class UserListResponseDto {
   totalPages: number;
 }
 
-export class AdminStatsResponseDto {
+export class AdminUsersStatsResponseDto {
   @ApiProperty({
     description: 'Total number of users',
     example: 100,
   })
   totalUsers: number;
-
-  @ApiProperty({
-    description: 'Number of administrators',
-    example: 5,
-  })
-  totalAdmins: number;
 
   @ApiProperty({
     description: 'Number of verified users',
@@ -120,4 +169,12 @@ export class AdminStatsResponseDto {
     example: 20,
   })
   usersLastMonth: number;
+}
+
+export class AdminAdminsStatsResponseDto {
+  @ApiProperty({
+    description: 'Number of administrators',
+    example: 5,
+  })
+  totalAdmins: number;
 }

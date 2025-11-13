@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsArray, ValidateNested, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
+import { TooltipLinkModel } from './link.model';
 
 export class SwipeStep {
   @ApiProperty({ description: 'Step title or heading' })
@@ -19,12 +20,23 @@ export class SwipeStep {
   @ApiProperty({ description: 'Step order number', required: false })
   @IsOptional()
   order?: number;
+
+  @ApiProperty({ description: 'Optional link for the step', required: false, type: () => TooltipLinkModel })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TooltipLinkModel)
+  link?: TooltipLinkModel;
 }
 
 export class SwipeModel {
   @ApiProperty({ description: 'Main title for the swipe tooltip' })
   @IsString()
   title: string;
+
+  @ApiProperty({ description: 'Short description for the swiper', required: false })
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @ApiProperty({ description: 'Array of swipe steps', type: [SwipeStep] })
   @IsArray()

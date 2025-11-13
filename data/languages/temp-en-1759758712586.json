@@ -1,0 +1,37 @@
+{
+  "language": {
+    "code": "en",
+    "name": "string",
+    "nativeName": "string",
+    "direction": "ltr",
+    "isActive": true,
+    "isDefault": true,
+    "version": "string",
+    "notes": "string",
+    "svgLogo": "string",
+    "lastUpdated": "2025-10-06T13:51:52.586Z"
+  },
+  "translations": {
+    "common": {
+      "hello": "Hello",
+      "goodbye": "Goodbye",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "auth": {
+      "login": "Login",
+      "logout": "Logout",
+      "email": "Email",
+      "password": "Password"
+    }
+  },
+  "metadata": {
+    "createdBy": "system",
+    "createdAt": "2025-10-06T13:41:43.032Z",
+    "updatedBy": "system",
+    "updatedAt": "2025-10-06T13:51:52.586Z",
+    "totalKeys": 8,
+    "totalTranslations": 8,
+    "completionRate": 100
+  }
+}

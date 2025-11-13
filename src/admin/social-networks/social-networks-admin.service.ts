@@ -5,7 +5,9 @@ import { SocialNetworksService } from '../../core/social-networks';
 export class SocialNetworksAdminService {
   private readonly logger = new Logger(SocialNetworksAdminService.name);
 
-  constructor(private readonly socialNetworksService: SocialNetworksService) {}
+  constructor(
+    private readonly socialNetworksService: SocialNetworksService,
+  ) {}
 
   /**
    * Sync social networks with Google Drive

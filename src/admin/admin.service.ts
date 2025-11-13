@@ -5,7 +5,13 @@ import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { UsersService } from '../users/users.service';
 import { RoleService } from '../users/services/role.service';
-import { AdminLoginDto, AdminLoginResponseDto, AdminStatsResponseDto } from './dto/admin.dto';
+import {
+  AdminLoginDto,
+  AdminLoginResponseDto,
+  AdminUsersStatsResponseDto,
+  AdminAdminsStatsResponseDto,
+  AdminProfileResponseDto,
+} from './dto/admin.dto';
 import { PaginateQuery, paginate, Paginated } from 'nestjs-paginate';
 import { User } from '../users/entities/user.entity';
 import { ADMIN_USERS_PAGINATION_CONFIG } from './admin.config';
@@ -88,13 +94,60 @@ export class AdminService {
     };
   }
 
+  async getAdminProfile(userId: number): Promise<AdminProfileResponseDto> {
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw AppException.unauthorized(
+        ErrorCode.ADMIN_USER_NOT_FOUND,
+        'Administrator not found',
+      );
+    }
+
+    if (!this.roleService.hasRole(user.roles, 'admin')) {
+      throw AppException.forbidden(
+        ErrorCode.ADMIN_INSUFFICIENT_PERMISSIONS,
+        'User does not have required permissions',
+      );
+    }
+
+    const { passwordHash, ...adminWithoutSensitiveData } = user;
+
+    return {
+      id: adminWithoutSensitiveData.id,
+      email: adminWithoutSensitiveData.email,
+      firstName: adminWithoutSensitiveData.firstName,
+      avatarUrl: adminWithoutSensitiveData.avatarUrl,
+      emailVerified: adminWithoutSensitiveData.emailVerified,
+      roles: this.roleService.parseRoles(adminWithoutSensitiveData.roles),
+      createdAt: adminWithoutSensitiveData.createdAt,
+      updatedAt: adminWithoutSensitiveData.updatedAt,
+    };
+  }
+
   async getUsers(query: PaginateQuery): Promise<Paginated<User>> {
     return paginate(query, this.userRepository, ADMIN_USERS_PAGINATION_CONFIG);
   }
 
-  async getStats(): Promise<AdminStatsResponseDto> {
+  async getUserStats(): Promise<AdminUsersStatsResponseDto> {
     try {
-      // Get current month and last month dates
+      const hasIsActiveColumn = this.userRepository.metadata.columns.some(
+        (column) => column.propertyName === 'isActive',
+      );
+
+      const ADMIN_ROLE_PATTERN = '%admin%';
+
+      const baseQuery = () => {
+        const qb = this.userRepository.createQueryBuilder('user');
+        if (hasIsActiveColumn) {
+          qb.andWhere('user.isActive = :isActive', { isActive: true });
+        }
+        qb.andWhere("COALESCE(user.roles, '') NOT LIKE :nonAdminRole", {
+          nonAdminRole: ADMIN_ROLE_PATTERN,
+        });
+        return qb;
+      };
+
       const thisMonth = new Date();
       thisMonth.setDate(1);
       thisMonth.setHours(0, 0, 0, 0);
@@ -102,61 +155,31 @@ export class AdminService {
       const lastMonth = new Date(thisMonth);
       lastMonth.setMonth(lastMonth.getMonth() - 1);
 
-      // Execute all queries in parallel using Promise.all
       const [
         totalUsers,
-        totalAdmins,
         verifiedUsers,
         unverifiedUsers,
         usersThisMonth,
-        usersLastMonth
+        usersLastMonth,
       ] = await Promise.all([
-        // Get total users count
-        this.userRepository
-          .createQueryBuilder('u')
-          .where('u.isActive = :isActive', { isActive: true })
+        baseQuery().getCount(),
+        baseQuery()
+          .andWhere('user.emailVerified = :emailVerified', { emailVerified: true })
           .getCount(),
-
-        // Get total admins count
-        this.userRepository
-          .createQueryBuilder('user')
-          .where('user.isActive = :isActive', { isActive: true })
-          .andWhere('user.roles LIKE :adminRole', { adminRole: '%admin%' })
+        baseQuery()
+          .andWhere('user.emailVerified = :emailVerified', { emailVerified: false })
           .getCount(),
-
-        // Get verified users count
-        this.userRepository
-          .createQueryBuilder('u')
-          .where('u.isActive = :isActive', { isActive: true })
-          .andWhere('u.emailVerified = :emailVerified', { emailVerified: true })
+        baseQuery()
+          .andWhere('user.createdAt >= :thisMonth', { thisMonth })
           .getCount(),
-
-        // Get unverified users count
-        this.userRepository
-          .createQueryBuilder('u')
-          .where('u.isActive = :isActive', { isActive: true })
-          .andWhere('u.emailVerified = :emailVerified', { emailVerified: false })
+        baseQuery()
+          .andWhere('user.createdAt >= :lastMonth', { lastMonth })
+          .andWhere('user.createdAt < :thisMonth', { thisMonth })
           .getCount(),
-
-        // Get users created this month
-        this.userRepository
-          .createQueryBuilder('u')
-          .where('u.isActive = :isActive', { isActive: true })
-          .andWhere('u.createdAt >= :thisMonth', { thisMonth })
-          .getCount(),
-
-        // Get users created last month
-        this.userRepository
-          .createQueryBuilder('u')
-          .where('u.isActive = :isActive', { isActive: true })
-          .andWhere('u.createdAt >= :lastMonth', { lastMonth })
-          .andWhere('u.createdAt < :thisMonth', { thisMonth })
-          .getCount()
       ]);
 
       return {
         totalUsers,
-        totalAdmins,
         verifiedUsers,
         unverifiedUsers,
         usersThisMonth,
@@ -166,6 +189,31 @@ export class AdminService {
       throw AppException.internal(
         ErrorCode.ADMIN_STATS_GENERATION_FAILED,
         'Failed to generate user statistics',
+        { originalError: error.message }
+      );
+    }
+  }
+
+  async getAdminStats(): Promise<AdminAdminsStatsResponseDto> {
+    try {
+      const hasIsActiveColumn = this.userRepository.metadata.columns.some(
+        (column) => column.propertyName === 'isActive',
+      );
+
+      const qb = this.userRepository.createQueryBuilder('user')
+        .andWhere("COALESCE(user.roles, '') LIKE :adminRole", { adminRole: '%admin%' });
+
+      if (hasIsActiveColumn) {
+        qb.andWhere('user.isActive = :isActive', { isActive: true });
+      }
+
+      const totalAdmins = await qb.getCount();
+
+      return { totalAdmins };
+    } catch (error) {
+      throw AppException.internal(
+        ErrorCode.ADMIN_STATS_GENERATION_FAILED,
+        'Failed to generate administrator statistics',
         { originalError: error.message }
       );
     }

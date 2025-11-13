@@ -44,6 +44,29 @@ services:
       - "traefik.http.services.api.loadbalancer.server.port=3000"
       - "traefik.http.routers.api.middlewares=cors@file,security@file,rate-limit@file"
 
+  admin:
+    build:
+      context: ../kpt-admin
+      dockerfile: Dockerfile
+      args:
+        VUE_APP_API_BASE_URL: ${VUE_APP_API_BASE_URL}
+    container_name: kpt-admin-stg
+    restart: unless-stopped
+    networks:
+      - kpt-network
+    env_file:
+      - env.stg
+    environment:
+      - VUE_APP_API_BASE_URL=${VUE_APP_API_BASE_URL}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin.rule=Host(`${ADMIN_DOMAIN}`)"
+      - "traefik.http.routers.admin.entrypoints=websecure"
+      - "traefik.http.routers.admin.tls=true"
+      - "traefik.http.routers.admin.tls.certresolver=letsencrypt"
+      - "traefik.http.services.admin.loadbalancer.server.port=80"
+      - "traefik.http.routers.admin.middlewares=security@file"
+
   mysql:
     image: mysql:8.0
     container_name: kpt-mysql-stg
@@ -104,6 +127,8 @@ services:
     volumes:
       - redis_data_stg:/data
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     networks:
       - kpt-network
     env_file:

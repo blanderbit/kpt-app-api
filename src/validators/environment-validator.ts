@@ -46,6 +46,8 @@ export function validateEnvironmentVariables(): void {
     // Google Drive File IDs
     'ACTIVITY_TYPES_FILE_ID',
     'MOOD_TYPES_FILE_ID',
+    'LANGUAGES_FOLDER_ID',
+    'ARCHIVE_FOLDER_ID',
     'SOCIAL_NETWORKS_FILE_ID',
     'ONBOARDING_QUESTIONS_FILE_ID'
   ];

@@ -15,6 +15,9 @@ export class QueueStatsDto {
 
   @ApiProperty({ description: 'Total number of jobs' })
   total: number;
+
+  @ApiProperty({ description: 'Is queue paused' })
+  isPaused: boolean;
 }
 
 export class QueueStatusDto {

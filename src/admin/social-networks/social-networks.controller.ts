@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Query,
 } from '@nestjs/common';
 import {
@@ -12,8 +13,8 @@ import {
 import { SocialNetworksAdminService } from './social-networks-admin.service';
 import { SocialNetworkDto, SocialNetworksStatsDto } from '../../core/social-networks';
 
-@ApiTags('social-networks')
-@Controller('social-networks')
+@ApiTags('admin/social-networks')
+@Controller('admin/social-networks')
 export class SocialNetworksController {
   constructor(private readonly socialNetworksService: SocialNetworksAdminService) {}
 
@@ -107,5 +108,28 @@ export class SocialNetworksController {
   })
   async getSocialNetworkById(@Query('id') id: string): Promise<SocialNetworkDto | undefined> {
     return this.socialNetworksService.getSocialNetworkById(id);
+  }
+
+  @Post('sync-with-drive')
+  @ApiOperation({
+    summary: 'Sync social networks with Google Drive',
+    description: 'Synchronizes social networks data with Google Drive',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Social networks successfully synchronized with Google Drive',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Social networks successfully synchronized with Google Drive'
+        }
+      }
+    }
+  })
+  async syncWithDrive(): Promise<{ message: string }> {
+    await this.socialNetworksService.syncWithDrive();
+    return { message: 'Social networks successfully synchronized with Google Drive' };
   }
 }

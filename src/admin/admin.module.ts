@@ -12,6 +12,13 @@ import { ActivityTypesAdminModule } from './activity-types/activity-types-admin.
 import { MoodSurveyAdminModule } from './mood-survey/mood-survey-admin.module';
 import { SocialNetworksAdminModule } from './social-networks/social-networks.module';
 import { OnboardingQuestionsAdminModule } from './onboarding-questions/onboarding-questions.module';
+import { QueueManagementModule } from './queue/queue-management.module';
+import { SurveyModule } from './survey/survey.module';
+import { ArticlesModule } from './articles/articles.module';
+import { BackupModule } from './backup/backup.module';
+import { ClientManagementModule } from './client-management/client-management.module';
+import { ClientStaticModule } from './client-static/client-static.module';
+import { SettingsModule } from './settings/settings.module';
 import { jwtConfig } from '../config/jwt.config';
 import { User } from '../users/entities/user.entity';
 
@@ -26,6 +33,13 @@ import { User } from '../users/entities/user.entity';
     MoodSurveyAdminModule,
     SocialNetworksAdminModule,
     OnboardingQuestionsAdminModule,
+    QueueManagementModule,
+    SurveyModule,
+    ArticlesModule,
+    BackupModule,
+    ClientManagementModule,
+    ClientStaticModule,
+    SettingsModule,
     JwtModule.register(jwtConfig),
   ],
   controllers: [AdminController],

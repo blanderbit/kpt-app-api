@@ -19,6 +19,7 @@ import { ChatGPTService } from '../core/chatgpt';
 import { ErrorCode } from '../common/error-codes';
 import { AppException } from '../common/exceptions/app.exception';
 import { GenerateActivityRecommendationsDto, ActivityRecommendationsResponseDto, ActivityRecommendationDto } from './dto/generate-activity-recommendations.dto';
+import { SubscriptionsService } from '../pay/subscriptions/subscriptions.service';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +34,7 @@ export class AuthService {
     private redisBlacklistService: RedisBlacklistService,
     private roleService: RoleService,
     private chatGPTService: ChatGPTService,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   @Transactional()
@@ -46,7 +48,8 @@ export class AuthService {
       socialNetworks, 
       onboardingQuestionAndAnswers, 
       activities, 
-      taskTrackingMethod 
+      taskTrackingMethod,
+      appUserId,
     } = registerDto;
 
     // Check if user already exists
@@ -81,8 +84,7 @@ export class AuthService {
     }
 
     // Create user
-    const user = this.usersRepository.create(userData);
-    await this.usersRepository.save(user);
+    const user = (await this.usersRepository.save(this.usersRepository.create(userData))) as unknown as User;
 
     // If activities are provided, create them
     if (activities && activities.length > 0) {
@@ -101,6 +103,10 @@ export class AuthService {
       
       // Save all activities in one operation
       await activityRepository.save(activitiesToCreate);
+    }
+
+    if (appUserId) {
+      await this.subscriptionsService.linkSubscriptionsToUser(appUserId, user.id, email);
     }
 
     return { message: 'Registration successful. You can now send verification email when needed.' };
@@ -296,7 +302,7 @@ export class AuthService {
       const firebaseUser = await this.firebaseService.getUserByUid(decodedToken.uid);
       
       // Find user in our database
-      let user = await this.usersRepository.findOne({ 
+      let user: User | null = await this.usersRepository.findOne({ 
         where: { email: decodedToken.email } 
       });
       
@@ -335,7 +341,7 @@ export class AuthService {
 
         const newUser = this.usersRepository.create(userData);
         const savedUser = await this.usersRepository.save(newUser);
-        user = Array.isArray(savedUser) ? savedUser[0] : savedUser;
+        user = Array.isArray(savedUser) ? (savedUser[0] as User) : (savedUser as User);
 
         // If this is registration and activities are provided, create them
         if (firebaseAuthDto.authType === AuthType.REGISTER && firebaseAuthDto.activities && firebaseAuthDto.activities.length > 0) {
@@ -361,20 +367,32 @@ export class AuthService {
       if (!user) {
         throw AppException.internal(ErrorCode.AUTH_FIREBASE_AUTH_FAILED, 'User creation failed');
       }
-      
+
+      const currentUser = user as User;
+ 
       // Generate JWT tokens
-      const payload = { email: user.email, sub: user.id, roles: user.roles };
+      const payload = { email: currentUser.email, sub: currentUser.id, roles: currentUser.roles };
       const accessToken = this.jwtService.sign(payload);
       const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
       
       // Remove sensitive data
-      const { passwordHash, ...userWithoutSensitiveData } = user;
+      const { passwordHash, ...userWithoutSensitiveData } = currentUser;
       
-      return {
+      const response = {
         accessToken,
         refreshToken,
         user: userWithoutSensitiveData,
       };
+
+      if (firebaseAuthDto.appUserId && currentUser.id) {
+        await this.subscriptionsService.linkSubscriptionsToUser(
+          firebaseAuthDto.appUserId,
+          currentUser.id,
+          firebaseUser.email || undefined,
+        );
+      }
+
+      return response;
     } catch (error) {
       // Re-throw AppException errors to preserve custom error codes
       if (error instanceof AppException) {
@@ -472,162 +490,69 @@ export class AuthService {
     generateRecommendationsDto: GenerateActivityRecommendationsDto
   ): Promise<ActivityRecommendationsResponseDto> {
     try {
-      const { 
-        socialNetworks, 
-        onboardingQuestionAndAnswers, 
-        feelingToday, 
-        age, 
+      const {
+        socialNetworks,
+        onboardingQuestionAndAnswers,
+        feelingToday,
+        age,
         taskTrackingMethod,
-        count = '5'
+        count = '5',
       } = generateRecommendationsDto;
 
-      const activityCount = parseInt(count, 10) || 5;
+      const activityCount = Math.max(1, parseInt(count, 10) || 5);
 
-      // Create comprehensive patterns object for ChatGPT
       const patterns = {
         socialNetworks,
         onboardingQuestionAndAnswers,
         feelingToday,
         age: age || 'not specified',
         taskTrackingMethod: taskTrackingMethod || 'not specified',
+        activityPreferences: this.extractActivityPreferences(onboardingQuestionAndAnswers),
         timestamp: new Date().toISOString(),
-        preferences: {
-          energyLevel: this.determineEnergyLevel(feelingToday),
-          socialActivity: this.determineSocialActivity(socialNetworks),
-          productivityStyle: this.determineProductivityStyle(taskTrackingMethod || '')
-        }
       };
 
-      // Generate activity recommendations using ChatGPT
-      const recommendations: ActivityRecommendationDto[] = [];
-      
-      for (let i = 0; i < activityCount; i++) {
-        try {
-          const activityContent = await this.chatGPTService.generateActivityContent(
-            'recommendation',
-            patterns,
-            i
-          );
+      const batch = await this.chatGPTService.generateActivityBatch(patterns, activityCount);
 
-          // Generate reasoning for this specific recommendation
-          const reasoning = await this.chatGPTService.generateReasoning(
-            { ...patterns, activityIndex: i, activityName: activityContent.activityName },
-            'recommendation',
-            0.8
-          );
+      const recommendations: ActivityRecommendationDto[] = batch.map((item) => {
+        const activityData = {
+          activityName: item.activityName,
+          content: item.content,
+        };
 
-          // Determine category based on activity content
-          const category = this.categorizeActivity(activityContent.activityName, activityContent.content);
+        const confidenceScore = this.calculateConfidenceScore(patterns, activityData);
 
-          // Calculate confidence score based on various factors
-          const confidenceScore = this.calculateConfidenceScore(patterns, activityContent);
-
-          recommendations.push({
-            activityName: activityContent.activityName,
-            content: activityContent.content,
-            category,
-            confidenceScore,
-            reasoning: reasoning || 'This activity is recommended based on your preferences and current state.'
-          });
-        } catch (error) {
-          console.error(`Error generating recommendation ${i}:`, error);
-          // Continue with other recommendations even if one fails
-        }
-      }
-
-      // Generate overall reasoning for all recommendations
-      let overallReasoning = 'These activities are tailored to your preferences and current state of mind.';
-      try {
-        overallReasoning = await this.chatGPTService.generateReasoning(
-          { ...patterns, recommendations: recommendations.map(r => r.activityName) },
-          'overall_recommendation',
-          0.9
-        );
-      } catch (error) {
-        console.error('Error generating overall reasoning:', error);
-        // Use default reasoning if ChatGPT fails
-      }
+        return {
+          activityName: item.activityName,
+          content: item.content,
+          confidenceScore,
+          reasoning: item.reasoning || 'This activity is recommended based on your preferences and current state.',
+        };
+      });
 
       return {
         recommendations,
-        overallReasoning,
-        totalCount: recommendations.length
+        overallReasoning: 'These activities are tailored to your preferences and current state of mind.',
+        totalCount: recommendations.length,
       };
     } catch (error) {
       console.error('Error generating activity recommendations:', error);
-      throw AppException.internal(ErrorCode.SUGGESTED_ACTIVITY_CHATGPT_API_ERROR, 'Failed to generate activity recommendations');
+      throw AppException.internal(
+        ErrorCode.SUGGESTED_ACTIVITY_CHATGPT_API_ERROR,
+        'Failed to generate activity recommendations',
+      );
     }
   }
 
-  /**
-   * Determine energy level based on feeling
-   */
-  private determineEnergyLevel(feelingToday: string): string {
-    const lowEnergyFeelings = ['tired', 'exhausted', 'burned_out', 'drained'];
-    const highEnergyFeelings = ['energetic', 'excited', 'motivated', 'pumped'];
-    
-    if (lowEnergyFeelings.some(feeling => feelingToday.toLowerCase().includes(feeling))) {
-      return 'low';
-    } else if (highEnergyFeelings.some(feeling => feelingToday.toLowerCase().includes(feeling))) {
-      return 'high';
+  private extractActivityPreferences(onboardingAnswers: object | undefined): string[] {
+    if (!onboardingAnswers || typeof onboardingAnswers !== 'object') {
+      return [];
     }
-    return 'medium';
-  }
 
-  /**
-   * Determine social activity preference based on social networks
-   */
-  private determineSocialActivity(socialNetworks: string[]): string {
-    const professionalNetworks = ['linkedin', 'github', 'stackoverflow'];
-    const socialPlatforms = ['facebook', 'instagram', 'twitter', 'tiktok', 'snapchat'];
-    
-    const hasProfessional = socialNetworks.some(network => 
-      professionalNetworks.some(prof => network.toLowerCase().includes(prof))
-    );
-    const hasSocial = socialNetworks.some(network => 
-      socialPlatforms.some(soc => network.toLowerCase().includes(soc))
-    );
+    const values = Object.values(onboardingAnswers as Record<string, unknown>)
+      .map((value) => (value !== undefined && value !== null ? String(value) : ''))
+      .filter((value) => value.trim().length > 0);
 
-    if (hasProfessional && hasSocial) return 'mixed';
-    if (hasProfessional) return 'professional';
-    if (hasSocial) return 'social';
-    return 'minimal';
-  }
-
-  /**
-   * Determine productivity style based on task tracking method
-   */
-  private determineProductivityStyle(taskTrackingMethod: string): string {
-    if (!taskTrackingMethod) return 'flexible';
-    
-    const method = taskTrackingMethod.toLowerCase();
-    if (method.includes('app') || method.includes('digital')) return 'digital';
-    if (method.includes('paper') || method.includes('notebook')) return 'analog';
-    if (method.includes('both') || method.includes('mix')) return 'hybrid';
-    return 'flexible';
-  }
-
-  /**
-   * Categorize activity based on name and content
-   */
-  private categorizeActivity(activityName: string, content: string): string {
-    const text = `${activityName} ${content}`.toLowerCase();
-    
-    if (text.includes('meditation') || text.includes('mindfulness') || text.includes('breathing')) {
-      return 'wellness';
-    } else if (text.includes('exercise') || text.includes('workout') || text.includes('fitness')) {
-      return 'fitness';
-    } else if (text.includes('read') || text.includes('learn') || text.includes('study')) {
-      return 'learning';
-    } else if (text.includes('social') || text.includes('meet') || text.includes('connect')) {
-      return 'social';
-    } else if (text.includes('work') || text.includes('project') || text.includes('task')) {
-      return 'productivity';
-    } else if (text.includes('creative') || text.includes('art') || text.includes('music')) {
-      return 'creative';
-    }
-    
-    return 'general';
+    return Array.from(new Set(values));
   }
 
   /**

@@ -17,11 +17,11 @@ import {
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { BackupDatabaseService } from './backup.database.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 
-@ApiTags('backup')
-@Controller('backup')
+@ApiTags('admin/backup')
+@Controller('admin/backup')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class BackupController {

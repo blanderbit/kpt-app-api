@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SocialNetworksController } from './social-networks.controller';
 import { SocialNetworksAdminService } from './social-networks-admin.service';
 import { SocialNetworksModule } from '../../core/social-networks';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [SocialNetworksModule],
+  imports: [SocialNetworksModule, forwardRef(() => SettingsModule)],
   controllers: [SocialNetworksController],
   providers: [SocialNetworksAdminService],
   exports: [SocialNetworksAdminService],

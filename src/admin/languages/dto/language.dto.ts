@@ -43,42 +43,36 @@ export class CreateLanguageDto {
   @IsOptional()
   notes?: string;
 
-  @ApiProperty({ description: 'Google Drive file ID', required: false })
+  @ApiProperty({ description: 'SVG logo for the language', required: false })
   @IsString()
   @IsOptional()
-  googleDriveFileId?: string;
-
-  @ApiProperty({ description: 'Google Drive folder ID', required: false })
-  @IsString()
-  @IsOptional()
-  googleDriveFolderId?: string;
+  svgLogo?: string;
 
   @ApiProperty({ 
-    description: 'Complete language template JSON object with translations and metadata', 
+    description: 'Language translations object', 
     example: {
-      language: {
-        code: 'en',
-        name: 'English',
-        nativeName: 'English',
-        direction: 'ltr',
-        isActive: true,
-        isDefault: false,
-        version: '1.0.0'
+      common: {
+        hello: 'Hello',
+        goodbye: 'Goodbye',
+        save: 'Save',
+        cancel: 'Cancel'
       },
-      translations: {
-        common: {
-          hello: 'Hello',
-          goodbye: 'Goodbye'
-        }
+      auth: {
+        login: 'Login',
+        logout: 'Logout',
+        email: 'Email',
+        password: 'Password'
       },
-      metadata: {
-        notes: 'English language template',
-        createdBy: 'admin@example.com'
+      profile: {
+        profile: 'Profile',
+        settings: 'Settings',
+        firstName: 'First Name',
+        lastName: 'Last Name'
       }
     }
   })
   @IsNotEmpty()
-  template: any; // JSON object with language structure
+  translations: any; // JSON object with translations only
 }
 
 export class UpdateLanguageDto {
@@ -118,15 +112,31 @@ export class UpdateLanguageDto {
   @IsOptional()
   notes?: string;
 
-  @ApiProperty({ description: 'Google Drive file ID', required: false })
+  @ApiProperty({ description: 'SVG logo for the language', required: false })
   @IsString()
   @IsOptional()
-  googleDriveFileId?: string;
+  svgLogo?: string;
 
-  @ApiProperty({ description: 'Google Drive folder ID', required: false })
-  @IsString()
+  @ApiProperty({ 
+    description: 'Language translations object', 
+    required: false,
+    example: {
+      common: {
+        hello: 'Hello',
+        goodbye: 'Goodbye',
+        save: 'Save',
+        cancel: 'Cancel'
+      },
+      auth: {
+        login: 'Login',
+        logout: 'Logout',
+        email: 'Email',
+        password: 'Password'
+      }
+    }
+  })
   @IsOptional()
-  googleDriveFolderId?: string;
+  translations?: any; // JSON object with translations only
 }
 
 export class LanguageResponseDto {
@@ -179,6 +189,9 @@ export class LanguageResponseDto {
   notes?: string;
 
   @ApiProperty({ required: false })
+  svgLogo?: string;
+
+  @ApiProperty({ required: false })
   createdBy?: string;
 
   @ApiProperty({ required: false })
@@ -210,23 +223,16 @@ export class ArchiveLanguageDto {
   reason?: string;
 }
 
-export class RestoreLanguageDto {
-  // Empty DTO since file ID is passed as path parameter
-}
-
 export class DownloadTemplateDto {
   @ApiProperty({ description: 'Language code for template', example: 'en' })
   @IsString()
   @IsNotEmpty()
   code: string;
+}
 
-  @ApiProperty({ description: 'Language name', example: 'English' })
-  @IsString()
+export class SetActiveLanguageDto {
+  @ApiProperty({ description: 'Whether the language should be active', example: true })
+  @IsBoolean()
   @IsNotEmpty()
-  name: string;
-
-  @ApiProperty({ description: 'Native language name', example: 'English' })
-  @IsString()
-  @IsNotEmpty()
-  nativeName: string;
+  isActive: boolean;
 }

@@ -85,6 +85,14 @@ export class FirebaseAuthDto {
   @IsString()
   @IsNotEmpty()
   taskTrackingMethod?: string;
+
+  @ApiProperty({
+    description: 'RevenueCat app user identifier',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  appUserId?: string;
 }
 
 export class FirebaseAuthResponseDto {
