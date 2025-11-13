@@ -31,6 +31,17 @@ async function bootstrap() {
     //   CORS_ORIGIN="https://admin.example.com,https://kpt.admin.example.com"
     origin: corsOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'Cache-Control',
+      'Pragma',
+    ],
+    exposedHeaders: ['Content-Disposition'],
   });
 
   // Get the TypeORM DataSource and add it to transactional context
