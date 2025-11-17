@@ -295,6 +295,14 @@ meta:
                     class="mb-3"
                   />
 
+                  <v-select
+                    v-model="question.type"
+                    :items="questionTypeOptions"
+                    label="Question Type"
+                    :rules="[v => !!v || 'Question type is required']"
+                    class="mb-3"
+                  />
+
                   <!-- Options always available -->
                   <div>
                     <div class="d-flex justify-space-between align-center mb-2">
@@ -650,6 +658,11 @@ const loadSurveys = async (options: { reset?: boolean; force?: boolean } = {}) =
     force,
   })
 }
+
+const questionTypeOptions = [
+  { title: 'Single choice', value: 'single' },
+  { title: 'Multiple choice', value: 'multiple' },
+]
 
 const addQuestion = () => {
   surveyForm.value.questions = surveyForm.value.questions || []

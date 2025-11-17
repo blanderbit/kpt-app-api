@@ -13,14 +13,19 @@ import { registerToastPlugin } from '@workers/toast-worker'
 const enhancedRoutes = setupLayouts(
   resolverStore.searchRouterForAttachResolverByName(routes as RouteRecordRaw[]),
 )
-
+debugger
 const redirectRoutes: RouteRecordRaw[] = [
-  { path: '/', redirect: '/login' },
   { path: '/profile', redirect: '/profile/clients' },
 ]
 
 redirectRoutes.reverse().forEach((route) => {
   enhancedRoutes.unshift(route)
+})
+
+// Catch-all route для редиректа неизвестных URL на логин
+enhancedRoutes.push({
+  path: '/:pathMatch(.*)*',
+  redirect: '/login',
 })
 
 const router = createRouter({

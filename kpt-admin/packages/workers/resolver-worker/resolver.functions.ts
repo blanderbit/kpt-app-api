@@ -29,7 +29,7 @@ const _checkAsyncIsUser = async (to) => {
       console.log('401 Unauthorized - redirecting to login');
       // Only redirect if we're not already on the login page
       const currentPath = window.location.pathname;
-      if (currentPath !== '/login') {
+      if (to.path !== '/login') {
         // Redirect to login using Vue Router
         if (window.router) {
           window.router.push('/login');
