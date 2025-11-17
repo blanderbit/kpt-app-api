@@ -34,7 +34,7 @@ export class ActivityService {
     // Use nestjs-paginate with repository and custom config
     const config = {
       ...ACTIVITY_PAGINATION_CONFIG,
-      filter: { userId: user.id }, // Add userId filter
+      filter: { userId: `$eq:${user.id}` }, // Add userId filter
     };
 
     return paginate(query, this.activityRepository, config);

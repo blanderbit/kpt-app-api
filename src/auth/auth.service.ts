@@ -511,8 +511,6 @@ export class AuthService {
         timestamp: new Date().toISOString(),
       };
       
-      console.log('patterns', patterns);
-
       const recommendations = await this.chatGPTService.generateActivityBatch(patterns, activityCount);
 
       return {

@@ -13,7 +13,7 @@ export const ACTIVITY_PAGINATION_CONFIG: PaginateConfig<Activity> = {
     'updatedAt',
     'closedAt',
   ],
-  relations: ['rateActivities'],
+  relations: ['rateActivities', 'user'],
   defaultSortBy: [['position', 'ASC']],
   searchableColumns: [
     'activityName',
@@ -31,7 +31,7 @@ export const ACTIVITY_PAGINATION_CONFIG: PaginateConfig<Activity> = {
   },
   defaultLimit: 20,
   maxLimit: 100,
-  nullSort: 'last',
+  nullSort: 'last'
 };
 
 
