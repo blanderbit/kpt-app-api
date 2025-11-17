@@ -45,7 +45,7 @@ export class SuggestedActivity {
   isUsed: boolean;
 
   @ApiProperty({ description: 'Date for which this activity was suggested' })
-  @Column('date')
+  @Column('datetime')
   suggestedDate: Date;
 
   @ApiProperty({ description: 'Timestamp when the activity was used', required: false })

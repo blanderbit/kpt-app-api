@@ -197,6 +197,10 @@ export class SuggestedActivityService {
           i
         );
         
+        // Format date for MySQL datetime column (set time to 00:00:00)
+        const formattedDate = new Date(targetDate);
+        formattedDate.setHours(0, 0, 0, 0);
+
         // Create suggestion
         const suggestion = this.suggestedActivityRepository.create({
           userId,
@@ -205,7 +209,7 @@ export class SuggestedActivityService {
           content,
           reasoning: 'This activity aligns with your recent behavior and preferences.',
           confidenceScore: this.calculateConfidenceScore(patterns, selectedType),
-          suggestedDate: targetDate,
+          suggestedDate: formattedDate,
           isUsed: false,
         });
         
