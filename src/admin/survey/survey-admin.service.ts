@@ -47,7 +47,9 @@ export class SurveyAdminService {
   ): Promise<SurveyResponseDto> {
     try {
       const survey = this.surveyRepository.create({
-        ...createSurveyDto,
+        title: createSurveyDto.title,
+        description: createSurveyDto.description,
+        questions: createSurveyDto.questions,
         status: SurveyStatus.AVAILABLE,
         createdBy,
         updatedBy: createdBy,

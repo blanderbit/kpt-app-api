@@ -614,8 +614,12 @@ export class SeedDatabaseCommand extends CommandRunner {
       {
         id: `q${index + 1}-c`,
         text: 'Чем вы гордитесь сегодня?',
-        type: 'text',
-        options: [],
+        type: 'single',
+        options: [
+          { id: 'proud-1', text: 'Выполнил все задачи' },
+          { id: 'proud-2', text: 'Помог коллегам' },
+          { id: 'proud-3', text: 'Изучил что-то новое' },
+        ],
       },
     ];
   }
@@ -785,14 +789,9 @@ export class SeedDatabaseCommand extends CommandRunner {
     }
 
     survey.questions.forEach((question) => {
-      if (question.type === 'text') {
-        answers[question.id] = faker.lorem.sentences(2);
-        return;
-      }
-
       if (question.type === 'single') {
         const option = faker.helpers.arrayElement(question.options);
-        answers[question.id] = option?.id ?? null;
+        answers[question.id] = option?.id ? [option.id] : [];
         return;
       }
 

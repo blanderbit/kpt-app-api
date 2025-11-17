@@ -63,12 +63,12 @@ export class SurveyQuestionDto {
 
   @ApiProperty({
     description: 'Question type',
-    enum: ['single', 'multiple', 'text'],
+    enum: ['single', 'multiple'],
     example: 'single',
   })
   @IsString()
   @IsNotEmpty()
-  type: 'single' | 'multiple' | 'text';
+  type: 'single' | 'multiple';
 
   @ApiProperty({
     description: 'Answer options',
@@ -330,9 +330,9 @@ export class SurveyQuestionStatisticDto {
 
   @ApiProperty({
     description: 'Question type',
-    enum: ['single', 'multiple', 'text'],
+    enum: ['single', 'multiple'],
   })
-  type: 'single' | 'multiple' | 'text';
+  type: 'single' | 'multiple';
 
   @ApiProperty({
     description: 'Statistics for the most popular answers',
