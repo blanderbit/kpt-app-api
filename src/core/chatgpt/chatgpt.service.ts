@@ -191,8 +191,7 @@ User Patterns:
 
 Generate activity #${index + 1} with:
 1. Creative and engaging activity name
-2. Detailed description (2-3 sentences)
-3. Why this activity would be good for this user
+2. 1 sentence description of the activity, no more than 20 words
 
 Format: JSON with "activityName" and "content" fields.`;
   }
@@ -201,13 +200,10 @@ Format: JSON with "activityName" and "content" fields.`;
     const onboardingInsights = this.formatKeyValuePairs(patterns.onboardingQuestionAndAnswers);
     const socialNetworks = (patterns.socialNetworks || []).join(', ') || 'not specified';
     const activityPreferences = (patterns.activityPreferences || []).join(', ') || 'not specified';
-
     return `You are a coach generating ${count} personalized activities for a user.
 
 User profile:
 - Current feeling: ${patterns.feelingToday || 'not specified'}
-- Age: ${patterns.age || 'not specified'}
-- Task tracking method: ${patterns.taskTrackingMethod || 'not specified'}
 - Social networks: ${socialNetworks}
 - Activity preferences: ${activityPreferences}
 - Additional insights: ${onboardingInsights}
@@ -217,7 +213,7 @@ Respond with strict JSON in the following format (no additional text):
   "activities": [
     {
       "activityName": "string",
-      "content": "2-3 sentences",
+      "content": "1 sentence description of the activity, no more than 20 words",
     }
   ]
 }
