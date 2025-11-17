@@ -1,5 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { SuggestedActivityService } from '../services/suggested-activity.service';
+import { Injectable, Logger } from '@nestjs/common';
 import { SuggestedActivityQueueService } from '../queue/suggested-activity-queue.service';
 import { UsersService } from '../../users/users.service';
 import { ErrorCode } from '../../common/error-codes';
@@ -11,8 +10,7 @@ export class SuggestedActivityCronService {
   private isProcessing = false;
 
   constructor(
-    @Inject(forwardRef(() => SuggestedActivityService))
-    private readonly suggestedActivityService: SuggestedActivityService,
+
     private readonly suggestedActivityQueueService: SuggestedActivityQueueService,
     private readonly usersService: UsersService,
   ) {}

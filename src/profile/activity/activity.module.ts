@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActivityController } from './activity.controller';
 import { ActivityService } from './activity.service';
@@ -10,7 +10,7 @@ import { ChatGPTModule } from '../../core/chatgpt';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Activity, RateActivity]),
-    ActivityTypesModule,
+    forwardRef(() => ActivityTypesModule),
     ChatGPTModule,
   ],
   controllers: [ActivityController],

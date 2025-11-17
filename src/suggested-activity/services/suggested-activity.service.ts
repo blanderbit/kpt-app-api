@@ -4,7 +4,6 @@ import { Transactional } from 'typeorm-transactional';
 import { Repository, Between } from 'typeorm';
 import { SuggestedActivity } from '../entities/suggested-activity.entity';
 import { Activity } from '../../profile/activity/entities/activity.entity';
-import { RateActivity } from '../../profile/activity/entities/rate-activity.entity';
 import { ActivityTypesService } from '../../core/activity-types';
 import { CreateSuggestedActivityDto, SuggestedActivityResponseDto } from '../dto/suggested-activity.dto';
 import { ChatGPTService } from '../../core/chatgpt/chatgpt.service';
@@ -13,7 +12,6 @@ import { AppException } from '../../common/exceptions/app.exception';
 import { User } from 'src/users/entities/user.entity';
 import { SettingsService } from '../../admin/settings/settings.service';
 import { NotificationsService } from '../../notifications/notifications.service';
-import { ActivityService } from '../../profile/activity/activity.service';
 
 @Injectable()
 export class SuggestedActivityService {
@@ -24,15 +22,11 @@ export class SuggestedActivityService {
     private readonly suggestedActivityRepository: Repository<SuggestedActivity>,
     @InjectRepository(Activity)
     private readonly activityRepository: Repository<Activity>,
-    @InjectRepository(RateActivity)
-    private readonly rateActivityRepository: Repository<RateActivity>,
     private readonly activityTypesService: ActivityTypesService,
     private readonly chatGPTService: ChatGPTService,
     @Inject(forwardRef(() => SettingsService))
     private readonly settingsService: SettingsService,
     private readonly notificationsService: NotificationsService,
-    @Inject(forwardRef(() => ActivityService))
-    private readonly activityService: ActivityService,
   ) {}
 
   /**

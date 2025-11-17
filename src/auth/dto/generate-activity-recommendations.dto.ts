@@ -67,18 +67,6 @@ export class ActivityRecommendationDto {
     example: 'Start your day with 10 minutes of meditation to boost energy and focus.',
   })
   content: string;
-
-  @ApiProperty({
-    description: 'Confidence score for this recommendation (0-1)',
-    example: 0.85,
-  })
-  confidenceScore: number;
-
-  @ApiProperty({
-    description: 'Reasoning for this specific recommendation',
-    example: 'Based on your preference for energy-boosting activities and current mood, this meditation practice is recommended.',
-  })
-  reasoning: string;
 }
 
 export class ActivityRecommendationsResponseDto {
@@ -87,12 +75,6 @@ export class ActivityRecommendationsResponseDto {
     type: [ActivityRecommendationDto],
   })
   recommendations: ActivityRecommendationDto[];
-
-  @ApiProperty({
-    description: 'Overall reasoning for all recommendations',
-    example: 'These activities are tailored to your preferences and current state of mind.',
-  })
-  overallReasoning: string;
 
   @ApiProperty({
     description: 'Total number of recommendations generated',

@@ -13,7 +13,6 @@ import { SuggestedActivityModule } from '../../suggested-activity/suggested-acti
 import { UsersModule } from '../../users/users.module';
 import { TemporaryItemsQueueService } from './queue/temporary-items-queue.service';
 import { TemporaryItemsProcessor } from './queue/temporary-items.processor';
-import { NotificationsModule } from '../../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -25,6 +24,8 @@ import { NotificationsModule } from '../../notifications/notifications.module';
       User,
     ]),
     ScheduleModule,
+    forwardRef(() => SuggestedActivityModule),
+    forwardRef(() => UsersModule),
     BullModule.registerQueue({
       name: 'temporary-items',
       defaultJobOptions: {
@@ -37,9 +38,6 @@ import { NotificationsModule } from '../../notifications/notifications.module';
         },
       },
     }),
-    forwardRef(() => SuggestedActivityModule),
-    UsersModule,
-    forwardRef(() => NotificationsModule),
   ],
   controllers: [SettingsController],
   providers: [

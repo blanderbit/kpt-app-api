@@ -34,7 +34,7 @@ export class ActivityService {
     // Use nestjs-paginate with repository and custom config
     const config = {
       ...ACTIVITY_PAGINATION_CONFIG,
-      filter: { user: { id: user.id } }, // Add userId filter
+      filter: { userId: user.id }, // Add userId filter
     };
 
     return paginate(query, this.activityRepository, config);
@@ -53,7 +53,7 @@ export class ActivityService {
 
     // Get the count of existing activities for this user
     const activitiesCount = await this.activityRepository.count({
-      where: { user: { id: user.id } }
+      where: { userId: user.id }
     });
 
     // Calculate next position (count of activities = next position)
@@ -86,14 +86,14 @@ export class ActivityService {
     activityId: number,
     createRateActivityDto: CreateRateActivityDto
   ): Promise<ActivityResponseDto> {
-    // Check that activity exists and belongs to user
-    const activity = await this.activityRepository.findOne({
-      where: {
-        id: activityId,
-        user: { id: user.id }
-      },
-      relations: ['user', 'rateActivities'],
-    });
+      // Check that activity exists and belongs to user
+      const activity = await this.activityRepository.findOne({
+        where: {
+          id: activityId,
+          userId: user.id
+        },
+        relations: ['user', 'rateActivities'],
+      });
 
     if (!activity) {
       throw AppException.notFound(ErrorCode.PROFILE_ACTIVITY_NOT_FOUND, 'Activity not found', { activityId, userId: user.id });
@@ -126,7 +126,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: {
         id: activityId,
-        user: { id: userId }
+        userId: userId
       },
       relations: ['user', 'rateActivities'],
     });
@@ -150,7 +150,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: {
         id: activityId,
-        user: { id: userId }
+        userId: userId
       },
       relations: ['user', 'rateActivities'],
     });
@@ -190,7 +190,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: {
         id: activityId,
-        user: { id: userId }
+        userId: userId
       },
       relations: ['user', 'rateActivities'],
     });
@@ -208,7 +208,7 @@ export class ActivityService {
     // Get all activities with position greater than the deleted one
     const activitiesToShift = await this.activityRepository.find({
       where: {
-        user: { id: userId },
+        userId: userId,
         position: MoreThan(deletedPosition)
       },
       order: { position: 'ASC' }
@@ -312,7 +312,7 @@ export class ActivityService {
   async changePosition(activityId: number, newPosition: number, user: User): Promise<ActivityResponseDto> {
     try {
       const activity = await this.activityRepository.findOne({
-        where: { id: activityId, user: { id: user.id } },
+        where: { id: activityId, userId: user.id },
         relations: ['rateActivities'],
       });
 
@@ -333,7 +333,7 @@ export class ActivityService {
 
       // Get all activities for this user, ordered by position
       const allActivities = await this.activityRepository.find({
-        where: { user: { id: user.id } },
+        where: { userId: user.id },
         order: { position: 'ASC', createdAt: 'DESC' }
       });
 

@@ -62,15 +62,11 @@ export class TooltipService {
     try {
       const query = this.tooltipRepository
         .createQueryBuilder('tooltip')
+        .orderBy('tooltip.createdAt', 'DESC')
+        .leftJoinAndSelect('tooltip.closedTooltips', 'closed', 'closed.userId = :userId', { userId })
         .where('tooltip.page = :page', { page })
-        .orderBy('tooltip.createdAt', 'DESC');
-
-      // Если пользователь авторизован, исключаем закрытые им тултипы
-      if (userId) {
-        query
-          .leftJoin(UserClosedTooltip, 'closed', 'closed.tooltipId = tooltip.id AND closed.userId = :userId', { userId })
-          .andWhere('closed.id IS NULL');
-      }
+        .andWhere('closed.id IS NULL');
+      
 
       return await query.getMany();
     } catch (error) {

@@ -16,6 +16,7 @@ import { EmailService } from '../email/email.service';
 import { FirebaseService } from '../firebase/firebase.service';
 import { RedisBlacklistService } from './redis-blacklist.service';
 import { ChatGPTService } from '../core/chatgpt';
+import { OnboardingQuestionsService } from '../core/onboarding-questions';
 import { ErrorCode } from '../common/error-codes';
 import { AppException } from '../common/exceptions/app.exception';
 import { GenerateActivityRecommendationsDto, ActivityRecommendationsResponseDto, ActivityRecommendationDto } from './dto/generate-activity-recommendations.dto';
@@ -35,6 +36,7 @@ export class AuthService {
     private roleService: RoleService,
     private chatGPTService: ChatGPTService,
     private readonly subscriptionsService: SubscriptionsService,
+    private readonly onboardingQuestionsService: OnboardingQuestionsService,
   ) {}
 
   @Transactional()
@@ -494,44 +496,27 @@ export class AuthService {
         socialNetworks,
         onboardingQuestionAndAnswers,
         feelingToday,
-        age,
-        taskTrackingMethod,
         count = '5',
       } = generateRecommendationsDto;
 
       const activityCount = Math.max(1, parseInt(count, 10) || 5);
 
+      const formattedOnboardingAnswers = this.formatOnboardingAnswers(onboardingQuestionAndAnswers);
+
       const patterns = {
         socialNetworks,
-        onboardingQuestionAndAnswers,
+        onboardingQuestionAndAnswers: formattedOnboardingAnswers,
         feelingToday,
-        age: age || 'not specified',
-        taskTrackingMethod: taskTrackingMethod || 'not specified',
         activityPreferences: this.extractActivityPreferences(onboardingQuestionAndAnswers),
         timestamp: new Date().toISOString(),
       };
+      
+      console.log('patterns', patterns);
 
-      const batch = await this.chatGPTService.generateActivityBatch(patterns, activityCount);
-
-      const recommendations: ActivityRecommendationDto[] = batch.map((item) => {
-        const activityData = {
-          activityName: item.activityName,
-          content: item.content,
-        };
-
-        const confidenceScore = this.calculateConfidenceScore(patterns, activityData);
-
-        return {
-          activityName: item.activityName,
-          content: item.content,
-          confidenceScore,
-          reasoning: item.reasoning || 'This activity is recommended based on your preferences and current state.',
-        };
-      });
+      const recommendations = await this.chatGPTService.generateActivityBatch(patterns, activityCount);
 
       return {
         recommendations,
-        overallReasoning: 'These activities are tailored to your preferences and current state of mind.',
         totalCount: recommendations.length,
       };
     } catch (error) {
@@ -543,44 +528,66 @@ export class AuthService {
     }
   }
 
+  private formatOnboardingAnswers(onboardingAnswers: object | undefined): Record<string, string> | undefined {
+    if (!onboardingAnswers || typeof onboardingAnswers !== 'object') {
+      return undefined;
+    }
+
+    const allSteps = this.onboardingQuestionsService.getAllOnboardingQuestions();
+    const formatted: Record<string, string> = {};
+
+    Object.entries(onboardingAnswers as Record<string, unknown>).forEach(([stepName, answerId]) => {
+      if (!stepName || !answerId) {
+        return;
+      }
+
+      const step = allSteps.find((s) => s.stepName === stepName);
+      if (!step) {
+        // If step not found, use raw values
+        formatted[stepName] = String(answerId);
+        return;
+      }
+
+      const answer = step.answers.find((a) => a.id === String(answerId));
+      if (answer) {
+        // Format: "Question: Answer text (subtitle)"
+        formatted[step.stepQuestion] = `${answer.text}${answer.subtitle ? ` (${answer.subtitle})` : ''}`;
+      } else {
+        // If answer not found, use raw value
+        formatted[step.stepQuestion] = String(answerId);
+      }
+    });
+
+    return Object.keys(formatted).length > 0 ? formatted : undefined;
+  }
+
   private extractActivityPreferences(onboardingAnswers: object | undefined): string[] {
     if (!onboardingAnswers || typeof onboardingAnswers !== 'object') {
       return [];
     }
 
-    const values = Object.values(onboardingAnswers as Record<string, unknown>)
-      .map((value) => (value !== undefined && value !== null ? String(value) : ''))
-      .filter((value) => value.trim().length > 0);
+    const allSteps = this.onboardingQuestionsService.getAllOnboardingQuestions();
+    const preferences: string[] = [];
 
-    return Array.from(new Set(values));
-  }
+    Object.entries(onboardingAnswers as Record<string, unknown>).forEach(([stepName, answerId]) => {
+      if (!stepName || !answerId) {
+        return;
+      }
 
-  /**
-   * Calculate confidence score for recommendation
-   */
-  private calculateConfidenceScore(patterns: any, activityContent: { activityName: string; content: string }): number {
-    let score = 0.5; // Base score
-    
-    // Increase score based on feeling match
-    if (patterns.feelingToday && activityContent.content.toLowerCase().includes(patterns.feelingToday.toLowerCase())) {
-      score += 0.2;
-    }
-    
-    // Increase score based on social network alignment
-    if (patterns.socialNetworks && patterns.socialNetworks.length > 0) {
-      score += 0.1;
-    }
-    
-    // Increase score based on onboarding answers
-    if (patterns.onboardingQuestionAndAnswers && Object.keys(patterns.onboardingQuestionAndAnswers).length > 0) {
-      score += 0.1;
-    }
-    
-    // Increase score based on age appropriateness
-    if (patterns.age && patterns.age !== 'not specified') {
-      score += 0.1;
-    }
-    
-    return Math.min(score, 1.0); // Cap at 1.0
+      const step = allSteps.find((s) => s.stepName === stepName);
+      if (!step) {
+        return;
+      }
+
+      const answer = step.answers.find((a) => a.id === String(answerId));
+      if (answer) {
+        preferences.push(answer.text);
+        if (answer.subtitle) {
+          preferences.push(answer.subtitle);
+        }
+      }
+    });
+
+    return Array.from(new Set(preferences));
   }
 }

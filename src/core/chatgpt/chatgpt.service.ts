@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
@@ -27,8 +26,8 @@ export class ChatGPTService {
   private readonly apiKey: string;
   private readonly openai: OpenAI;
 
-  constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('OPENAI_API_KEY') as string;
+  constructor() {
+    this.apiKey = process.env.OPENAI_API_KEY as string;
     this.openai = new OpenAI({
       apiKey: this.apiKey,
     });
@@ -219,8 +218,6 @@ Respond with strict JSON in the following format (no additional text):
     {
       "activityName": "string",
       "content": "2-3 sentences",
-      "category": "short category",
-      "reasoning": "short personalized reasoning"
     }
   ]
 }
