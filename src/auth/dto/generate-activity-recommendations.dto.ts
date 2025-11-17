@@ -28,26 +28,8 @@ export class GenerateActivityRecommendationsDto {
   feelingToday: string;
 
   @ApiProperty({
-    description: 'User age',
-    example: '25-30',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  age?: string;
-
-  @ApiProperty({
-    description: 'How user usually tracks tasks and goals',
-    example: 'I use apps and paper notes',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  taskTrackingMethod?: string;
-
-  @ApiProperty({
     description: 'Number of recommendations to generate',
-    example: '5',
+    example: '3',
     required: false,
   })
   @IsOptional()

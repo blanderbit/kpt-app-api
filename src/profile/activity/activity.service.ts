@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transactional } from 'typeorm-transactional';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, MoreThan, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { Activity } from './entities/activity.entity';
 import { RateActivity } from './entities/rate-activity.entity';
 import { CreateActivityDto, UpdateActivityDto, ActivityResponseDto, ActivityFilterDto } from './dto/activity.dto';
@@ -31,10 +31,20 @@ export class ActivityService {
    * Get user activities list with filtering and pagination
    */
   async getMyActivities(user: User, query: PaginateQuery): Promise<Paginated<Activity>> {
+    // Calculate today's date range (start and end of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.toISOString();
+    
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayEndStr = todayEnd.toISOString();
+
     // Use nestjs-paginate with repository and custom config
     query.filter = { 
       ...query.filter,
-      userId: `$eq:${user.id}` 
+      userId: `$eq:${user.id}`,
+      createdAt: `$btw:${todayStart},${todayEndStr}`
     };
 
     return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
@@ -51,13 +61,28 @@ export class ActivityService {
       createActivityDto.content
     );
 
-    // Get the count of existing activities for this user
-    const activitiesCount = await this.activityRepository.count({
-      where: { user: { id: user.id } }
+    // Calculate today's date range (start and end of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Get the count of existing activities for this user created today
+    const allActivities = await this.activityRepository.find({
+      where: {
+        user: { id: user.id },
+        createdAt: MoreThanOrEqual(today),
+      },
     });
 
-    // Calculate next position (count of activities = next position)
-    const nextPosition = activitiesCount;
+    // Filter to only include activities created today (in case of timezone issues)
+    const todayActivities = allActivities.filter(act => {
+      const actDate = new Date(act.createdAt);
+      return actDate >= today && actDate <= todayEnd;
+    });
+
+    // Calculate next position (position starts from 0, so next position = count of today's activities)
+    const nextPosition = todayActivities.length;
 
     // Create new activity with the calculated position (at the end)
     const activity = this.activityRepository.create({
@@ -73,7 +98,7 @@ export class ActivityService {
 
     this.classifyAndUpdateActivityType(savedActivity)
 
-    this.logger.log(`New activity created at position ${nextPosition} (user has ${activitiesCount} existing activities)`);
+    this.logger.log(`New activity created at position ${nextPosition} (user has ${todayActivities.length} existing activities today)`);
     return this.mapToResponseDto(savedActivity);
   }
 
@@ -203,30 +228,56 @@ export class ActivityService {
       throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_CANNOT_DELETE_CLOSED, 'Cannot delete closed activity', { activityId });
     }
 
-    const deletedPosition = activity.position;
+    // Calculate today's date range (start and end of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
 
-    // Get all activities with position greater than the deleted one
-    const activitiesToShift = await this.activityRepository.find({
+    // Get all activities for this user created today, ordered by position
+    const allActivities = await this.activityRepository.find({
       where: {
         user: { id: userId },
-        position: MoreThan(deletedPosition)
+        createdAt: MoreThanOrEqual(today),
       },
-      order: { position: 'ASC' }
+      order: { position: 'ASC', createdAt: 'DESC' },
     });
 
-    // Shift all activities with higher positions down by 1
-    for (const activityToShift of activitiesToShift) {
-      activityToShift.position = activityToShift.position - 1;
+    // Filter to only include activities created today (in case of timezone issues)
+    const todayActivities = allActivities.filter(act => {
+      const actDate = new Date(act.createdAt);
+      return actDate >= today && actDate <= todayEnd;
+    });
+
+    // Find and remove the activity to delete from the list
+    const activityIndex = todayActivities.findIndex(a => a.id === activityId);
+    if (activityIndex === -1) {
+      throw AppException.notFound(
+        ErrorCode.PROFILE_ACTIVITY_NOT_FOUND,
+        'Activity not found in today\'s activities',
+        { activityId, userId }
+      );
     }
 
-    // Save the shifted activities and remove the deleted one
-    if (activitiesToShift.length > 0) {
-      await this.activityRepository.save(activitiesToShift);
+    const deletedPosition = todayActivities[activityIndex].position;
+
+    // Remove the activity from the list
+    todayActivities.splice(activityIndex, 1);
+
+    // Reassign positions sequentially from 0 to n-1 for remaining activities
+    todayActivities.forEach((act, index) => {
+      act.position = index;
+    });
+
+    // Save all activities with updated positions
+    if (todayActivities.length > 0) {
+      await this.activityRepository.save(todayActivities);
     }
 
+    // Delete the activity
     await this.activityRepository.delete(activity);
 
-    this.logger.log(`Activity ${activityId} deleted from position ${deletedPosition}, shifted ${activitiesToShift.length} activities`);
+    this.logger.log(`Activity ${activityId} deleted from position ${deletedPosition}, reassigned ${todayActivities.length} activities`);
   }
 
   /**
@@ -277,6 +328,7 @@ export class ActivityService {
   }
 
   private async classifyAndUpdateActivityType(activity: Activity): Promise<void> {
+    this.logger.log(`ChatGPT classification for activity ${activity.id} started`);
     try {
       const allTypes = this.activityTypesService.getAllActivityTypes();
       if (allTypes.length === 0) {
@@ -324,40 +376,68 @@ export class ActivityService {
         throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_CANNOT_MODIFY_CLOSED, 'Cannot modify closed activity');
       }
 
-      const oldPosition = activity.position;
+      // Calculate today's date range (start and end of day)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      // 1. Get all activities for this user created today, ordered by position
+      const allActivities = await this.activityRepository.find({
+        where: {
+          user: { id: user.id },
+          createdAt: MoreThanOrEqual(today),
+        },
+        order: { position: 'ASC', createdAt: 'DESC' },
+        relations: ['rateActivities'],
+      });
+
+      // Filter to only include activities created today (in case of timezone issues)
+      const todayActivities = allActivities.filter(act => {
+        const actDate = new Date(act.createdAt);
+        return actDate >= today && actDate <= todayEnd;
+      });
+
+      // 2. Find current activity in the list
+      const currentActivityIndex = todayActivities.findIndex(a => a.id === activityId);
+      
+      if (currentActivityIndex === -1) {
+        throw AppException.notFound(
+          ErrorCode.PROFILE_ACTIVITY_NOT_FOUND,
+          'Activity not found in today\'s activities',
+          { activityId }
+        );
+      }
+
+      const currentActivity = todayActivities[currentActivityIndex];
+      const oldPosition = currentActivity.position;
 
       // If position hasn't changed, no need to update
       if (oldPosition === newPosition) {
-        return this.mapToResponseDto(activity);
+        return this.mapToResponseDto(currentActivity);
       }
 
-      // Get all activities for this user, ordered by position
-      const allActivities = await this.activityRepository.find({
-        where: { user: { id: user.id } },
-        order: { position: 'ASC', createdAt: 'DESC' }
-      });
+      // 3. Remove current activity from the list
+      todayActivities.splice(currentActivityIndex, 1);
 
       // Validate new position
-      const maxPosition = allActivities.length - 1;
+      const maxPosition = todayActivities.length - 1;
       if (newPosition < 0) {
         newPosition = 0;
       } else if (newPosition > maxPosition) {
         newPosition = maxPosition;
       }
 
-      // Remove the current activity from the list
-      const otherActivities = allActivities.filter(a => a.id !== activityId);
+      // 4. Insert current activity at the new position
+      todayActivities.splice(newPosition, 0, currentActivity);
 
-      // Insert the current activity at the new position
-      otherActivities.splice(newPosition, 0, activity);
-
-      // Reassign positions sequentially from 0 to n-1
-      otherActivities.forEach((act, index) => {
+      // 5. Reassign positions sequentially from 0 to n-1
+      todayActivities.forEach((act, index) => {
         act.position = index;
       });
 
-      // Save all activities with updated positions
-      await this.activityRepository.save(otherActivities);
+      // 6. Save all activities with updated positions
+      await this.activityRepository.save(todayActivities);
 
       // Reload the activity to get updated position
       const updatedActivity = await this.activityRepository.findOne({
