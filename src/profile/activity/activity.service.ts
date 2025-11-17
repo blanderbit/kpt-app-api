@@ -224,7 +224,7 @@ export class ActivityService {
       await this.activityRepository.save(activitiesToShift);
     }
 
-    await this.activityRepository.remove(activity);
+    await this.activityRepository.delete(activity);
 
     this.logger.log(`Activity ${activityId} deleted from position ${deletedPosition}, shifted ${activitiesToShift.length} activities`);
   }
@@ -337,44 +337,40 @@ export class ActivityService {
         order: { position: 'ASC', createdAt: 'DESC' }
       });
 
+      // Validate new position
+      const maxPosition = allActivities.length - 1;
+      if (newPosition < 0) {
+        newPosition = 0;
+      } else if (newPosition > maxPosition) {
+        newPosition = maxPosition;
+      }
+
       // Remove the current activity from the list
       const otherActivities = allActivities.filter(a => a.id !== activityId);
 
-      // Create new positions array
-      const newPositions = otherActivities.map(a => a.position);
+      // Insert the current activity at the new position
+      otherActivities.splice(newPosition, 0, activity);
 
-      // Insert new position in the correct place
-      if (newPosition < 0) {
-        newPosition = 0;
-      } else if (newPosition > otherActivities.length) {
-        newPosition = otherActivities.length;
+      // Reassign positions sequentially from 0 to n-1
+      otherActivities.forEach((act, index) => {
+        act.position = index;
+      });
+
+      // Save all activities with updated positions
+      await this.activityRepository.save(otherActivities);
+
+      // Reload the activity to get updated position
+      const updatedActivity = await this.activityRepository.findOne({
+        where: { id: activityId },
+        relations: ['rateActivities'],
+      });
+
+      if (!updatedActivity) {
+        throw AppException.notFound(ErrorCode.PROFILE_ACTIVITY_NOT_FOUND, 'Activity not found after position update');
       }
-
-      // Shift positions
-      if (oldPosition < newPosition) {
-        // Moving down: shift activities between old and new position up
-        for (let i = 0; i < otherActivities.length; i++) {
-          if (otherActivities[i].position > oldPosition && otherActivities[i].position <= newPosition) {
-            otherActivities[i].position = otherActivities[i].position - 1;
-          }
-        }
-      } else if (oldPosition > newPosition) {
-        // Moving up: shift activities between new and old position down
-        for (let i = 0; i < otherActivities.length; i++) {
-          if (otherActivities[i].position >= newPosition && otherActivities[i].position < oldPosition) {
-            otherActivities[i].position = otherActivities[i].position + 1;
-          }
-        }
-      }
-
-      // Update the current activity position
-      activity.position = newPosition;
-
-      // Save all changes
-      await this.activityRepository.save([...otherActivities, activity]);
 
       this.logger.log(`Activity position updated: ${activityId} -> position ${newPosition} (was ${oldPosition})`);
-      return this.mapToResponseDto(activity);
+      return this.mapToResponseDto(updatedActivity);
     } catch (error) {
       if (error instanceof AppException) {
         throw error;

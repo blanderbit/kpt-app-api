@@ -13,7 +13,7 @@ import { File } from '../../../common/entities/file.entity';
 export interface SurveyQuestion {
   id: string;
   text: string;
-  type: 'single' | 'multiple' | 'text';
+  type: 'single' | 'multiple';
   options: {
     id: string;
     text: string;
