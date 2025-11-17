@@ -230,7 +230,7 @@ export class SuggestedActivityService {
       return savedSuggestions;
       
     } catch (error) {
-      // this.logger.error(`Error generating suggested activities for user ${userId}: ${error.message}`); // Original code had this line commented out
+      this.logger.error(`Error generating suggested activities for user ${userId}: ${error.message}`); // Original code had this line commented out
       throw AppException.internal(ErrorCode.SUGGESTED_ACTIVITY_GENERATION_FAILED, undefined, {
         error: error.message,
         userId,
