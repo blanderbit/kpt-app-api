@@ -333,7 +333,7 @@ export class ActivityService {
 
       // Get all activities for this user, ordered by position
       const allActivities = await this.activityRepository.find({
-        where: { userId: user.id },
+        where: { user: { id: user.id } },
         order: { position: 'ASC', createdAt: 'DESC' }
       });
 
