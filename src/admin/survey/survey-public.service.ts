@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { Survey, SurveyStatus } from './entities/survey.entity';
 import { UserSurvey } from './entities/user-survey.entity';
+import { UserTemporarySurvey } from '../settings/entities/user-temporary-survey.entity';
 import { SubmitSurveyAnswerDto, SurveyResponseDto } from './dto/survey.dto';
 import { AppException } from '../../common/exceptions/app.exception';
 import { ErrorCode } from '../../common/error-codes';
@@ -17,6 +18,8 @@ export class SurveyPublicService {
     private readonly surveyRepository: Repository<Survey>,
     @InjectRepository(UserSurvey)
     private readonly userSurveyRepository: Repository<UserSurvey>,
+    @InjectRepository(UserTemporarySurvey)
+    private readonly userTemporarySurveyRepository: Repository<UserTemporarySurvey>,
   ) {}
 
   /**
@@ -63,19 +66,48 @@ export class SurveyPublicService {
    */
   async getRandomSurvey(userId?: number): Promise<SurveyResponseDto | null> {
     try {
-      const surveys = await this.surveyRepository
-        .createQueryBuilder('survey')
-        .leftJoinAndSelect('survey.files', 'files')
-        .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
-        .orderBy('RANDOM()')
-        .limit(1)
-        .getMany();
+      let survey: Survey | null = null;
 
-      if (surveys.length === 0) {
+      // If userId is provided, get random survey from temporary surveys
+      if (userId) {
+        const temporarySurveys = await this.userTemporarySurveyRepository
+          .createQueryBuilder('userTemporarySurvey')
+          .leftJoinAndSelect('userTemporarySurvey.survey', 'survey')
+          .leftJoinAndSelect('survey.files', 'files')
+          .where('userTemporarySurvey.userId = :userId', { userId })
+          .andWhere('survey.status = :status', { status: SurveyStatus.ACTIVE })
+          .andWhere(
+            '(userTemporarySurvey.expiresAt IS NULL OR userTemporarySurvey.expiresAt > :now)',
+            { now: new Date() },
+          )
+          .orderBy('RAND()')
+          .limit(1)
+          .getMany();
+
+        if (temporarySurveys.length > 0 && temporarySurveys[0].survey) {
+          survey = temporarySurveys[0].survey;
+        }
+      }
+
+      // If no survey found from temporary surveys or userId not provided, get random from all active surveys
+      if (!survey) {
+        const surveys = await this.surveyRepository
+          .createQueryBuilder('survey')
+          .leftJoinAndSelect('survey.files', 'files')
+          .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
+          .orderBy('RAND()')
+          .limit(1)
+          .getMany();
+
+        if (surveys.length > 0) {
+          survey = surveys[0];
+        }
+      }
+
+      if (!survey) {
         return null;
       }
 
-      const survey = surveys[0];
       const response = this.mapToResponseDto(survey);
 
       // Check if user has completed this survey

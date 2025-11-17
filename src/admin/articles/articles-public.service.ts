@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { Article, ArticleStatus } from './entities/article.entity';
 import { UserHiddenArticle } from './entities/user-hidden-article.entity';
+import { UserTemporaryArticle } from '../settings/entities/user-temporary-article.entity';
 import { ArticleResponseDto } from './dto/article.dto';
 import { AppException } from '../../common/exceptions/app.exception';
 import { ErrorCode } from '../../common/error-codes';
@@ -19,6 +20,8 @@ export class ArticlesPublicService {
     private readonly articleRepository: Repository<Article>,
     @InjectRepository(UserHiddenArticle)
     private readonly userHiddenArticleRepository: Repository<UserHiddenArticle>,
+    @InjectRepository(UserTemporaryArticle)
+    private readonly userTemporaryArticleRepository: Repository<UserTemporaryArticle>,
   ) {}
 
   /**
@@ -65,19 +68,48 @@ export class ArticlesPublicService {
    */
   async getRandomArticle(userId?: number): Promise<ArticleResponseDto | null> {
     try {
-      const articles = await this.articleRepository
-        .createQueryBuilder('article')
-        .leftJoinAndSelect('article.files', 'files')
-        .where('article.status = :status', { status: ArticleStatus.ACTIVE })
-        .orderBy('RANDOM()')
-        .limit(1)
-        .getMany();
+      let article: Article | null = null;
 
-      if (articles.length === 0) {
+      // If userId is provided, get random article from temporary articles
+      if (userId) {
+        const temporaryArticles = await this.userTemporaryArticleRepository
+          .createQueryBuilder('userTemporaryArticle')
+          .leftJoinAndSelect('userTemporaryArticle.article', 'article')
+          .leftJoinAndSelect('article.files', 'files')
+          .where('userTemporaryArticle.userId = :userId', { userId })
+          .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
+          .andWhere(
+            '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
+            { now: new Date() },
+          )
+          .orderBy('RAND()')
+          .limit(1)
+          .getMany();
+
+        if (temporaryArticles.length > 0 && temporaryArticles[0].article) {
+          article = temporaryArticles[0].article;
+        }
+      }
+
+      // If no article found from temporary articles or userId not provided, get random from all active articles
+      if (!article) {
+        const articles = await this.articleRepository
+          .createQueryBuilder('article')
+          .leftJoinAndSelect('article.files', 'files')
+          .where('article.status = :status', { status: ArticleStatus.ACTIVE })
+          .orderBy('RAND()')
+          .limit(1)
+          .getMany();
+
+        if (articles.length > 0) {
+          article = articles[0];
+        }
+      }
+
+      if (!article) {
         return null;
       }
 
-      const article = articles[0];
       const response = this.mapToResponseDto(article);
 
       // Check if article is hidden for user
