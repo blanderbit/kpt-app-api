@@ -32,13 +32,12 @@ export class ActivityService {
    */
   async getMyActivities(user: User, query: PaginateQuery): Promise<Paginated<Activity>> {
     // Use nestjs-paginate with repository and custom config
-    console.log('query', query);
-    const config = {
-      ...ACTIVITY_PAGINATION_CONFIG,
-      filter: { userId: `$eq:${user.id}` }, // Add userId filter
+    query.filter = { 
+      ...query.filter,
+      userId: `$eq:${user.id}` 
     };
 
-    return paginate(query, this.activityRepository, config);
+    return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
   }
 
   /**
@@ -54,7 +53,7 @@ export class ActivityService {
 
     // Get the count of existing activities for this user
     const activitiesCount = await this.activityRepository.count({
-      where: { userId: user.id }
+      where: { user: { id: user.id } }
     });
 
     // Calculate next position (count of activities = next position)
