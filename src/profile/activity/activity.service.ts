@@ -32,6 +32,7 @@ export class ActivityService {
    */
   async getMyActivities(user: User, query: PaginateQuery): Promise<Paginated<Activity>> {
     // Use nestjs-paginate with repository and custom config
+    console.log('query', query);
     const config = {
       ...ACTIVITY_PAGINATION_CONFIG,
       filter: { userId: `$eq:${user.id}` }, // Add userId filter
@@ -90,7 +91,7 @@ export class ActivityService {
       const activity = await this.activityRepository.findOne({
         where: {
           id: activityId,
-          userId: user.id
+          user: { id: user.id }
         },
         relations: ['user', 'rateActivities'],
       });
@@ -126,7 +127,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: {
         id: activityId,
-        userId: userId
+        user: { id: userId }
       },
       relations: ['user', 'rateActivities'],
     });
@@ -150,7 +151,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: {
         id: activityId,
-        userId: userId
+        user: { id: userId }
       },
       relations: ['user', 'rateActivities'],
     });
@@ -190,7 +191,7 @@ export class ActivityService {
     const activity = await this.activityRepository.findOne({
       where: {
         id: activityId,
-        userId: userId
+        user: { id: userId }
       },
       relations: ['user', 'rateActivities'],
     });
@@ -208,7 +209,7 @@ export class ActivityService {
     // Get all activities with position greater than the deleted one
     const activitiesToShift = await this.activityRepository.find({
       where: {
-        userId: userId,
+        user: { id: userId },
         position: MoreThan(deletedPosition)
       },
       order: { position: 'ASC' }
@@ -312,7 +313,7 @@ export class ActivityService {
   async changePosition(activityId: number, newPosition: number, user: User): Promise<ActivityResponseDto> {
     try {
       const activity = await this.activityRepository.findOne({
-        where: { id: activityId, userId: user.id },
+        where: { id: activityId, user: { id: user.id } },
         relations: ['rateActivities'],
       });
 
