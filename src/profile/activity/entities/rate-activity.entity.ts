@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  RelationId,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Activity } from './activity.entity';
@@ -31,4 +32,7 @@ export class RateActivity {
   @ManyToOne(() => Activity, (activity) => activity.rateActivities, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'activityId' })
   activity: Activity;
+
+  @RelationId((rateActivity: RateActivity) => rateActivity.activity)
+  activityId: number;
 }
