@@ -208,7 +208,7 @@ export class TemporaryItemsProcessor {
     await userTemporarySurveyRepository
       .createQueryBuilder()
       .delete()
-      .where('userId = :userId', { userId })
+      .where('user_id = :userId', { userId })
       .execute();
 
     const userRepository = manager.getRepository(User);
