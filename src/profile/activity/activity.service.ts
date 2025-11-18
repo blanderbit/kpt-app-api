@@ -136,13 +136,19 @@ export class ActivityService {
       relations: ['activity'],
     });
 
+        // Mark activity as closed
+    activity.status = 'closed';
+    activity.closedAt = new Date();
+
+    const updatedActivity = await this.activityRepository.save(activity);
+
     if (rateActivity) {
       // Update existing RateActivity
       rateActivity.satisfactionLevel = createRateActivityDto.satisfactionLevel;
       rateActivity.hardnessLevel = createRateActivityDto.hardnessLevel;
-      rateActivity.activity = activity; // Ensure activity is set for the relation
+      rateActivity.activity = activity; // TypeORM will set activityId automatically from the relation
     } else {
-      // Create new RateActivity - use only activity entity, not activityId
+      // Create new RateActivity - use only activity entity, TypeORM will set activityId automatically
       rateActivity = this.rateActivityRepository.create({
         satisfactionLevel: createRateActivityDto.satisfactionLevel,
         hardnessLevel: createRateActivityDto.hardnessLevel,
@@ -150,13 +156,11 @@ export class ActivityService {
       });
     }
 
+    updatedActivity.rateActivities.push(rateActivity);
+
     await this.rateActivityRepository.save(rateActivity);
 
-    // Mark activity as closed
-    activity.status = 'closed';
-    activity.closedAt = new Date();
 
-    const updatedActivity = await this.activityRepository.save(activity);
     return this.mapToResponseDto(updatedActivity);
   }
 

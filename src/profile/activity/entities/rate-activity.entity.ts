@@ -31,7 +31,4 @@ export class RateActivity {
   @ManyToOne(() => Activity, (activity) => activity.rateActivities, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'activityId' })
   activity: Activity;
-
-  @Column({ type: 'bigint' })
-  activityId: number;
 }
