@@ -29,7 +29,6 @@ export class RateActivity {
   createdAt: Date;
 
   @Column()
-  @RelationId((rateActivity: RateActivity) => rateActivity.activity)
   activityId: number;
 
   @ManyToOne(() => Activity, (activity) => activity.rateActivities, { onDelete: 'CASCADE' })
