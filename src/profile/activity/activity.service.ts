@@ -132,7 +132,8 @@ export class ActivityService {
 
     // Check if RateActivity already exists for this activity
     let rateActivity = await this.rateActivityRepository.findOne({
-      where: { activityId },
+      where: { activity: { id: activityId } },
+      relations: ['activity'],
     });
 
     if (rateActivity) {

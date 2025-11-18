@@ -15,10 +15,6 @@ export class RateActivity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ApiProperty({ description: 'Activity ID' })
-  @Column()
-  activityId: number;
-
   @ApiProperty({ description: 'Satisfaction level (0-100)' })
   @Column({ type: 'int', default: 0 })
   satisfactionLevel: number;

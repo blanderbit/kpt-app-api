@@ -699,7 +699,7 @@ export class SeedDatabaseCommand extends CommandRunner {
 
   private generateActivityRatings(activities: Activity[]): RateActivity[] {
     return activities.map((activity) => ({
-      activityId: activity.id,
+      activity,
       satisfactionLevel: faker.number.int({ min: 20, max: 100 }),
       hardnessLevel: faker.number.int({ min: 10, max: 90 }),
     })) as RateActivity[];
