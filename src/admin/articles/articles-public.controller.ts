@@ -27,6 +27,8 @@ import { articleConfig } from './articles.config';
 
 @ApiTags('articles')
 @Controller('articles')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class ArticlesPublicController {
   constructor(
     private readonly articlesPublicService: ArticlesPublicService,

@@ -23,6 +23,8 @@ import { SurveyResponseDto, SubmitSurveyAnswerDto } from './dto/survey.dto';
 
 @ApiTags('surveys')
 @Controller('surveys')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class SurveyPublicController {
   constructor(
     private readonly surveyPublicService: SurveyPublicService,

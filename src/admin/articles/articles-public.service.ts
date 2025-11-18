@@ -67,7 +67,6 @@ export class ArticlesPublicService {
    * Get random article
    */
   async getRandomArticle(userId?: number): Promise<ArticleResponseDto[]> {
-    console.log('userId', userId);
     try {
       const temporaryArticles = await this.userTemporaryArticleRepository
         .createQueryBuilder('userTemporaryArticle')
@@ -75,16 +74,16 @@ export class ArticlesPublicService {
         .leftJoinAndSelect('userTemporaryArticle.user', 'user')
         .leftJoinAndSelect('article.files', 'files')
         .where('user.id = :userId', { userId })
-        // .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
-        // .andWhere(
-        //   '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
-        //   { now: new Date() },
-        // )
-        // .andWhere(
-        //   'NOT EXISTS (SELECT 1 FROM user_hidden_articles WHERE user_hidden_articles.article_id = article.id AND user_hidden_articles.user_id = :userId)',
-        //   { userId },
-        // )
-        // .orderBy('RAND()')
+        .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
+        .andWhere(
+          '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
+          { now: new Date() },
+        )
+        .andWhere(
+          'NOT EXISTS (SELECT 1 FROM user_hidden_articles WHERE user_hidden_articles.article_id = article.id AND user_hidden_articles.user_id = :userId)',
+          { userId },
+        )
+        .orderBy('RAND()')
         .getMany();
 
       console.log('temporaryArticles', temporaryArticles);
