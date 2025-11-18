@@ -32,7 +32,6 @@ export class RateActivity {
   @RelationId((rateActivity: RateActivity) => rateActivity.activity)
   activityId: number;
 
-  // Relations
   @ManyToOne(() => Activity, (activity) => activity.rateActivities, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'activityId' })
   activity: Activity;
