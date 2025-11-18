@@ -79,7 +79,7 @@ export class ArticlesPublicService {
           { now: new Date() },
         )
         .andWhere(
-          'NOT EXISTS (SELECT 1 FROM user_hidden_articles WHERE user_hidden_articles.articleId = article.id AND user_hidden_articles.userId = :userId)',
+          'NOT EXISTS (SELECT 1 FROM user_hidden_articles WHERE user_hidden_articles.article_id = article.id AND user_hidden_articles.user_id = :userId)',
           { userId },
         )
         .orderBy('RAND()')

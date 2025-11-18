@@ -70,14 +70,14 @@ export class SurveyPublicService {
         .createQueryBuilder('userTemporarySurvey')
         .leftJoinAndSelect('userTemporarySurvey.survey', 'survey')
         .leftJoinAndSelect('survey.files', 'files')
-        .where('userTemporarySurvey.userId = :userId', { userId })
+        .where('userTemporarySurvey.user_id = :userId', { userId })
         .andWhere('survey.status = :status', { status: SurveyStatus.ACTIVE })
         .andWhere(
           '(userTemporarySurvey.expiresAt IS NULL OR userTemporarySurvey.expiresAt > :now)',
           { now: new Date() },
         )
         .andWhere(
-          'NOT EXISTS (SELECT 1 FROM user_surveys WHERE user_surveys.surveyId = survey.id AND user_surveys.userId = :userId)',
+          'NOT EXISTS (SELECT 1 FROM user_surveys WHERE user_surveys.survey_id = survey.id AND user_surveys.userId = :userId)',
           { userId },
         )
         .orderBy('RAND()')
