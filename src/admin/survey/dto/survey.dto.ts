@@ -1,8 +1,34 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNotEmpty, IsArray, ValidateNested, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsArray, ValidateNested, IsNumber, ValidateIf, registerDecorator, ValidationOptions, ValidationArguments } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { SurveyStatus } from '../entities/survey.entity';
 import { FileDto } from '../../articles/dto/article.dto';
+
+// Custom validator for string or string array
+function IsStringOrStringArray(validationOptions?: ValidationOptions) {
+  return function (object: Object, propertyName: string) {
+    registerDecorator({
+      name: 'isStringOrStringArray',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: any, args: ValidationArguments) {
+          if (typeof value === 'string' && value.trim().length > 0) {
+            return true;
+          }
+          if (Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string' && item.trim().length > 0)) {
+            return true;
+          }
+          return false;
+        },
+        defaultMessage(args: ValidationArguments) {
+          return `${args.property} must be a non-empty string or a non-empty array of strings`;
+        },
+      },
+    });
+  };
+}
 
 const transformJsonArray = <T>(value: unknown, ClassCtor?: new () => any): T | undefined => {
   if (value === undefined || value === null || value === '') {
@@ -270,6 +296,7 @@ export class SurveyAnswerDto {
     description: 'Selected option IDs or text answer',
     example: ['opt1', 'opt2'],
   })
+  @IsStringOrStringArray()
   answer: string | string[];
 }
 
