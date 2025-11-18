@@ -46,9 +46,9 @@ export class SurveyPublicController {
     description: 'No surveys available',
   })
   async getRandomSurvey(
-    @CurrentUser() user?: User,
+    @CurrentUser() user: User,
   ): Promise<SurveyResponseDto[]> {
-    return this.surveyPublicService.getRandomSurvey(user?.id);
+    return this.surveyPublicService.getRandomSurvey(user.id);
   }
 
   @Get()

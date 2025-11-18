@@ -8,7 +8,10 @@ export const databaseConfig: TypeOrmModuleOptions = {
   password: process.env.DATABASE_PASSWORD || '',
   database: process.env.DATABASE_NAME || 'kpt_app',
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-  synchronize: true,
+  synchronize: process.env.DATABASE_SYNCHRONIZE === 'true',
   logging: process.env.NODE_ENV === 'development',
   autoLoadEntities: true,
+  migrations: [],
+  migrationsRun: false,
+  dropSchema: false,
 };
