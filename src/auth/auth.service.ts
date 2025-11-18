@@ -17,6 +17,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { RedisBlacklistService } from './redis-blacklist.service';
 import { ChatGPTService } from '../core/chatgpt';
 import { OnboardingQuestionsService } from '../core/onboarding-questions';
+import { ActivityTypesService } from '../core/activity-types';
 import { ErrorCode } from '../common/error-codes';
 import { AppException } from '../common/exceptions/app.exception';
 import { GenerateActivityRecommendationsDto, ActivityRecommendationsResponseDto, ActivityRecommendationDto } from './dto/generate-activity-recommendations.dto';
@@ -37,6 +38,7 @@ export class AuthService {
     private chatGPTService: ChatGPTService,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly onboardingQuestionsService: OnboardingQuestionsService,
+    private readonly activityTypesService: ActivityTypesService,
   ) {}
 
   @Transactional()
@@ -51,6 +53,8 @@ export class AuthService {
       onboardingQuestionAndAnswers, 
       activities, 
       taskTrackingMethod,
+      initSatisfactionLevel,
+      initHardnessLevel,
       appUserId,
     } = registerDto;
 
@@ -72,6 +76,8 @@ export class AuthService {
       emailVerified: false,
       age: age || '',
       initialFeeling: feelingToday || null,
+      initSatisfactionLevel: initSatisfactionLevel ?? null,
+      initHardnessLevel: initHardnessLevel ?? null,
       socialNetworks: socialNetworks?.join(',') || null,
       taskTrackingMethod: taskTrackingMethod || null,
     };
@@ -328,6 +334,8 @@ export class AuthService {
         if (firebaseAuthDto.authType === AuthType.REGISTER) {
           userData.age = firebaseAuthDto.age || '';
           userData.initialFeeling = firebaseAuthDto.feelingToday || null;
+          userData.initSatisfactionLevel = firebaseAuthDto.initSatisfactionLevel ?? null;
+          userData.initHardnessLevel = firebaseAuthDto.initHardnessLevel ?? null;
           userData.socialNetworks = firebaseAuthDto.socialNetworks?.join(',') || null;
           userData.taskTrackingMethod = firebaseAuthDto.taskTrackingMethod || null;
           
@@ -497,21 +505,28 @@ export class AuthService {
         onboardingQuestionAndAnswers,
         feelingToday,
         count = '5',
+        satisfactionLevel,
+        hardnessLevel,
       } = generateRecommendationsDto;
 
       const activityCount = Math.max(1, parseInt(count, 10) || 5);
 
       const formattedOnboardingAnswers = this.formatOnboardingAnswers(onboardingQuestionAndAnswers);
 
+      const activityTypes = this.activityTypesService.getAllActivityTypes();
+      const activityTypeNames = activityTypes.map(type => type.id);
+
       const patterns = {
         socialNetworks,
         onboardingQuestionAndAnswers: formattedOnboardingAnswers,
         feelingToday,
         activityPreferences: this.extractActivityPreferences(onboardingQuestionAndAnswers),
+        satisfactionLevel,
+        hardnessLevel,
         timestamp: new Date().toISOString(),
       };
       
-      const recommendations = await this.chatGPTService.generateActivityBatch(patterns, activityCount);
+      const recommendations = await this.chatGPTService.generateActivityBatch(patterns, activityCount, activityTypeNames);
 
       return {
         recommendations,

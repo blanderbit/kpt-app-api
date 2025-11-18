@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, IsOptional, IsArray, IsObject } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, IsArray, IsObject, IsNumber, Min, Max } from 'class-validator';
 import { CreateActivityDto } from '../../profile/activity/dto/activity.dto';
 
 export class RegisterDto {
@@ -82,6 +82,28 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   taskTrackingMethod?: string;
+
+  @ApiProperty({
+    description: 'Initial satisfaction level (0-100)',
+    example: 70,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  initSatisfactionLevel?: number;
+
+  @ApiProperty({
+    description: 'Initial hardness level (0-100)',
+    example: 30,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  initHardnessLevel?: number;
 
   @ApiProperty({
     description: 'RevenueCat app user identifier',

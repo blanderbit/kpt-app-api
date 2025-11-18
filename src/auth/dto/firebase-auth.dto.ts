@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, IsObject, ValidateIf } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, IsObject, ValidateIf, IsNumber, Min, Max } from 'class-validator';
 import { CreateActivityDto } from '../../profile/activity/dto/activity.dto';
 
 export enum AuthType {
@@ -85,6 +85,30 @@ export class FirebaseAuthDto {
   @IsString()
   @IsNotEmpty()
   taskTrackingMethod?: string;
+
+  @ApiProperty({
+    description: 'Initial satisfaction level (0-100)',
+    example: 70,
+    required: false,
+  })
+  @ValidateIf((o) => o.authType === AuthType.REGISTER)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  initSatisfactionLevel?: number;
+
+  @ApiProperty({
+    description: 'Initial hardness level (0-100)',
+    example: 30,
+    required: false,
+  })
+  @ValidateIf((o) => o.authType === AuthType.REGISTER)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  initHardnessLevel?: number;
 
   @ApiProperty({
     description: 'RevenueCat app user identifier',

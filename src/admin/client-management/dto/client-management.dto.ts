@@ -27,6 +27,12 @@ export class ClientUserResponseDto {
   @ApiProperty({ description: 'User roles', example: ['user'] })
   roles: string[];
 
+  @ApiProperty({ description: 'Initial satisfaction level (0-100)', example: 70, nullable: true })
+  initSatisfactionLevel: number | null;
+
+  @ApiProperty({ description: 'Initial hardness level (0-100)', example: 30, nullable: true })
+  initHardnessLevel: number | null;
+
   @ApiProperty({ description: 'Created at', example: '2024-01-01T00:00:00.000Z' })
   createdAt: Date;
 

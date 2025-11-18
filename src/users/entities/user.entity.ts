@@ -60,12 +60,20 @@ export class User {
   meta: object | null;
 
   @ApiProperty({ description: 'User age', example: '25' })
-  @Column({ type: 'varchar', length: 10, default: '' })
+  @Column({ type: 'varchar', length: 100, default: '' })
   age: string;
 
   @ApiProperty({ description: 'Initial feeling when user registered', example: 'good' })
   @Column({ type: 'varchar', length: 50, nullable: true })
   initialFeeling: string;
+
+  @ApiProperty({ description: 'Initial satisfaction level (0-100)', example: 70 })
+  @Column({ type: 'int', nullable: true })
+  initSatisfactionLevel: number | null;
+
+  @ApiProperty({ description: 'Initial hardness level (0-100)', example: 30 })
+  @Column({ type: 'int', nullable: true })
+  initHardnessLevel: number | null;
 
   @ApiProperty({ description: 'Social networks used by user', example: 'facebook,instagram,twitter' })
   @Column({ type: 'text', nullable: true })

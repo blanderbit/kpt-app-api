@@ -11,6 +11,8 @@ export interface Client {
   emailVerified: boolean
   theme: string
   roles: string[]
+  initSatisfactionLevel: number | null
+  initHardnessLevel: number | null
   createdAt: string
   updatedAt: string
 }

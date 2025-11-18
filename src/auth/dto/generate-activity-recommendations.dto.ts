@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsArray, IsObject, IsNotEmpty, IsOptional, IsNumberString } from 'class-validator';
+import { IsString, IsArray, IsObject, IsNotEmpty, IsOptional, IsNumberString, IsNumber, Min, Max } from 'class-validator';
 
 export class GenerateActivityRecommendationsDto {
   @ApiProperty({
@@ -35,6 +35,28 @@ export class GenerateActivityRecommendationsDto {
   @IsOptional()
   @IsNumberString()
   count?: string;
+
+  @ApiProperty({
+    description: 'Satisfaction level (0-100)',
+    example: 70,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  satisfactionLevel?: number;
+
+  @ApiProperty({
+    description: 'Hardness level (0-100)',
+    example: 30,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  hardnessLevel?: number;
 }
 
 export class ActivityRecommendationDto {
@@ -49,6 +71,14 @@ export class ActivityRecommendationDto {
     example: 'Start your day with 10 minutes of meditation to boost energy and focus.',
   })
   content: string;
+
+  @ApiProperty({
+    description: 'Activity type that best matches this activity',
+    example: 'meditation',
+    required: false,
+  })
+  @IsOptional()
+  activityType?: string;
 }
 
 export class ActivityRecommendationsResponseDto {

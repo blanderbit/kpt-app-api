@@ -13,6 +13,7 @@ type ActivityBatchItem = {
   content: string;
   category?: string;
   reasoning?: string;
+  activityType?: string;
 };
 
 type ActivityClassificationResult = {
@@ -66,14 +67,14 @@ export class ChatGPTService {
   /**
    * Generates multiple recommendations in a single ChatGPT call
    */
-  async generateActivityBatch(patterns: any, count: number): Promise<ActivityBatchItem[]> {
+  async generateActivityBatch(patterns: any, count: number, activityTypeNames: string[] = []): Promise<ActivityBatchItem[]> {
     try {
       this.assertApiKey();
 
-      const prompt = this.buildActivityBatchPrompt(patterns, count);
+      const prompt = this.buildActivityBatchPrompt(patterns, count, activityTypeNames);
       const response = await this.callChatGPT(prompt, {
         temperature: 0.75,
-        maxTokens: Math.min(600 + count * 120, 2000),
+        maxTokens: Math.min(600 + count * 150, 2000),
       });
 
       const rawContent = response?.choices?.[0]?.message?.content;
@@ -196,17 +197,30 @@ Generate activity #${index + 1} with:
 Format: JSON with "activityName" and "content" fields.`;
   }
 
-  private buildActivityBatchPrompt(patterns: any, count: number): string {
+  private buildActivityBatchPrompt(patterns: any, count: number, activityTypeNames: string[] = []): string {
     const onboardingInsights = this.formatKeyValuePairs(patterns.onboardingQuestionAndAnswers);
     const socialNetworks = (patterns.socialNetworks || []).join(', ') || 'not specified';
     const activityPreferences = (patterns.activityPreferences || []).join(', ') || 'not specified';
+    const satisfactionLevel = patterns.satisfactionLevel !== undefined ? `${patterns.satisfactionLevel}/100` : 'not specified';
+    const hardnessLevel = patterns.hardnessLevel !== undefined ? `${patterns.hardnessLevel}/100` : 'not specified';
+    const completionRate = patterns.completionRate !== undefined ? `${patterns.completionRate}%` : 'not specified';
+    
+    const activityTypesList = activityTypeNames.length > 0 
+      ? `Available activity types: ${activityTypeNames.join(', ')}`
+      : '';
+
     return `You are a coach generating ${count} personalized activities for a user.
 
 User profile:
 - Current feeling: ${patterns.feelingToday || 'not specified'}
 - Social networks: ${socialNetworks}
 - Activity preferences: ${activityPreferences}
+- Satisfaction Level: ${satisfactionLevel}
+- Hardness Level: ${hardnessLevel}
+- Completion Rate: ${completionRate}
 - Additional insights: ${onboardingInsights}
+
+${activityTypesList}
 
 Respond with strict JSON in the following format (no additional text):
 {
@@ -214,11 +228,12 @@ Respond with strict JSON in the following format (no additional text):
     {
       "activityName": "string",
       "content": "1 sentence description of the activity, no more than 20 words",
+      "activityType": "one of the available activity types from the list above that best matches this activity"
     }
   ]
 }
 
-Ensure activities are diverse, actionable today, and tailored to the user's current state.`;
+Ensure activities are diverse, actionable today, and tailored to the user's current state. For each activity, select the most appropriate activity type from the available list.`;
   }
 
   private formatKeyValuePairs(data: Record<string, unknown> | undefined): string {
@@ -305,6 +320,7 @@ Respond strictly in JSON:
           content: item.content?.trim(),
           category: item.category?.trim(),
           reasoning: item.reasoning?.trim(),
+          activityType: item.activityType?.trim(),
         }))
         .filter(item => item.activityName && item.content);
     } catch (error) {

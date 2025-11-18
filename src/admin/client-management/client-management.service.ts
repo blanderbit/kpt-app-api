@@ -80,6 +80,8 @@ export class ClientManagementService {
         'emailVerified',
         'theme',
         'roles',
+        'initSatisfactionLevel',
+        'initHardnessLevel',
         'createdAt',
         'updatedAt',
       ],

@@ -184,6 +184,8 @@ const headers = [
   { title: 'First Name', key: 'firstName', sortable: false },
   { title: 'Email Verified', key: 'emailVerified', sortable: false },
   { title: 'Theme', key: 'theme', sortable: false },
+  { title: 'Init Satisfaction', key: 'initSatisfactionLevel', sortable: false },
+  { title: 'Init Hardness', key: 'initHardnessLevel', sortable: false },
   { title: 'Created At', key: 'createdAt', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false },
 ]
