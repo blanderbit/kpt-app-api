@@ -85,7 +85,7 @@ export class ArticlesPublicService {
         .orderBy('RAND()')
         .getMany();
 
-      return temporaryArticles.map(ta => this.mapToResponseDto(ta.article));
+      return temporaryArticles as any;
     } catch (error) {
       this.logger.error('Failed to get random article:', error);
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {

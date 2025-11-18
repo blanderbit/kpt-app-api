@@ -83,7 +83,7 @@ export class SurveyPublicService {
         .orderBy('RAND()')
         .getMany();
 
-      return temporarySurveys.map(ts => this.mapToResponseDto(ts.survey));
+      return temporarySurveys as any;
     } catch (error) {
       this.logger.error('Failed to get random survey:', error);
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
