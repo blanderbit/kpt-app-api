@@ -5,7 +5,6 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
-  Index,
   RelationId,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
@@ -13,7 +12,6 @@ import { User } from '../../../users/entities/user.entity';
 import { Survey } from '../../survey/entities/survey.entity';
 
 @Entity('user_temporary_surveys')
-@Index(['userId', 'surveyId'])
 export class UserTemporarySurvey {
   @PrimaryGeneratedColumn()
   @ApiProperty({ description: 'Unique identifier' })
@@ -32,12 +30,13 @@ export class UserTemporarySurvey {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @RelationId((entity: UserTemporarySurvey) => entity.user)
-  userId: number;
-
   @ManyToOne(() => Survey, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'surveyId' })
   survey: Survey;
+
+  // Relation IDs for indexing
+  @RelationId((entity: UserTemporarySurvey) => entity.user)
+  userId: number;
 
   @RelationId((entity: UserTemporarySurvey) => entity.survey)
   surveyId: number;
