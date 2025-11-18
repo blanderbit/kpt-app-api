@@ -118,6 +118,13 @@ export class ActivityResponseDto {
   closedAt: Date | null;
 
   @ApiProperty({
+    description: 'Activity archival date',
+    example: '2024-01-01T00:00:00.000Z',
+    nullable: true,
+  })
+  archivedAt: Date | null;
+
+  @ApiProperty({
     description: 'Creation date',
     example: '2024-01-01T00:00:00.000Z',
   })

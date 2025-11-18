@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transactional } from 'typeorm-transactional';
-import { Repository, MoreThan, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository, MoreThan, MoreThanOrEqual, LessThanOrEqual, Between, IsNull } from 'typeorm';
 import { Activity } from './entities/activity.entity';
 import { RateActivity } from './entities/rate-activity.entity';
 import { CreateActivityDto, UpdateActivityDto, ActivityResponseDto, ActivityFilterDto } from './dto/activity.dto';
@@ -44,7 +44,8 @@ export class ActivityService {
     query.filter = { 
       ...query.filter,
       userId: `$eq:${user.id}`,
-      createdAt: `$btw:${todayStart},${todayEndStr}`
+      createdAt: `$btw:${todayStart},${todayEndStr}`,
+      archivedAt: `$null` // Only non-archived activities
     };
 
     return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
@@ -67,11 +68,12 @@ export class ActivityService {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    // Get the count of existing activities for this user created today
+    // Get the count of existing activities for this user created today (excluding archived)
     const allActivities = await this.activityRepository.find({
       where: {
         user: { id: user.id },
         createdAt: MoreThanOrEqual(today),
+        archivedAt: IsNull(), // Only non-archived activities
       },
     });
 
@@ -208,7 +210,7 @@ export class ActivityService {
   }
 
   /**
-   * Delete activity
+   * Archive activity (instead of deleting)
    */
   @Transactional()
   async deleteActivity(userId: number, activityId: number): Promise<void> {
@@ -225,7 +227,11 @@ export class ActivityService {
     }
 
     if (activity.status === 'closed') {
-      throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_CANNOT_DELETE_CLOSED, 'Cannot delete closed activity', { activityId });
+      throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_CANNOT_DELETE_CLOSED, 'Cannot archive closed activity', { activityId });
+    }
+
+    if (activity.archivedAt) {
+      throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_CANNOT_DELETE_CLOSED, 'Activity is already archived', { activityId });
     }
 
     // Calculate today's date range (start and end of day)
@@ -239,6 +245,7 @@ export class ActivityService {
       where: {
         user: { id: userId },
         createdAt: MoreThanOrEqual(today),
+        archivedAt: IsNull(), // Only non-archived activities
       },
       order: { position: 'ASC', createdAt: 'DESC' },
     });
@@ -249,7 +256,7 @@ export class ActivityService {
       return actDate >= today && actDate <= todayEnd;
     });
 
-    // Find and remove the activity to delete from the list
+    // Find and remove the activity to archive from the list
     const activityIndex = todayActivities.findIndex(a => a.id === activityId);
     if (activityIndex === -1) {
       throw AppException.notFound(
@@ -259,7 +266,7 @@ export class ActivityService {
       );
     }
 
-    const deletedPosition = todayActivities[activityIndex].position;
+    const archivedPosition = todayActivities[activityIndex].position;
 
     // Remove the activity from the list
     todayActivities.splice(activityIndex, 1);
@@ -274,10 +281,34 @@ export class ActivityService {
       await this.activityRepository.save(todayActivities);
     }
 
-    // Delete the activity by ID
-    await this.activityRepository.delete(activityId);
+    // Archive the activity instead of deleting
+    activity.archivedAt = new Date();
+    await this.activityRepository.save(activity);
 
-    this.logger.log(`Activity ${activityId} deleted from position ${deletedPosition}, reassigned ${todayActivities.length} activities`);
+    this.logger.log(`Activity ${activityId} archived from position ${archivedPosition}, reassigned ${todayActivities.length} activities`);
+  }
+
+  /**
+   * Get archived activities for today with pagination
+   */
+  async getArchivedActivities(user: User, query: PaginateQuery): Promise<Paginated<Activity>> {
+    // Calculate today's date range (start and end of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.toISOString();
+    
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayEndStr = todayEnd.toISOString();
+
+    // Use nestjs-paginate with repository and custom config
+    query.filter = { 
+      ...query.filter,
+      userId: `$eq:${user.id}`,
+      archivedAt: `$btw:${todayStart},${todayEndStr}` // Only activities archived today
+    };
+
+    return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
   }
 
   /**
@@ -321,6 +352,7 @@ export class ActivityService {
       position: activity.position,
       status: activity.status,
       closedAt: activity.closedAt,
+      archivedAt: activity.archivedAt,
       createdAt: activity.createdAt,
       updatedAt: activity.updatedAt,
       rateActivities: activity.rateActivities || [],
@@ -382,11 +414,12 @@ export class ActivityService {
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
 
-      // 1. Get all activities for this user created today, ordered by position
+      // 1. Get all activities for this user created today, ordered by position (excluding archived)
       const allActivities = await this.activityRepository.find({
         where: {
           user: { id: user.id },
           createdAt: MoreThanOrEqual(today),
+          archivedAt: IsNull(), // Only non-archived activities
         },
         order: { position: 'ASC', createdAt: 'DESC' },
         relations: ['rateActivities'],

@@ -104,6 +104,24 @@ export class ActivityController {
     return this.activityTypesService.getAllActivityTypes();
   }
 
+  @Get('archived')
+  @PaginatedSwaggerDocs(Activity, ACTIVITY_PAGINATION_CONFIG)
+  @ApiOperation({
+    summary: 'Get archived activities for today',
+    description: 'Returns archived activities for today with pagination, filtering and search',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Archived activities list with pagination',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  async getArchivedActivities(
+    @CurrentUser() user: User,
+    @Paginate() query: PaginateQuery,
+  ): Promise<Paginated<Activity>> {
+    return this.activityService.getArchivedActivities(user, query);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Get activity by ID',
@@ -159,8 +177,8 @@ export class ActivityController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Delete activity',
-    description: 'Deletes an activity (soft delete - marks as closed)',
+    summary: 'Archive activity',
+    description: 'Archives an activity instead of deleting it',
   })
   @ApiParam({
     name: 'id',
@@ -169,7 +187,7 @@ export class ActivityController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Activity deleted successfully',
+    description: 'Activity archived successfully',
     schema: {
       type: 'object',
       properties: {
@@ -185,7 +203,7 @@ export class ActivityController {
     @CurrentUser() user: User,
   ): Promise<{ success: boolean; message: string }> {
     await this.activityService.deleteActivity(user.id, id);
-    return { success: true, message: 'Activity deleted successfully' };
+    return { success: true, message: 'Activity archived successfully' };
   }
 
   @Put(':id/position')
@@ -228,6 +246,7 @@ export class ActivityController {
       position: activity.position,
       status: activity.status,
       closedAt: activity.closedAt,
+      archivedAt: activity.archivedAt,
       createdAt: activity.createdAt,
       updatedAt: activity.updatedAt,
       rateActivities: activity.rateActivities || [],

@@ -84,11 +84,8 @@ export class ChatGPTService {
       }
 
       const parsed = this.parseActivityBatch(rawContent);
-      if (!parsed || parsed.length === 0) {
-        throw new Error('Failed to parse activity batch');
-      }
 
-      return parsed;
+      return parsed || [];
     } catch (error) {
       this.logger.error(`Error generating activity batch through ChatGPT: ${error.message}`);
       throw AppException.internal(ErrorCode.SUGGESTED_ACTIVITY_CHATGPT_API_ERROR, error.message, {

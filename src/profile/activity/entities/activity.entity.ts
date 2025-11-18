@@ -48,6 +48,10 @@ export class Activity {
   @Column({ nullable: true })
   closedAt: Date;
 
+  @ApiProperty({ description: 'Activity archival date', required: false })
+  @Column({ type: 'datetime', nullable: true })
+  archivedAt: Date | null;
+
   @ApiProperty({ description: 'Creation date' })
   @CreateDateColumn()
   createdAt: Date;

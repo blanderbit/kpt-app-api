@@ -301,6 +301,7 @@ export class ClientManagementService {
       position: activity.position,
       status: activity.status,
       closedAt: activity.closedAt,
+      archivedAt: activity.archivedAt,
       createdAt: activity.createdAt,
       updatedAt: activity.updatedAt,
       userId: activity.userId,

@@ -63,7 +63,7 @@ export class TooltipService {
       const query = this.tooltipRepository
         .createQueryBuilder('tooltip')
         .orderBy('tooltip.createdAt', 'DESC')
-        .leftJoin('tooltip.closedTooltips', 'closed', 'closed.userId = :userId', { userId })
+        .leftJoinAndSelect('tooltip.closedTooltips', 'closed', 'closed.userId = :userId', { userId })
         .where('tooltip.page = :page', { page })
         .andWhere('closed.id IS NULL');
 

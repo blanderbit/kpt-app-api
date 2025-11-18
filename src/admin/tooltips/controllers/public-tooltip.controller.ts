@@ -19,6 +19,8 @@ import { User } from '../../../users/entities/user.entity';
 
 @ApiTags('Profile Tooltips')
 @Controller('tooltips')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class ProfileTooltipController {
   constructor(private readonly tooltipService: TooltipService) {}
 
@@ -31,10 +33,11 @@ export class ProfileTooltipController {
     type: [Tooltip] 
   })
   @ApiResponse({ status: 400, description: 'Invalid page parameter' })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
   @ApiResponse({ status: 404, description: 'No tooltips found for this page' })
   findByPage(
     @Param('page') page: string,
-    @CurrentUser() user?: User
+    @CurrentUser() user: User
   ): Promise<Tooltip[]> {
     // Validate page parameter
     if (!Object.values(TooltipPage).includes(page as TooltipPage)) {
@@ -43,7 +46,7 @@ export class ProfileTooltipController {
         `Invalid page. Allowed values: ${Object.values(TooltipPage).join(', ')}`
       );
     }
-    return this.tooltipService.findByPage(page as TooltipPage, user?.id);
+    return this.tooltipService.findByPage(page as TooltipPage, user.id);
   }
 
   @Get('page/:page/type/:type')
@@ -56,11 +59,12 @@ export class ProfileTooltipController {
     type: [Tooltip] 
   })
   @ApiResponse({ status: 400, description: 'Invalid page or type parameter' })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
   @ApiResponse({ status: 404, description: 'No tooltips found' })
   findByPageAndType(
     @Param('page') page: string,
     @Param('type') type: string,
-    @CurrentUser() user?: User
+    @CurrentUser() user: User
   ): Promise<Tooltip[]> {
     // Validate page parameter
     if (!Object.values(TooltipPage).includes(page as TooltipPage)) {
@@ -78,13 +82,11 @@ export class ProfileTooltipController {
       );
     }
     
-    return this.tooltipService.findByTypeAndPage(type as TooltipType, page as TooltipPage, user?.id);
+    return this.tooltipService.findByTypeAndPage(type as TooltipType, page as TooltipPage, user.id);
   }
 
   @Post('close/:tooltipId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ 
     summary: 'Close tooltip for user',
     description: 'Marks tooltip as closed for the current user so it won\'t be shown again'
