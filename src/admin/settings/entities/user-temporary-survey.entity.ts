@@ -6,6 +6,7 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  RelationId,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../../users/entities/user.entity';
@@ -31,8 +32,14 @@ export class UserTemporarySurvey {
   @JoinColumn({ name: 'userId' })
   user: User;
 
+  @RelationId((entity: UserTemporarySurvey) => entity.user)
+  userId: number;
+
   @ManyToOne(() => Survey, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'surveyId' })
   survey: Survey;
+
+  @RelationId((entity: UserTemporarySurvey) => entity.survey)
+  surveyId: number;
 }
 
