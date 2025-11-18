@@ -82,8 +82,8 @@ export class ArticlesPublicService {
         //   'NOT EXISTS (SELECT 1 FROM user_hidden_articles WHERE user_hidden_articles.article_id = article.id AND user_hidden_articles.user_id = :userId)',
         //   { userId },
         // )
-        .orderBy('RAND()')
-        .getMany();
+        // .orderBy('RAND()')
+        .getRawMany();
 
       return temporaryArticles as any;
     } catch (error) {
