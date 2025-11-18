@@ -71,7 +71,7 @@ export class SurveyPublicService {
         .leftJoinAndSelect('userTemporarySurvey.survey', 'survey')
         .leftJoinAndSelect('survey.files', 'files')
         .where('userTemporarySurvey.userId = :userId', { userId })
-        .andWhere('survey.status = :status', { status: SurveyStatus.ACTIVE })
+        // .andWhere('survey.status = :status', { status: SurveyStatus.ACTIVE })
         // .andWhere(
         //   '(userTemporarySurvey.expiresAt IS NULL OR userTemporarySurvey.expiresAt > :now)',
         //   { now: new Date() },
