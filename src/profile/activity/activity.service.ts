@@ -146,7 +146,6 @@ export class ActivityService {
         satisfactionLevel: createRateActivityDto.satisfactionLevel,
         hardnessLevel: createRateActivityDto.hardnessLevel,
         activity,
-        activityId: activity.id, // Explicitly set activityId
       });
     }
 
