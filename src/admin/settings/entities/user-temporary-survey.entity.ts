@@ -18,14 +18,6 @@ export class UserTemporarySurvey {
   @ApiProperty({ description: 'Unique identifier' })
   id: number;
 
-  @Column({ name: 'user_id' })
-  @ApiProperty({ description: 'User ID' })
-  userId: number;
-
-  @Column({ name: 'survey_id' })
-  @ApiProperty({ description: 'Survey ID' })
-  surveyId: number;
-
   @Column({ type: 'datetime', nullable: true })
   @ApiProperty({ description: 'Expiration date for this temporary survey', required: false })
   expiresAt: Date | null;

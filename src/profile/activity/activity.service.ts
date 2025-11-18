@@ -274,8 +274,8 @@ export class ActivityService {
       await this.activityRepository.save(todayActivities);
     }
 
-    // Delete the activity
-    await this.activityRepository.delete(activity);
+    // Delete the activity by ID
+    await this.activityRepository.delete(activityId);
 
     this.logger.log(`Activity ${activityId} deleted from position ${deletedPosition}, reassigned ${todayActivities.length} activities`);
   }

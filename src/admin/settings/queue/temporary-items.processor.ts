@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { UserTemporaryArticle } from '../entities/user-temporary-article.entity';
 import { UserTemporarySurvey } from '../entities/user-temporary-survey.entity';
+import { User } from '../../../users/entities/user.entity';
 import { Article, ArticleStatus } from '../../articles/entities/article.entity';
 import { Survey, SurveyStatus } from '../../survey/entities/survey.entity';
 import { SettingsService } from '../settings.service';
@@ -130,12 +131,28 @@ export class TemporaryItemsProcessor {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
-    await userTemporaryArticleRepository.delete({ userId });
+    await userTemporaryArticleRepository
+      .createQueryBuilder()
+      .delete()
+      .where('userId = :userId', { userId })
+      .execute();
+
+    const userRepository = manager.getRepository(User);
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      this.logger.warn(`User ${userId} not found, skipping temporary articles generation`);
+      return {
+        userId,
+        success: true,
+        articlesCount: 0,
+      };
+    }
 
     const temporaryArticles = activeArticles.map((article) =>
       userTemporaryArticleRepository.create({
-        userId,
-        articleId: article.id,
+        user,
+        article,
         expiresAt,
       }),
     );
@@ -188,12 +205,28 @@ export class TemporaryItemsProcessor {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expirationDays);
 
-    await userTemporarySurveyRepository.delete({ userId });
+    await userTemporarySurveyRepository
+      .createQueryBuilder()
+      .delete()
+      .where('userId = :userId', { userId })
+      .execute();
+
+    const userRepository = manager.getRepository(User);
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      this.logger.warn(`User ${userId} not found, skipping temporary surveys generation`);
+      return {
+        userId,
+        success: true,
+        surveysCount: 0,
+      };
+    }
 
     const temporarySurveys = activeSurveys.map((survey) =>
       userTemporarySurveyRepository.create({
-        userId,
-        surveyId: survey.id,
+        user,
+        survey,
         expiresAt,
       }),
     );

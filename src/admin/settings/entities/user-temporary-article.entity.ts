@@ -18,14 +18,6 @@ export class UserTemporaryArticle {
   @ApiProperty({ description: 'Unique identifier' })
   id: number;
 
-  @Column({ name: 'user_id' })
-  @ApiProperty({ description: 'User ID' })
-  userId: number;
-
-  @Column({ name: 'article_id' })
-  @ApiProperty({ description: 'Article ID' })
-  articleId: number;
-
   @Column({ type: 'datetime', nullable: true })
   @ApiProperty({ description: 'Expiration date for this temporary article', required: false })
   expiresAt: Date | null;

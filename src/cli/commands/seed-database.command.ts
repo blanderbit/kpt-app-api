@@ -810,8 +810,8 @@ export class SeedDatabaseCommand extends CommandRunner {
     return users.map((user) => {
       const survey = faker.helpers.arrayElement(surveys);
       return {
-        userId: user.id,
-        surveyId: survey.id,
+        user,
+        survey,
         expiresAt: faker.helpers.maybe(() => faker.date.soon({ days: 45 }), { probability: 0.6 }) ?? undefined,
       } as UserTemporarySurvey;
     });
@@ -825,8 +825,8 @@ export class SeedDatabaseCommand extends CommandRunner {
     return users.map((user) => {
       const article = faker.helpers.arrayElement(articles);
       return {
-        userId: user.id,
-        articleId: article.id,
+        user,
+        article,
         expiresAt: faker.helpers.maybe(() => faker.date.soon({ days: 30 }), { probability: 0.5 }) ?? undefined,
       } as UserTemporaryArticle;
     });
