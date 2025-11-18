@@ -30,7 +30,9 @@ import {
   UpdateActivityDto,
   ActivityResponseDto,
   ChangePositionDto,
+  CloseActivityDto,
 } from './dto/activity.dto';
+import { CreateRateActivityDto } from './dto/rate-activity.dto';
 import { Activity } from './entities/activity.entity';
 import { ACTIVITY_PAGINATION_CONFIG } from './activity.config';
 import { ActivityTypesService } from '../../core/activity-types';
@@ -231,6 +233,38 @@ export class ActivityController {
     @CurrentUser() user: User,
   ): Promise<ActivityResponseDto> {
     return this.activityService.changePosition(id, changePositionDto.position, user);
+  }
+
+  @Post(':id/close')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Close activity',
+    description: 'Closes an activity with rating (satisfaction and hardness levels)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Activity ID',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Activity closed successfully',
+    type: ActivityResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  @ApiResponse({ status: 404, description: 'Activity not found' })
+  @ApiResponse({ status: 400, description: 'Invalid rating values or activity already closed' })
+  async closeActivity(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() closeActivityDto: CloseActivityDto,
+    @CurrentUser() user: User,
+  ): Promise<ActivityResponseDto> {
+    const createRateActivityDto: CreateRateActivityDto = {
+      activityId: id,
+      satisfactionLevel: closeActivityDto.satisfactionLevel,
+      hardnessLevel: closeActivityDto.hardnessLevel,
+    };
+    return this.activityService.closeActivity(user, id, createRateActivityDto);
   }
 
   /**

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, Min, Max, Validate } from 'class-validator';
+import { TotalEqualsHundredConstraint } from './rate-activity.dto';
 
 export class CreateActivityDto {
   @ApiProperty({
@@ -151,4 +152,29 @@ export class ChangePositionDto {
   })
   @IsNumber()
   position: number;
+}
+
+export class CloseActivityDto {
+  @ApiProperty({
+    description: 'Satisfaction level (0-100)',
+    example: 70,
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  @Validate(TotalEqualsHundredConstraint)
+  satisfactionLevel: number;
+
+  @ApiProperty({
+    description: 'Difficulty level (0-100)',
+    example: 30,
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  hardnessLevel: number;
 }
