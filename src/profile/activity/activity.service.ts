@@ -417,10 +417,7 @@ export class ActivityService {
         return this.mapToResponseDto(currentActivity);
       }
 
-      // 3. Remove current activity from the list
-      todayActivities.splice(currentActivityIndex, 1);
-
-      // Validate new position
+      // 3. Validate and adjust new position before removing
       const maxPosition = todayActivities.length - 1;
       if (newPosition < 0) {
         newPosition = 0;
@@ -428,15 +425,24 @@ export class ActivityService {
         newPosition = maxPosition;
       }
 
-      // 4. Insert current activity at the new position
-      todayActivities.splice(newPosition, 0, currentActivity);
+      // 4. Adjust newPosition if moving forward (after removing, indices shift)
+      let adjustedNewPosition = newPosition;
+      if (newPosition > currentActivityIndex) {
+        adjustedNewPosition = newPosition - 1;
+      }
 
-      // 5. Reassign positions sequentially from 0 to n-1
+      // 5. Remove current activity from the list
+      todayActivities.splice(currentActivityIndex, 1);
+
+      // 6. Insert current activity at the adjusted new position
+      todayActivities.splice(adjustedNewPosition, 0, currentActivity);
+
+      // 7. Reassign positions sequentially from 0 to n-1
       todayActivities.forEach((act, index) => {
         act.position = index;
       });
 
-      // 6. Save all activities with updated positions
+      // 8. Save all activities with updated positions
       await this.activityRepository.save(todayActivities);
 
       // Reload the activity to get updated position
