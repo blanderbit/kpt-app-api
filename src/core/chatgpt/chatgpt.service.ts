@@ -78,6 +78,7 @@ export class ChatGPTService {
       });
 
       const rawContent = response?.choices?.[0]?.message?.content;
+      console.log(rawContent)
       if (!rawContent) {
         throw new Error('Empty response content');
       }

@@ -86,7 +86,6 @@ export class ArticlesPublicService {
         .orderBy('RAND()')
         .getMany();
 
-      console.log('temporaryArticles', temporaryArticles);
       return temporaryArticles as any;
     } catch (error) {
       this.logger.error('Failed to get random article:', error);
