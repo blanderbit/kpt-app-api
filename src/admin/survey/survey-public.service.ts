@@ -64,61 +64,26 @@ export class SurveyPublicService {
   /**
    * Get random survey
    */
-  async getRandomSurvey(userId?: number): Promise<SurveyResponseDto | null> {
+  async getRandomSurvey(userId?: number): Promise<SurveyResponseDto[]> {
     try {
-      let survey: Survey | null = null;
+      const temporarySurveys = await this.userTemporarySurveyRepository
+        .createQueryBuilder('userTemporarySurvey')
+        .leftJoinAndSelect('userTemporarySurvey.survey', 'survey')
+        .leftJoinAndSelect('survey.files', 'files')
+        .where('userTemporarySurvey.userId = :userId', { userId })
+        .andWhere('survey.status = :status', { status: SurveyStatus.ACTIVE })
+        .andWhere(
+          '(userTemporarySurvey.expiresAt IS NULL OR userTemporarySurvey.expiresAt > :now)',
+          { now: new Date() },
+        )
+        .andWhere(
+          'NOT EXISTS (SELECT 1 FROM user_surveys WHERE user_surveys.surveyId = survey.id AND user_surveys.userId = :userId)',
+          { userId },
+        )
+        .orderBy('RAND()')
+        .getMany();
 
-      // If userId is provided, get random survey from temporary surveys
-      if (userId) {
-        const temporarySurveys = await this.userTemporarySurveyRepository
-          .createQueryBuilder('userTemporarySurvey')
-          .leftJoinAndSelect('userTemporarySurvey.survey', 'survey')
-          .leftJoinAndSelect('survey.files', 'files')
-          .where('userTemporarySurvey.userId = :userId', { userId })
-          .andWhere('survey.status = :status', { status: SurveyStatus.ACTIVE })
-          .andWhere(
-            '(userTemporarySurvey.expiresAt IS NULL OR userTemporarySurvey.expiresAt > :now)',
-            { now: new Date() },
-          )
-          .orderBy('RAND()')
-          .limit(1)
-          .getMany();
-
-        if (temporarySurveys.length > 0 && temporarySurveys[0].survey) {
-          survey = temporarySurveys[0].survey;
-        }
-      }
-
-      // If no survey found from temporary surveys or userId not provided, get random from all active surveys
-      if (!survey) {
-        const surveys = await this.surveyRepository
-          .createQueryBuilder('survey')
-          .leftJoinAndSelect('survey.files', 'files')
-          .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
-          .orderBy('RAND()')
-          .limit(1)
-          .getMany();
-
-        if (surveys.length > 0) {
-          survey = surveys[0];
-        }
-      }
-
-      if (!survey) {
-        return null;
-      }
-
-      const response = this.mapToResponseDto(survey);
-
-      // Check if user has completed this survey
-      if (userId) {
-        const userSurvey = await this.userSurveyRepository.findOne({
-          where: { userId, surveyId: survey.id },
-        });
-        response.isCompleted = !!userSurvey;
-      }
-
-      return response;
+      return temporarySurveys.map(ts => this.mapToResponseDto(ts.survey));
     } catch (error) {
       this.logger.error('Failed to get random survey:', error);
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {

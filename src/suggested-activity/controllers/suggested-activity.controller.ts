@@ -5,10 +5,8 @@ import {
   Delete,
   Body,
   Param,
-  Query,
   UseGuards,
   ParseIntPipe,
-  ParseDatePipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -35,14 +33,7 @@ export class SuggestedActivityController {
   @Get()
   @ApiOperation({
     summary: 'Get suggested activities',
-    description: 'Returns a list of suggested activities for the user on the specified date',
-  })
-  @ApiQuery({
-    name: 'date',
-    description: 'Date for getting recommendations (YYYY-MM-DD)',
-    required: false,
-    type: String,
-    example: '2024-01-15',
+    description: 'Returns a list of suggested activities for the user',
   })
   @ApiResponse({
     status: 200,
@@ -54,10 +45,8 @@ export class SuggestedActivityController {
   })
   async getUserSuggestedActivities(
     @CurrentUser() user: User,
-    @Query('date') dateStr?: string,
   ) {
-    const date = dateStr ? new Date(dateStr) : undefined;
-    return this.suggestedActivityService.getUserSuggestedActivities(user, date);
+    return this.suggestedActivityService.getUserSuggestedActivities(user);
   }
 
   @Post('add-to-activities')

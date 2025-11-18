@@ -30,16 +30,12 @@ export class SuggestedActivityService {
   ) {}
 
   /**
-   * Get suggested activities for user only for current day
+   * Get suggested activities for user
    */
-  async getUserSuggestedActivities(user: User, date?: Date): Promise<SuggestedActivityResponseDto[]> {
-    const targetDate = date || new Date();
-    targetDate.setHours(0, 0, 0, 0);
-
+  async getUserSuggestedActivities(user: User): Promise<SuggestedActivityResponseDto[]> {
     const suggestedActivities = await this.suggestedActivityRepository.find({
       where: {
         user: {id: user.id},
-        suggestedDate: targetDate,
         isUsed: false,
       },
       relations: ['user'],

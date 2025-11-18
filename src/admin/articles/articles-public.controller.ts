@@ -36,12 +36,12 @@ export class ArticlesPublicController {
   @Get('random')
   @ApiOperation({
     summary: 'Get random article',
-    description: 'Returns a random active article',
+    description: 'Returns random active articles from temporary articles that user has not hidden',
   })
   @ApiResponse({
     status: 200,
-    description: 'Random article',
-    type: ArticleResponseDto,
+    description: 'Random articles',
+    type: [ArticleResponseDto],
   })
   @ApiResponse({
     status: 404,
@@ -49,7 +49,7 @@ export class ArticlesPublicController {
   })
   async getRandomArticle(
     @CurrentUser() user?: User,
-  ): Promise<ArticleResponseDto | null> {
+  ): Promise<ArticleResponseDto[]> {
     return this.articlesPublicService.getRandomArticle(user?.id);
   }
 

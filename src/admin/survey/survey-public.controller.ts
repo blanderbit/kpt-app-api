@@ -32,12 +32,12 @@ export class SurveyPublicController {
   @Get('random')
   @ApiOperation({
     summary: 'Get random survey',
-    description: 'Returns a random active survey',
+    description: 'Returns a random active survey that user has not completed',
   })
   @ApiResponse({
     status: 200,
     description: 'Random survey',
-    type: SurveyResponseDto,
+    type: [SurveyResponseDto],
   })
   @ApiResponse({
     status: 404,
@@ -45,7 +45,7 @@ export class SurveyPublicController {
   })
   async getRandomSurvey(
     @CurrentUser() user?: User,
-  ): Promise<SurveyResponseDto | null> {
+  ): Promise<SurveyResponseDto[]> {
     return this.surveyPublicService.getRandomSurvey(user?.id);
   }
 

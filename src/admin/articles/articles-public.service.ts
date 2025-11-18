@@ -66,61 +66,26 @@ export class ArticlesPublicService {
   /**
    * Get random article
    */
-  async getRandomArticle(userId?: number): Promise<ArticleResponseDto | null> {
+  async getRandomArticle(userId?: number): Promise<ArticleResponseDto[]> {
     try {
-      let article: Article | null = null;
+      const temporaryArticles = await this.userTemporaryArticleRepository
+        .createQueryBuilder('userTemporaryArticle')
+        .leftJoinAndSelect('userTemporaryArticle.article', 'article')
+        .leftJoinAndSelect('article.files', 'files')
+        .where('userTemporaryArticle.userId = :userId', { userId })
+        .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
+        .andWhere(
+          '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
+          { now: new Date() },
+        )
+        .andWhere(
+          'NOT EXISTS (SELECT 1 FROM user_hidden_articles WHERE user_hidden_articles.articleId = article.id AND user_hidden_articles.userId = :userId)',
+          { userId },
+        )
+        .orderBy('RAND()')
+        .getMany();
 
-      // If userId is provided, get random article from temporary articles
-      if (userId) {
-        const temporaryArticles = await this.userTemporaryArticleRepository
-          .createQueryBuilder('userTemporaryArticle')
-          .leftJoinAndSelect('userTemporaryArticle.article', 'article')
-          .leftJoinAndSelect('article.files', 'files')
-          .where('userTemporaryArticle.userId = :userId', { userId })
-          .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
-          .andWhere(
-            '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
-            { now: new Date() },
-          )
-          .orderBy('RAND()')
-          .limit(1)
-          .getMany();
-
-        if (temporaryArticles.length > 0 && temporaryArticles[0].article) {
-          article = temporaryArticles[0].article;
-        }
-      }
-
-      // If no article found from temporary articles or userId not provided, get random from all active articles
-      if (!article) {
-        const articles = await this.articleRepository
-          .createQueryBuilder('article')
-          .leftJoinAndSelect('article.files', 'files')
-          .where('article.status = :status', { status: ArticleStatus.ACTIVE })
-          .orderBy('RAND()')
-          .limit(1)
-          .getMany();
-
-        if (articles.length > 0) {
-          article = articles[0];
-        }
-      }
-
-      if (!article) {
-        return null;
-      }
-
-      const response = this.mapToResponseDto(article);
-
-      // Check if article is hidden for user
-      if (userId) {
-        const hiddenArticle = await this.userHiddenArticleRepository.findOne({
-          where: { userId, articleId: article.id },
-        });
-        response.isHidden = !!hiddenArticle;
-      }
-
-      return response;
+      return temporaryArticles.map(ta => this.mapToResponseDto(ta.article));
     } catch (error) {
       this.logger.error('Failed to get random article:', error);
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
