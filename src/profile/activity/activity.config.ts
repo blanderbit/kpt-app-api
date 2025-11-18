@@ -26,6 +26,7 @@ export const ACTIVITY_PAGINATION_CONFIG: PaginateConfig<Activity> = {
     status: [FilterOperator.EQ, FilterOperator.IN],
     userId: [FilterOperator.EQ],
     createdAt: [FilterOperator.BTW, FilterOperator.GTE, FilterOperator.LTE, FilterOperator.GT, FilterOperator.LT],
+    archivedAt: [FilterOperator.BTW, FilterOperator.GTE, FilterOperator.LTE, FilterOperator.GT, FilterOperator.LT],
     updatedAt: [FilterOperator.BTW, FilterOperator.GTE, FilterOperator.LTE, FilterOperator.GT, FilterOperator.LT],
     closedAt: [FilterOperator.BTW, FilterOperator.GTE, FilterOperator.LTE, FilterOperator.GT, FilterOperator.LT, FilterOperator.NULL, FilterSuffix.NOT],
   },
