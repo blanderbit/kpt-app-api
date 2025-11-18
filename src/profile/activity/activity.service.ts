@@ -4,7 +4,7 @@ import { Transactional } from 'typeorm-transactional';
 import { Repository, MoreThan, MoreThanOrEqual, LessThanOrEqual, Between, IsNull } from 'typeorm';
 import { Activity } from './entities/activity.entity';
 import { RateActivity } from './entities/rate-activity.entity';
-import { CreateActivityDto, UpdateActivityDto, ActivityResponseDto, ActivityFilterDto } from './dto/activity.dto';
+import { CreateActivityDto, UpdateActivityDto, ActivityResponseDto, ActivityFilterDto, ActivityStatisticsResponseDto } from './dto/activity.dto';
 import { CreateRateActivityDto } from './dto/rate-activity.dto';
 import { ActivityTypesService } from '../../core/activity-types';
 import { PaginateQuery, paginate, Paginated } from 'nestjs-paginate';
@@ -130,11 +130,23 @@ export class ActivityService {
       throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_ALREADY_CLOSED, 'Activity is already closed', { activityId });
     }
 
-    // Create RateActivity
-    const rateActivity = this.rateActivityRepository.create({
-      ...createRateActivityDto,
-      activityId,
+    // Check if RateActivity already exists for this activity
+    let rateActivity = await this.rateActivityRepository.findOne({
+      where: { activityId },
     });
+
+    if (rateActivity) {
+      // Update existing RateActivity
+      rateActivity.satisfactionLevel = createRateActivityDto.satisfactionLevel;
+      rateActivity.hardnessLevel = createRateActivityDto.hardnessLevel;
+    } else {
+      // Create new RateActivity
+      rateActivity = this.rateActivityRepository.create({
+        satisfactionLevel: createRateActivityDto.satisfactionLevel,
+        hardnessLevel: createRateActivityDto.hardnessLevel,
+        activity,
+      });
+    }
 
     await this.rateActivityRepository.save(rateActivity);
 
@@ -309,6 +321,75 @@ export class ActivityService {
     };
 
     return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+  }
+
+  /**
+   * Get activity statistics for the last 7 days
+   */
+  async getActivityStatistics(userId: number): Promise<ActivityStatisticsResponseDto> {
+    try {
+      // Calculate date 7 days ago
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
+
+      // Get all rate activities for user's activities in the last 7 days
+      const rateActivities = await this.rateActivityRepository
+        .createQueryBuilder('rateActivity')
+        .innerJoin('rateActivity.activity', 'activity')
+        .where('activity.userId = :userId', { userId })
+        .andWhere('rateActivity.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
+        .getMany();
+
+      if (rateActivities.length === 0) {
+        return {
+          averageSatisfactionLevel: 0,
+          averageHardnessLevel: 0,
+          totalRatedActivities: 0,
+          relationship: 'balanced',
+          satisfactionPercentage: 0,
+          hardnessPercentage: 0,
+        };
+      }
+
+      // Calculate averages
+      const totalSatisfaction = rateActivities.reduce((sum, ra) => sum + ra.satisfactionLevel, 0);
+      const totalHardness = rateActivities.reduce((sum, ra) => sum + ra.hardnessLevel, 0);
+      const count = rateActivities.length;
+
+      const averageSatisfactionLevel = totalSatisfaction / count;
+      const averageHardnessLevel = totalHardness / count;
+
+      // Determine relationship
+      let relationship: 'satisfaction_dominant' | 'hardness_dominant' | 'balanced';
+      if (averageSatisfactionLevel > averageHardnessLevel) {
+        relationship = 'satisfaction_dominant';
+      } else if (averageSatisfactionLevel < averageHardnessLevel) {
+        relationship = 'hardness_dominant';
+      } else {
+        relationship = 'balanced';
+      }
+
+      // Calculate percentages (since satisfactionLevel + hardnessLevel = 100, percentages are already in %)
+      const satisfactionPercentage = averageSatisfactionLevel;
+      const hardnessPercentage = averageHardnessLevel;
+
+      return {
+        averageSatisfactionLevel: Math.round(averageSatisfactionLevel * 100) / 100,
+        averageHardnessLevel: Math.round(averageHardnessLevel * 100) / 100,
+        totalRatedActivities: count,
+        relationship,
+        satisfactionPercentage: Math.round(averageSatisfactionLevel * 100) / 100,
+        hardnessPercentage: Math.round(averageHardnessLevel * 100) / 100,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting activity statistics: ${error.message}`);
+      throw AppException.internal(ErrorCode.PROFILE_ACTIVITY_NOT_FOUND, undefined, {
+        error: error.message,
+        operation: 'getActivityStatistics',
+        userId,
+      });
+    }
   }
 
   /**

@@ -31,6 +31,7 @@ import {
   ActivityResponseDto,
   ChangePositionDto,
   CloseActivityDto,
+  ActivityStatisticsResponseDto,
 } from './dto/activity.dto';
 import { CreateRateActivityDto } from './dto/rate-activity.dto';
 import { Activity } from './entities/activity.entity';
@@ -122,6 +123,23 @@ export class ActivityController {
     @Paginate() query: PaginateQuery,
   ): Promise<Paginated<Activity>> {
     return this.activityService.getArchivedActivities(user, query);
+  }
+
+  @Get('statistics')
+  @ApiOperation({
+    summary: 'Get activity statistics for the last 7 days',
+    description: 'Returns statistics about satisfaction and hardness levels over the last 7 days',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Activity statistics for the last 7 days',
+    type: ActivityStatisticsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  async getActivityStatistics(
+    @CurrentUser() user: User,
+  ): Promise<ActivityStatisticsResponseDto> {
+    return this.activityService.getActivityStatistics(user.id);
   }
 
   @Get(':id')

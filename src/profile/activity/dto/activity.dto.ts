@@ -178,3 +178,42 @@ export class CloseActivityDto {
   @Max(100)
   hardnessLevel: number;
 }
+
+export class ActivityStatisticsResponseDto {
+  @ApiProperty({
+    description: 'Average satisfaction level (%) over the last 7 days',
+    example: 65.5,
+  })
+  averageSatisfactionLevel: number;
+
+  @ApiProperty({
+    description: 'Average hardness level (%) over the last 7 days',
+    example: 34.5,
+  })
+  averageHardnessLevel: number;
+
+  @ApiProperty({
+    description: 'Total number of rated activities in the last 7 days',
+    example: 10,
+  })
+  totalRatedActivities: number;
+
+  @ApiProperty({
+    description: 'Relationship indicator',
+    enum: ['satisfaction_dominant', 'hardness_dominant', 'balanced'],
+    example: 'satisfaction_dominant',
+  })
+  relationship: 'satisfaction_dominant' | 'hardness_dominant' | 'balanced';
+
+  @ApiProperty({
+    description: 'Satisfaction level percentage',
+    example: 65.5,
+  })
+  satisfactionPercentage: number;
+
+  @ApiProperty({
+    description: 'Hardness level percentage',
+    example: 34.5,
+  })
+  hardnessPercentage: number;
+}
