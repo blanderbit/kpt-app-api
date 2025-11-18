@@ -32,6 +32,6 @@ export class RateActivity {
   @JoinColumn({ name: 'activityId' })
   activity: Activity;
 
-  @RelationId((rateActivity: RateActivity) => rateActivity.activity)
+  @Column({ type: 'bigint' })
   activityId: number;
 }

@@ -148,6 +148,10 @@ export class ActivityService {
         activity,
         activityId: activity.id,
       });
+      console.log('rateActivity', rateActivity);
+      console.log('activity', activity);
+      console.log('activityId', activity.id);
+      console.log('createRateActivityDto', createRateActivityDto);
     }
 
     await this.rateActivityRepository.save(rateActivity);
