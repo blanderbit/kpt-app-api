@@ -140,18 +140,14 @@ export class ActivityService {
       // Update existing RateActivity
       rateActivity.satisfactionLevel = createRateActivityDto.satisfactionLevel;
       rateActivity.hardnessLevel = createRateActivityDto.hardnessLevel;
+      rateActivity.activity = activity; // Ensure activity is set for the relation
     } else {
-      // Create new RateActivity
+      // Create new RateActivity - use only activity entity, not activityId
       rateActivity = this.rateActivityRepository.create({
         satisfactionLevel: createRateActivityDto.satisfactionLevel,
         hardnessLevel: createRateActivityDto.hardnessLevel,
-        activity,
-        activityId: activity.id,
+        activity, // TypeORM will set activityId automatically from the relation
       });
-      console.log('rateActivity', rateActivity);
-      console.log('activity', activity);
-      console.log('activityId', activity.id);
-      console.log('createRateActivityDto', createRateActivityDto);
     }
 
     await this.rateActivityRepository.save(rateActivity);
