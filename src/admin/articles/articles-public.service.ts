@@ -71,8 +71,9 @@ export class ArticlesPublicService {
       const temporaryArticles = await this.userTemporaryArticleRepository
         .createQueryBuilder('userTemporaryArticle')
         .leftJoinAndSelect('userTemporaryArticle.article', 'article')
+        .leftJoinAndSelect('userTemporaryArticle.user', 'user')
         .leftJoinAndSelect('article.files', 'files')
-        .where('userTemporaryArticle.userId = :userId', { userId })
+        .where('user.id = :userId', { userId })
         // .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
         // .andWhere(
         //   '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
