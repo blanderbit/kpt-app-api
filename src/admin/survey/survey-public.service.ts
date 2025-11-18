@@ -77,7 +77,7 @@ export class SurveyPublicService {
           { now: new Date() },
         )
         .andWhere(
-          'NOT EXISTS (SELECT 1 FROM user_surveys WHERE user_surveys.survey_id = survey.id AND user_surveys.user_id = :userId)',
+          'NOT EXISTS (SELECT 1 FROM user_surveys WHERE user_surveys.surveyId = survey.id AND user_surveys.userId = :userId)',
           { userId },
         )
         .orderBy('RAND()')

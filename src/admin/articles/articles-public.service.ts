@@ -73,7 +73,7 @@ export class ArticlesPublicService {
         .leftJoinAndSelect('userTemporaryArticle.article', 'article')
         .leftJoinAndSelect('article.files', 'files')
         .where('userTemporaryArticle.userId = :userId', { userId })
-        .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
+        // .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
         // .andWhere(
         //   '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
         //   { now: new Date() },
