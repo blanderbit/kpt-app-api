@@ -67,6 +67,7 @@ export class ArticlesPublicService {
    * Get random article
    */
   async getRandomArticle(userId?: number): Promise<ArticleResponseDto[]> {
+    console.log('userId', userId);
     try {
       const temporaryArticles = await this.userTemporaryArticleRepository
         .createQueryBuilder('userTemporaryArticle')
@@ -84,8 +85,9 @@ export class ArticlesPublicService {
         //   { userId },
         // )
         // .orderBy('RAND()')
-        .getRawMany();
+        .getMany();
 
+      console.log('temporaryArticles', temporaryArticles);
       return temporaryArticles as any;
     } catch (error) {
       this.logger.error('Failed to get random article:', error);
