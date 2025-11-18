@@ -72,16 +72,16 @@ export class ArticlesPublicService {
         .createQueryBuilder('userTemporaryArticle')
         .leftJoinAndSelect('userTemporaryArticle.article', 'article')
         .leftJoinAndSelect('article.files', 'files')
-        // .where('userTemporaryArticle.user_id = :userId', { userId })
-        // .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
-        // .andWhere(
-        //   '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
-        //   { now: new Date() },
-        // )
-        // .andWhere(
-        //   'NOT EXISTS (SELECT 1 FROM user_hidden_articles WHERE user_hidden_articles.article_id = article.id AND user_hidden_articles.user_id = :userId)',
-        //   { userId },
-        // )
+        .where('userTemporaryArticle.user_id = :userId', { userId })
+        .andWhere('article.status = :status', { status: ArticleStatus.ACTIVE })
+        .andWhere(
+          '(userTemporaryArticle.expiresAt IS NULL OR userTemporaryArticle.expiresAt > :now)',
+          { now: new Date() },
+        )
+        .andWhere(
+          'NOT EXISTS (SELECT 1 FROM user_hidden_articles WHERE user_hidden_articles.article_id = article.id AND user_hidden_articles.user_id = :userId)',
+          { userId },
+        )
         .orderBy('RAND()')
         .getMany();
 
