@@ -307,6 +307,33 @@ export class ActivityService {
   }
 
   /**
+   * Restore archived activity
+   */
+  async restoreActivity(userId: number, activityId: number): Promise<ActivityResponseDto> {
+    const activity = await this.activityRepository.findOne({
+      where: {
+        id: activityId,
+        user: { id: userId }
+      },
+      relations: ['user', 'rateActivities'],
+    });
+
+    if (!activity) {
+      throw AppException.notFound(ErrorCode.PROFILE_ACTIVITY_NOT_FOUND, 'Activity not found', { activityId, userId });
+    }
+
+    if (!activity.archivedAt) {
+      throw AppException.validation(ErrorCode.PROFILE_ACTIVITY_CANNOT_DELETE_CLOSED, 'Activity is not archived', { activityId });
+    }
+
+    // Restore activity by setting archivedAt to null
+    activity.archivedAt = null;
+
+    const restoredActivity = await this.activityRepository.save(activity);
+    return this.mapToResponseDto(restoredActivity);
+  }
+
+  /**
    * Get archived activities for today with pagination
    */
   async getArchivedActivities(user: User, query: PaginateQuery): Promise<Paginated<Activity>> {

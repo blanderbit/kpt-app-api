@@ -285,6 +285,32 @@ export class ActivityController {
     return this.activityService.closeActivity(user, id, createRateActivityDto);
   }
 
+  @Post(':id/restore')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Restore archived activity',
+    description: 'Restores an archived activity by setting archivedAt to null',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Activity ID',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Activity restored successfully',
+    type: ActivityResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  @ApiResponse({ status: 404, description: 'Activity not found' })
+  @ApiResponse({ status: 400, description: 'Activity is not archived' })
+  async restoreActivity(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: User,
+  ): Promise<ActivityResponseDto> {
+    return this.activityService.restoreActivity(user.id, id);
+  }
+
   /**
    * Map entity to response DTO
    */
