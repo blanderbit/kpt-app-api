@@ -45,7 +45,7 @@ export class ActivityService {
       ...query.filter,
       userId: `$eq:${user.id}`,
       createdAt: `$btw:${todayStart},${todayEndStr}`,
-      archivedAt: `$null` // Only non-archived activities
+      archivedAt: `$null:true` // Only non-archived activities (archivedAt IS NULL)
     };
 
     return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
