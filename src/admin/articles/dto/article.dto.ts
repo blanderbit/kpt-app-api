@@ -39,6 +39,14 @@ export class CreateArticleDto {
   @IsString()
   @IsNotEmpty()
   text: string;
+
+  @ApiProperty({
+    description: 'Language code for the article',
+    example: 'en',
+  })
+  @IsString()
+  @IsNotEmpty()
+  language: string;
 }
 
 export class UpdateArticleDto {

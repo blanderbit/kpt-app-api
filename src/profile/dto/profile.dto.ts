@@ -44,6 +44,15 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsEnum(Theme)
   theme?: Theme;
+
+  @ApiProperty({
+    description: 'User language code',
+    example: 'en',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  language?: string;
 }
 
 export class ChangeEmailDto {
@@ -119,6 +128,13 @@ export class ProfileResponseDto {
     example: Theme.DARK,
   })
   theme: Theme;
+
+  @ApiProperty({
+    description: 'User language code',
+    example: 'en',
+    required: false,
+  })
+  language: string | null;
 
   @ApiProperty({
     description: 'Creation date',

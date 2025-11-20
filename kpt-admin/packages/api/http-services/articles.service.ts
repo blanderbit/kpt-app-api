@@ -20,6 +20,7 @@ export interface Article {
   title: string
   text: string
   status: ArticleStatus
+  language: string | null
   files?: ArticleFile[]
   updatedBy: string
   createdAt: string
@@ -32,6 +33,7 @@ export interface Article {
 export interface CreateArticleDto {
   title: string
   text: string
+  language: string
 }
 
 export interface UpdateArticleDto {

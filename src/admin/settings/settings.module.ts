@@ -11,6 +11,7 @@ import { Survey } from '../survey/entities/survey.entity';
 import { User } from '../../users/entities/user.entity';
 import { SuggestedActivityModule } from '../../suggested-activity/suggested-activity.module';
 import { UsersModule } from '../../users/users.module';
+import { LanguageModule } from '../languages/language.module';
 import { TemporaryItemsQueueService } from './queue/temporary-items-queue.service';
 import { TemporaryItemsProcessor } from './queue/temporary-items.processor';
 
@@ -26,6 +27,7 @@ import { TemporaryItemsProcessor } from './queue/temporary-items.processor';
     ScheduleModule,
     forwardRef(() => SuggestedActivityModule),
     forwardRef(() => UsersModule),
+    forwardRef(() => LanguageModule),
     BullModule.registerQueue({
       name: 'temporary-items',
       defaultJobOptions: {

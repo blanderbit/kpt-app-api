@@ -189,6 +189,7 @@ export const pageLoadData: PageResolverConfig[] = [
           limit,
           'filter.status': to.query['filter.status'] || '$eq:active',
         }),
+        languages: () => LanguagesService.getCache(),
       }
     }),
   ),
@@ -212,6 +213,7 @@ export const pageLoadData: PageResolverConfig[] = [
           limit,
           'filter.status': to.query['filter.status'] || `$eq:active`,
         }),
+        languages: () => LanguagesService.getCache(),
       }
     }),
   ),
@@ -257,13 +259,40 @@ export const pageLoadData: PageResolverConfig[] = [
       const page = normalizeQueryNumber(to.query.page, 1)
       const limit = normalizePageSize(to.query.limit, DEFAULT_PAGE_SIZE)
       const search = normalizeQueryString(to.query.search)
+      
+      // Extract filter parameters
+      const emailVerified = normalizeQueryString(to.query['filter.emailVerified'])
+      const firstName = normalizeQueryString(to.query['filter.firstName'])
+      const theme = normalizeQueryString(to.query['filter.theme'])
+      const initSatisfactionLevel = normalizeQueryString(to.query['filter.initSatisfactionLevel'])
+      const initHardnessLevel = normalizeQueryString(to.query['filter.initHardnessLevel'])
+
+      const params: any = {
+        page,
+        limit,
+        search,
+      }
+
+      // Add filters if they exist
+      if (emailVerified) {
+        params['filter.emailVerified'] = emailVerified
+      }
+      if (firstName) {
+        params['filter.firstName'] = firstName
+      }
+      if (theme) {
+        params['filter.theme'] = theme
+      }
+      if (initSatisfactionLevel) {
+        params['filter.initSatisfactionLevel'] = initSatisfactionLevel
+      }
+      if (initHardnessLevel) {
+        params['filter.initHardnessLevel'] = initHardnessLevel
+      }
 
       return {
-        clients: () => ClientsService.getClients({
-          page,
-          limit,
-          search,
-        }),
+        clients: () => ClientsService.getClients(params),
+        languages: () => LanguagesService.getCache(),
       }
     }),
   ),

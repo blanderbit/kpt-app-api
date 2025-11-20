@@ -11,7 +11,6 @@ if (typeof window !== 'undefined' && typeof window.logout === 'undefined') {
 const roleProfileName = ref(null);
 
 const _checkAsyncIsUser = async (to) => {
-  debugger
   try {
     const response = await authService.getMe();
     to.meta.user = response;

@@ -50,6 +50,10 @@ meta:
                 <v-list-item-subtitle>{{ client.theme }}</v-list-item-subtitle>
               </v-list-item>
               <v-list-item>
+                <v-list-item-title>Language</v-list-item-title>
+                <v-list-item-subtitle>{{ client.language || 'N/A' }}</v-list-item-subtitle>
+              </v-list-item>
+              <v-list-item>
                 <v-list-item-title>Roles</v-list-item-title>
                 <v-list-item-subtitle>{{ client.roles.join(', ') }}</v-list-item-subtitle>
               </v-list-item>

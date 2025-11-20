@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LanguageController } from './controllers/language.controller';
 import { PublicLanguageController } from './controllers/public-language.controller';
@@ -10,7 +10,7 @@ import { SettingsModule } from '../settings/settings.module';
   imports: [
     ConfigModule,
     GoogleDriveModule,
-    SettingsModule,
+    forwardRef(() => SettingsModule),
   ],
   controllers: [LanguageController, PublicLanguageController],
   providers: [LanguageService],

@@ -83,7 +83,7 @@ export class ChatGPTService {
         throw new Error('Empty response content');
       }
 
-      const parsed = this.parseActivityBatch(rawContent);
+      const parsed = this.parseActivityBatch(rawContent, activityTypeNames);
 
       return parsed || [];
     } catch (error) {
@@ -224,14 +224,14 @@ Respond with strict JSON in the following format (no additional text):
 {
   "activities": [
     {
-      "activityName": "string",
+      "activityName": "A creative, engaging, and specific name for the activity that clearly describes what the user should do. The name should be concise (2-5 words), action-oriented, and inspiring. Examples: 'Morning Meditation Session', 'Quick Nature Walk', 'Gratitude Journal Entry', 'Social Coffee Break'",
       "content": "1 sentence description of the activity, no more than 20 words",
-      "activityType": "one of the available activity types from the list above that best matches this activity"
+      "activityType": "Select the most appropriate activity type from the available list above that best matches this activity. If none of the provided types match well, use 'general' as the activityType"
     }
   ]
 }
 
-Ensure activities are diverse, actionable today, and tailored to the user's current state. For each activity, select the most appropriate activity type from the available list.`;
+Ensure activities are diverse, actionable today, and tailored to the user's current state. For each activity, select the most appropriate activity type from the available list, or use 'general' if no type matches well.`;
   }
 
   private formatKeyValuePairs(data: Record<string, unknown> | undefined): string {
@@ -303,7 +303,7 @@ Respond strictly in JSON:
     return null;
   }
 
-  private parseActivityBatch(content: string): ActivityBatchItem[] | null {
+  private parseActivityBatch(content: string, availableTypes: string[] = []): ActivityBatchItem[] | null {
     try {
       const parsed = JSON.parse(content);
       const activities = Array.isArray(parsed)
@@ -313,13 +313,30 @@ Respond strictly in JSON:
           : [];
 
       return activities
-        .map((item: any) => ({
-          activityName: item.activityName?.trim(),
-          content: item.content?.trim(),
-          category: item.category?.trim(),
-          reasoning: item.reasoning?.trim(),
-          activityType: item.activityType?.trim(),
-        }))
+        .map((item: any) => {
+          const activityType = item.activityType?.trim();
+          // If available types list is provided, validate the type
+          // If type is not in the list or not provided, use 'general'
+          let finalActivityType: string;
+          if (availableTypes.length > 0) {
+            // If type is provided and exists in available types, use it
+            // Otherwise, use 'general'
+            finalActivityType = activityType && availableTypes.includes(activityType)
+              ? activityType
+              : 'general';
+          } else {
+            // If no available types list provided, use what ChatGPT returned or 'general'
+            finalActivityType = activityType || 'general';
+          }
+
+          return {
+            activityName: item.activityName?.trim(),
+            content: item.content?.trim(),
+            category: item.category?.trim(),
+            reasoning: item.reasoning?.trim(),
+            activityType: finalActivityType,
+          };
+        })
         .filter(item => item.activityName && item.content);
     } catch (error) {
       this.logger.warn('Failed to parse activity batch as JSON, attempting fallback extraction');

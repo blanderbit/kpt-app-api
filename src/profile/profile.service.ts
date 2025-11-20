@@ -207,6 +207,7 @@ export class ProfileService {
       firstName: user.firstName,
       avatarUrl: user.avatarUrl,
       theme: user.theme as any,
+      language: user.language,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

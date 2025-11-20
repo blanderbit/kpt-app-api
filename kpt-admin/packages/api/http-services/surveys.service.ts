@@ -10,6 +10,7 @@ export interface Survey {
   description: string | null
   questions: SurveyQuestion[] | null
   status: 'active' | 'archived' | 'available'
+  language: string | null
   createdBy: string
   updatedBy: string
   createdAt: string
@@ -71,6 +72,7 @@ export interface CreateSurveyDto {
   title: string
   description?: string
   questions?: SurveyQuestion[]
+  language: string
 }
 
 export interface UpdateSurveyDto {

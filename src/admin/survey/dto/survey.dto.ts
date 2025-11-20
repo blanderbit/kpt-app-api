@@ -141,6 +141,14 @@ export class CreateSurveyDto {
   })
   @Type(() => SurveyQuestionDto)
   questions?: SurveyQuestionDto[];
+
+  @ApiProperty({
+    description: 'Language code for the survey',
+    example: 'en',
+  })
+  @IsString()
+  @IsNotEmpty()
+  language: string;
 }
 
 export class UpdateSurveyDto {
@@ -280,7 +288,7 @@ export class SurveyResponseDto {
     required: false,
     nullable: true,
   })
-  file: FileDto | null;
+  files: FileDto[] | null;
 }
 
 export class SurveyAnswerDto {

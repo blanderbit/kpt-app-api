@@ -71,6 +71,10 @@ export class User {
   @Column({ type: 'int', nullable: true })
   initHardnessLevel: number | null;
 
+  @ApiProperty({ description: 'User language code', example: 'en', required: false })
+  @Column({ type: 'varchar', length: 10, nullable: true, default: null })
+  language: string | null;
+
   @ApiProperty({ description: 'Social networks used by user', example: 'facebook,instagram,twitter' })
   @Column({ type: 'text', nullable: true })
   socialNetworks: string;

@@ -63,6 +63,11 @@ export class ClientManagementService {
       .where('user.roles NOT LIKE :adminRole', { adminRole: '%admin%' })
       .orderBy('user.createdAt', 'DESC');
 
+
+    if (query?.filter?.emailVerified) {
+      query.filter.emailVerified = `$eq:${query?.filter?.emailVerified.includes('true') ? 1: 0 }`
+    }
+
     return paginate(query, queryBuilder, CLIENT_PAGINATION_CONFIG);
   }
 
@@ -79,6 +84,7 @@ export class ClientManagementService {
         'avatarUrl',
         'emailVerified',
         'theme',
+        'language',
         'roles',
         'initSatisfactionLevel',
         'initHardnessLevel',

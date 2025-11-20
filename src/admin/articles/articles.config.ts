@@ -26,6 +26,7 @@ export const articleConfig: PaginateConfig<Article> = {
     id: [FilterOperator.EQ, FilterOperator.GT, FilterOperator.GTE, FilterOperator.LT, FilterOperator.LTE],
     title: [FilterOperator.EQ, FilterOperator.CONTAINS, FilterOperator.ILIKE],
     status: [FilterOperator.EQ],
+    language: [FilterOperator.EQ, FilterOperator.IN],
     updatedAt: [FilterOperator.EQ, FilterOperator.GT, FilterOperator.GTE, FilterOperator.LT, FilterOperator.LTE],
   },
   

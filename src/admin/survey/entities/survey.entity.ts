@@ -48,6 +48,10 @@ export class Survey {
   @ApiProperty({ description: 'Survey status', enum: SurveyStatus, default: SurveyStatus.AVAILABLE })
   status: SurveyStatus;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  @ApiProperty({ description: 'Language code for the survey', example: 'en' })
+  language: string;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   @ApiProperty({ description: 'User who created the survey', required: false })
   createdBy: string;

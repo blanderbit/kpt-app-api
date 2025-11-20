@@ -34,6 +34,22 @@ meta:
       </v-col>
     </v-row>
 
+    <!-- Filters -->
+    <v-row class="mb-4">
+      <v-col cols="12" md="4">
+        <v-select
+          v-model="filters['filter.language'].value"
+          :items="languageOptions"
+          label="Language"
+          clearable
+          density="comfortable"
+          variant="outlined"
+          hide-details
+          @update:model-value="handleFilterChange"
+        ></v-select>
+      </v-col>
+    </v-row>
+
     <!-- Data Table -->
     <v-row>
       <v-col cols="12">
@@ -190,6 +206,17 @@ meta:
               required
               class="mb-4"
             />
+
+            <v-select
+              v-model="surveyForm.language"
+              :items="languageOptions"
+              label="Language *"
+              :rules="[v => !!v || 'Language is required']"
+              required
+              density="comfortable"
+              variant="outlined"
+              class="mb-4"
+            ></v-select>
             
             <v-textarea
               v-model="surveyForm.description"
@@ -481,6 +508,7 @@ import {
   type CreateSurveyDto,
   type PaginationMeta,
   type PaginatedResponse,
+  type Language,
   formatDateTime,
   formatFileSize,
   type SurveyStatistics,
@@ -498,6 +526,7 @@ const ALLOWED_FILE_TYPES = [/^image\/(jpeg|png)$/i, /^video\/mp4$/i]
 interface SurveyFormState {
   title: string
   description: string
+  language: string
   questions: SurveyQuestion[]
   file: File | null
   removeExistingFile: boolean
@@ -531,6 +560,7 @@ const currentSurveyFile = computed(() => editingSurvey.value?.files?.[0] ?? null
 const surveyForm = ref<SurveyFormState>({
   title: '',
   description: '',
+  language: '',
   questions: [],
   file: null,
   removeExistingFile: false,
@@ -569,12 +599,18 @@ const {
         : filters.value.limit?.value ?? normalizedInitialLimit
     ) || normalizedInitialLimit
 
-    return SurveysService.getSurveys({
+    const params: Record<string, unknown> = {
       ...rawFilters,
       page: pageNumber,
       limit: limitFromFilters,
       'filter.status': `$eq:${activeTab.value}`,
-    })
+    }
+    
+    if (rawFilters['filter.language']) {
+      params['filter.language'] = `$eq:${rawFilters['filter.language']}`
+    }
+    
+    return SurveysService.getSurveys(params)
   },
   notToConcatElements: true,
 })
@@ -585,6 +621,20 @@ const initialSurveys = Array.isArray(surveysResponse.data) ? surveysResponse.dat
 const normalizedInitialLimit = normalizePageSize(route.query.limit, SMALL_PAGE_SIZE)
 
 const initialPage = Number(route.query.page ?? initialMeta.currentPage ?? 1) || 1
+const initialLanguage = route.query['filter.language'] as string | undefined
+const stripEq = (value?: string | null): string | undefined =>
+  typeof value === 'string' && value.startsWith('$eq:') ? value.slice(4) : value ?? undefined
+
+const languagesData = route.meta.languages as { languages: Language[] } | undefined
+const languages = ref<Language[]>(languagesData?.languages ?? [])
+const languageOptions = computed(() => {
+  return languages.value
+    .filter(lang => lang.isActive)
+    .map(lang => ({
+      title: `${lang.name} (${lang.code})`,
+      value: lang.code,
+    }))
+})
 
 surveys.value = initialSurveys
 paginationTotalCount.value = initialMeta.totalItems ?? initialSurveys.length
@@ -622,6 +672,11 @@ const { getRawFilters, filters } = FilterPatch({
       value: normalizedInitialLimit,
       default: normalizedInitialLimit,
     },
+    'filter.language': {
+      type: String,
+      value: stripEq(initialLanguage) ?? '',
+      default: '',
+    },
   },
   afterUpdateFiltersCallBack: async () => {
     await loadPage(Number(filters.value.page.value) || 1, {
@@ -633,10 +688,16 @@ const { getRawFilters, filters } = FilterPatch({
 
 filters.value.page.value = initialPage
 filters.value.limit.value = normalizedInitialLimit
+filters.value['filter.language'].value = stripEq(initialLanguage) ?? ''
+
+const handleFilterChange = () => {
+  filters.value.page.value = 1
+}
 
 const headers = [
   { title: 'ID', key: 'id', sortable: false },
   { title: 'Title', key: 'title', sortable: false },
+  { title: 'Language', key: 'language', sortable: false },
   { title: 'Description', key: 'description', sortable: false },
   { title: 'Questions', key: 'questions', sortable: false },
   { title: 'File', key: 'files', sortable: false },
@@ -698,6 +759,7 @@ const editSurvey = (survey: Survey) => {
   surveyForm.value = {
     title: survey.title,
     description: survey.description ?? '',
+    language: survey.language || '',
     questions: (survey.questions ?? []).map(q => ({
       ...q,
       options: (q.options ?? []).map(o => ({ ...o })),
@@ -717,6 +779,7 @@ const closeDialog = () => {
   surveyForm.value = {
     title: '',
     description: '',
+    language: '',
     questions: [],
     file: null,
     removeExistingFile: false,
@@ -751,10 +814,16 @@ const saveSurvey = async () => {
     return
   }
 
+  if (!surveyForm.value.language) {
+    showErrorToast('Language is required.')
+    return
+  }
+
   const basePayload: CreateSurveyDto = {
     title: trimmedTitle,
     description: trimmedDescription ? trimmedDescription : undefined,
     questions: normalizedQuestions.length > 0 ? normalizedQuestions : undefined,
+    language: surveyForm.value.language,
   }
 
   const selectedFile = surveyForm.value.file ?? undefined

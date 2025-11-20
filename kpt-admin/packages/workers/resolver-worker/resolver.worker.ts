@@ -32,7 +32,6 @@ export const routerResolverByLoginPage = routerAuthResolver.routeInterceptor(
       }
     },
     resolveFirstWorkerError: ({ next }) => {
-      debugger
       finishGlobalSpinner();
 
       if (typeof window !== 'undefined' && window.logout) {

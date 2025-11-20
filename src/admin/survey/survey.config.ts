@@ -27,6 +27,7 @@ export const surveyConfig: PaginateConfig<Survey> = {
     id: [FilterOperator.EQ, FilterOperator.GT, FilterOperator.GTE, FilterOperator.LT, FilterOperator.LTE],
     title: [FilterOperator.EQ, FilterOperator.CONTAINS, FilterOperator.ILIKE],
     status: [FilterOperator.EQ],
+    language: [FilterOperator.EQ, FilterOperator.IN],
     createdAt: [FilterOperator.EQ, FilterOperator.GT, FilterOperator.GTE, FilterOperator.LT, FilterOperator.LTE],
     updatedAt: [FilterOperator.EQ, FilterOperator.GT, FilterOperator.GTE, FilterOperator.LT, FilterOperator.LTE],
   },

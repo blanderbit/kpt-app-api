@@ -1,6 +1,6 @@
 import { Processor, Process } from '@nestjs/bull';
 import { Job } from 'bull';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { UserTemporaryArticle } from '../entities/user-temporary-article.entity';
@@ -9,6 +9,7 @@ import { User } from '../../../users/entities/user.entity';
 import { Article, ArticleStatus } from '../../articles/entities/article.entity';
 import { Survey, SurveyStatus } from '../../survey/entities/survey.entity';
 import { SettingsService } from '../settings.service';
+import { LanguageService } from '../../languages/services/language.service';
 import {
   GenerateTemporaryArticlesBatchJob,
   GenerateTemporaryArticlesJob,
@@ -27,6 +28,8 @@ export class TemporaryItemsProcessor {
     @InjectRepository(UserTemporarySurvey)
     private readonly userTemporarySurveyRepository: Repository<UserTemporarySurvey>,
     private readonly settingsService: SettingsService,
+    @Inject(forwardRef(() => LanguageService))
+    private readonly languageService: LanguageService,
   ) {}
 
   @Process('generate-temporary-articles-batch')
@@ -97,6 +100,27 @@ export class TemporaryItemsProcessor {
     }
   }
 
+  /**
+   * Get user language or default language
+   */
+  private getUserLanguage(user: User | null): string | null {
+    // First, try to get language from user
+    if (user?.language) {
+      return user.language;
+    }
+
+    // If user language is not set, try to get default language from cache
+    const languages = this.languageService.getLanguagesFromCache();
+    const defaultLanguage = languages.find(lang => lang.isDefault);
+    
+    if (defaultLanguage) {
+      return defaultLanguage.code;
+    }
+
+    // If no default language found, return null (no filtering)
+    return null;
+  }
+
   private async generateTemporaryArticlesForUser(manager: EntityManager, userId: number) {
     const articleRepository = manager.getRepository(Article);
     const userTemporaryArticleRepository = manager.getRepository(UserTemporaryArticle);
@@ -111,9 +135,31 @@ export class TemporaryItemsProcessor {
       };
     }
 
-    const activeArticles = await articleRepository
+    const userRepository = manager.getRepository(User);
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      this.logger.warn(`User ${userId} not found, skipping temporary articles generation`);
+      return {
+        userId,
+        success: true,
+        articlesCount: 0,
+      };
+    }
+
+    // Get user language or default language
+    const userLanguage = this.getUserLanguage(user);
+
+    const queryBuilder = articleRepository
       .createQueryBuilder('article')
-      .where('article.status = :status', { status: ArticleStatus.ACTIVE })
+      .where('article.status = :status', { status: ArticleStatus.ACTIVE });
+
+    // Filter by language if available
+    if (userLanguage) {
+      queryBuilder.andWhere('article.language = :language', { language: userLanguage });
+    }
+
+    const activeArticles = await queryBuilder
       .orderBy('RAND()')
       .limit(count)
       .getMany();
@@ -136,18 +182,6 @@ export class TemporaryItemsProcessor {
       .delete()
       .where('userId = :userId', { userId })
       .execute();
-
-    const userRepository = manager.getRepository(User);
-    const user = await userRepository.findOne({ where: { id: userId } });
-
-    if (!user) {
-      this.logger.warn(`User ${userId} not found, skipping temporary articles generation`);
-      return {
-        userId,
-        success: true,
-        articlesCount: 0,
-      };
-    }
 
     const temporaryArticles = activeArticles.map((article) =>
       userTemporaryArticleRepository.create({
@@ -185,9 +219,31 @@ export class TemporaryItemsProcessor {
       };
     }
 
-    const activeSurveys = await surveyRepository
+    const userRepository = manager.getRepository(User);
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      this.logger.warn(`User ${userId} not found, skipping temporary surveys generation`);
+      return {
+        userId,
+        success: true,
+        surveysCount: 0,
+      };
+    }
+
+    // Get user language or default language
+    const userLanguage = this.getUserLanguage(user);
+
+    const queryBuilder = surveyRepository
       .createQueryBuilder('survey')
-      .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
+      .where('survey.status = :status', { status: SurveyStatus.ACTIVE });
+
+    // Filter by language if available
+    if (userLanguage) {
+      queryBuilder.andWhere('survey.language = :language', { language: userLanguage });
+    }
+
+    const activeSurveys = await queryBuilder
       .orderBy('RAND()')
       .limit(count)
       .getMany();
@@ -210,18 +266,6 @@ export class TemporaryItemsProcessor {
       .delete()
       .where('user_id = :userId', { userId })
       .execute();
-
-    const userRepository = manager.getRepository(User);
-    const user = await userRepository.findOne({ where: { id: userId } });
-
-    if (!user) {
-      this.logger.warn(`User ${userId} not found, skipping temporary surveys generation`);
-      return {
-        userId,
-        success: true,
-        surveysCount: 0,
-      };
-    }
 
     const temporarySurveys = activeSurveys.map((survey) =>
       userTemporarySurveyRepository.create({

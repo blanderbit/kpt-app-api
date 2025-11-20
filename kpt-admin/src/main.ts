@@ -13,7 +13,7 @@ import { registerToastPlugin } from '@workers/toast-worker'
 const enhancedRoutes = setupLayouts(
   resolverStore.searchRouterForAttachResolverByName(routes as RouteRecordRaw[]),
 )
-debugger
+
 const redirectRoutes: RouteRecordRaw[] = [
   { path: '/profile', redirect: '/profile/clients' },
 ]

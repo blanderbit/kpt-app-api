@@ -58,6 +58,22 @@ meta:
       </v-col>
     </v-row>
 
+    <!-- Filters -->
+    <v-row class="mb-4">
+      <v-col cols="12" md="4">
+        <v-select
+          v-model="filters['filter.language'].value"
+          :items="languageOptions"
+          label="Language"
+          clearable
+          density="comfortable"
+          variant="outlined"
+          hide-details
+          @update:model-value="handleFilterChange"
+        ></v-select>
+      </v-col>
+    </v-row>
+
     <!-- Data Table -->
     <v-row>
       <v-col cols="12">
@@ -205,6 +221,17 @@ meta:
               required
               class="mb-4"
             />
+
+            <v-select
+              v-model="articleForm.language"
+              :items="languageOptions"
+              label="Language *"
+              :rules="[v => !!v || 'Language is required']"
+              required
+              density="comfortable"
+              variant="outlined"
+              class="mb-4"
+            ></v-select>
 
             <v-label class="mb-2">Article Text *</v-label>
             <div
@@ -382,6 +409,7 @@ import {
   type UpdateArticleDto,
   type PaginatedArticles,
   type PaginationMeta,
+  type Language,
   formatFileSize,
 } from '@api'
 import { PaginationWorker } from '@workers/pagination-worker'
@@ -449,12 +477,18 @@ const {
         : filters.value.limit?.value ?? normalizedInitialLimit,
     ) || normalizedInitialLimit
 
-    return ArticlesService.getArticles({
+    const params: Record<string, unknown> = {
       ...rawFilters,
       page: pageNumber,
       limit: limitFromFilters,
       'filter.status': `$eq:${activeTab.value}`,
-    })
+    }
+    
+    if (rawFilters['filter.language']) {
+      params['filter.language'] = `$eq:${rawFilters['filter.language']}`
+    }
+    
+    return ArticlesService.getArticles(params)
   },
 })
 
@@ -483,6 +517,10 @@ const loadPage = async (pageNumber: number, { reset = false, force = false }: Lo
   )
 }
 
+const initialLanguage = route.query['filter.language'] as string | undefined
+const stripEq = (value?: string | null): string | undefined =>
+  typeof value === 'string' && value.startsWith('$eq:') ? value.slice(4) : value ?? undefined
+
 const {
   getRawFilters,
   filters,
@@ -499,6 +537,11 @@ const {
       value: normalizedInitialLimit,
       default: normalizedInitialLimit,
     },
+    'filter.language': {
+      type: String,
+      value: stripEq(initialLanguage) ?? '',
+      default: '',
+    },
   },
   afterUpdateFiltersCallBack: async () => {
     paginationClearData()
@@ -511,6 +554,7 @@ const {
 
 filters.value.page.value = initialPage
 filters.value.limit.value = normalizedInitialLimit
+filters.value['filter.language'].value = stripEq(initialLanguage) ?? ''
 
 const showCreateDialog = ref(false)
 const showDeleteDialog = ref(false)
@@ -527,18 +571,32 @@ const currentArticleFile = computed(() => editingArticle.value?.files?.[0] ?? nu
 const articleForm = ref<{
   title: string
   text: string
+  language: string
   file: File | null
   removeExistingFile: boolean
 }>({
   title: '',
   text: '',
+  language: '',
   file: null,
   removeExistingFile: false,
+})
+
+const languagesData = route.meta.languages as { languages: Language[] } | undefined
+const languages = ref<Language[]>(languagesData?.languages ?? [])
+const languageOptions = computed(() => {
+  return languages.value
+    .filter(lang => lang.isActive)
+    .map(lang => ({
+      title: `${lang.name} (${lang.code})`,
+      value: lang.code,
+    }))
 })
 
 const headers = [
   { title: 'ID', key: 'id', align: 'start', sortable: false },
   { title: 'Title', key: 'title', sortable: false },
+  { title: 'Language', key: 'language', sortable: false },
   { title: 'Status', key: 'status', sortable: false },
   { title: 'Updated', key: 'updatedAt', sortable: false },
   { title: 'Files', key: 'files', sortable: false },
@@ -602,6 +660,7 @@ const editArticle = (article: Article) => {
   articleForm.value = {
     title: article.title,
     text: article.text,
+    language: article.language || '',
     file: null,
     removeExistingFile: false,
   }
@@ -617,6 +676,7 @@ const closeDialog = () => {
   articleForm.value = {
     title: '',
     text: '',
+    language: '',
     file: null,
     removeExistingFile: false,
   }
@@ -675,9 +735,14 @@ const saveArticle = async () => {
     )
     showSuccessToast('Article updated successfully.')
   } else {
+    if (!articleForm.value.language) {
+      showErrorToast('Language is required.')
+      return
+    }
     const createDto: CreateArticleDto = {
       title: articleForm.value.title,
       text: articleForm.value.text,
+      language: articleForm.value.language,
     }
     await asyncGlobalSpinner(
       ArticlesService.createArticle(createDto, selectedFile ? [selectedFile] : undefined),

@@ -10,6 +10,7 @@ export interface Client {
   avatarUrl: string | null
   emailVerified: boolean
   theme: string
+  language: string | null
   roles: string[]
   initSatisfactionLevel: number | null
   initHardnessLevel: number | null
@@ -160,6 +161,12 @@ export interface ClientsPaginationParams {
   limit?: number
   search?: string
   sortBy?: string
+  'filter.emailVerified'?: string
+  'filter.firstName'?: string
+  'filter.theme'?: string
+  'filter.language'?: string
+  'filter.initSatisfactionLevel'?: string
+  'filter.initHardnessLevel'?: string
 }
 
 const formatClient = (client: Client): Client => ({

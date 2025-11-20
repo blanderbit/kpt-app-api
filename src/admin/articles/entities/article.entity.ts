@@ -33,6 +33,10 @@ export class Article {
   @ApiProperty({ description: 'Article status', enum: ArticleStatus, default: ArticleStatus.AVAILABLE })
   status: ArticleStatus;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  @ApiProperty({ description: 'Language code for the article', example: 'en' })
+  language: string;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   @ApiProperty({ description: 'User who last updated the article', required: false })
   updatedBy: string;

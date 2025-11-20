@@ -208,17 +208,7 @@ export class SurveyPublicService {
       updatedAt: survey.updatedAt,
       archivedAt: survey.archivedAt,
       archivedBy: survey.archivedBy,
-      file:null
-      //  file
-      //   ? {
-      //       id: file.id,
-      //       fileUrl: file.fileUrl,
-      //       fileKey: file.fileKey,
-      //       fileName: file.fileName,
-      //       mimeType: file.mimeType,
-      //       size: file.size,
-      //     }
-      //   : null,
+      files: survey.files
     };
   }
 }

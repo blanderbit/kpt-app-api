@@ -50,6 +50,7 @@ export class SurveyAdminService {
         title: createSurveyDto.title,
         description: createSurveyDto.description,
         questions: createSurveyDto.questions,
+        language: createSurveyDto.language,
         status: SurveyStatus.AVAILABLE,
         createdBy,
         updatedBy: createdBy,
