@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { NotificationsConfigService } from './notifications.config';
 import type { NotificationsConfig } from './notifications.config';
 import { UserDevice } from './entities/user-device.entity';
@@ -37,26 +37,18 @@ export class NotificationsService {
     });
 
     if (existing) {
+      // Update existing device
       existing.platform = dto.platform ?? existing.platform;
-      existing.deviceId = dto.deviceId ?? existing.deviceId;
       existing.isActive = true;
       existing.lastUsedAt = new Date();
       return this.userDeviceRepository.save(existing);
     }
 
-    // Deactivate same deviceId for other users if provided
-    if (dto.deviceId) {
-      await this.userDeviceRepository.update(
-        { deviceId: dto.deviceId, userId, token: Not(normalizedToken) },
-        { isActive: false },
-      );
-    }
-
+    // Create new device if not found
     const created = this.userDeviceRepository.create({
       userId,
       token: normalizedToken,
       platform: dto.platform ?? undefined,
-      deviceId: dto.deviceId,
       isActive: true,
       lastUsedAt: new Date(),
     });

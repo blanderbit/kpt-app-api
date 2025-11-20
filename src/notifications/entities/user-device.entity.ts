@@ -30,10 +30,6 @@ export class UserDevice {
   @ApiProperty({ description: 'Firebase device token' })
   token: string;
 
-  @Column({ type: 'varchar', length: 64, nullable: true })
-  @ApiProperty({ description: 'Optional device identifier', required: false })
-  deviceId?: string;
-
   @Column({
     type: 'enum',
     enum: DevicePlatform,

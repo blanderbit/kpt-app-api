@@ -844,7 +844,7 @@ export class SeedDatabaseCommand extends CommandRunner {
       });
   }
 
-  private generateUserDevices(users: User[]): UserDevice[] {
+  private generateUserDevices(users: User[]): DeepPartial<UserDevice>[] {
     const platforms = Object.values(DevicePlatform);
 
     return users.flatMap((user) => {
@@ -852,11 +852,10 @@ export class SeedDatabaseCommand extends CommandRunner {
       return Array.from({ length: count }).map(() => ({
         userId: user.id,
         token: faker.string.uuid() + faker.string.alphanumeric(32),
-        deviceId: faker.helpers.maybe(() => faker.string.alphanumeric(16), { probability: 0.4 }) ?? undefined,
         platform: faker.helpers.arrayElement(platforms),
         isActive: faker.datatype.boolean({ probability: 0.85 }),
-        lastUsedAt: faker.helpers.maybe(() => faker.date.recent({ days: 20 }), { probability: 0.7 }) ?? null,
-      })) as UserDevice[];
+        lastUsedAt: faker.helpers.maybe(() => faker.date.recent({ days: 20 }), { probability: 0.7 }),
+      }));
     });
   }
 

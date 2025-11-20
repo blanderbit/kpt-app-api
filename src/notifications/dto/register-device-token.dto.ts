@@ -21,16 +21,6 @@ export class RegisterDeviceTokenDto {
   @IsOptional()
   @IsEnum(DevicePlatform)
   platform?: DevicePlatform;
-
-  @ApiProperty({
-    description: 'Optional device identifier to deduplicate tokens',
-    required: false,
-    maxLength: 128,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(128)
-  deviceId?: string;
 }
 
 
