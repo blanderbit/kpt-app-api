@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Subscription } from './entities/subscription.entity';
@@ -10,11 +10,12 @@ import { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
 import { PaginateQuery, paginate, Paginated } from 'nestjs-paginate';
 import { subscriptionsPaginationConfig } from './subscription.config';
 import { SubscriptionPlanInterval } from './enums/subscription-plan-interval.enum';
+import { SettingsService } from '../../admin/settings/settings.service';
 
 export interface SubscriptionStatsFilters {
   planInterval?: SubscriptionPlanInterval;
   status?: SubscriptionStatus;
-  productId?: string;
+  provider?: SubscriptionProvider;
   startDate?: Date;
   endDate?: Date;
   isLinked?: boolean;
@@ -53,6 +54,8 @@ export class SubscriptionsService {
     @InjectRepository(Subscription)
     private readonly subscriptionRepository: Repository<Subscription>,
     private readonly revenueCatService: RevenueCatService,
+    @Inject(forwardRef(() => SettingsService))
+    private readonly settingsService: SettingsService,
   ) {}
 
   async handleRevenueCatWebhook(payload: RevenueCatWebhookPayload): Promise<void> {
@@ -308,73 +311,146 @@ export class SubscriptionsService {
       .execute();
   }
 
+  /**
+   * Create trial subscription for user
+   */
+  async createTrialSubscription(
+    userId: number,
+    email: string | undefined,
+  ): Promise<Subscription> {
+    const settings = this.settingsService.getSettings();
+    const trialMode = settings.trialMode;
+    const periodDays = trialMode.periodDays;
+
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setDate(periodEnd.getDate() + periodDays);
+
+    const subscription = this.subscriptionRepository.create({
+      userId,
+      userEmail: email,
+      provider: SubscriptionProvider.NONE, // Trial subscription has no payment provider
+      productId: 'trial',
+      planInterval: SubscriptionPlanInterval.UNKNOWN,
+      status: SubscriptionStatus.ACTIVE,
+      periodStart: now,
+      periodEnd,
+      price: '0.00',
+      currency: 'USD',
+      priceInUsd: '0.00',
+      metadata: {
+        isTrial: true,
+        trialPeriodDays: periodDays,
+        trialActivitiesPerDay: trialMode.activitiesPerDay,
+        trialArticlesAvailable: trialMode.articlesAvailable,
+        trialSurveysAvailable: trialMode.surveysAvailable,
+      },
+    });
+
+    return await this.subscriptionRepository.save(subscription);
+  }
+
   private async computeStats(filters: SubscriptionStatsFilters): Promise<SubscriptionStats> {
-    const qb = this.subscriptionRepository.createQueryBuilder('subscription');
-    this.applyFilters(qb, filters);
+    const baseQb = this.subscriptionRepository.createQueryBuilder('subscription');
+    this.applyFilters(baseQb, filters);
 
     const now = filters.endDate ? new Date(filters.endDate) : new Date();
     const monthStart = this.calculateRelativeStart(now, filters.startDate, 'month');
     const yearStart = this.calculateRelativeStart(now, filters.startDate, 'year');
 
-    const [
-      planCountsRaw,
-      statusCountsRaw,
-      monthCount,
-      yearCount,
-      monthRevenueRaw,
-      yearRevenueRaw,
-      planAuthRaw,
-      monthAuthRaw,
-      yearAuthRaw,
-    ] = await Promise.all([
-      qb
-        .clone()
-        .select('subscription.planInterval', 'planInterval')
-        .addSelect('COUNT(*)', 'count')
-        .groupBy('subscription.planInterval')
-        .getRawMany(),
-      qb
-        .clone()
-        .select('subscription.status', 'status')
-        .addSelect('COUNT(*)', 'count')
-        .groupBy('subscription.status')
-        .getRawMany(),
-      qb.clone().andWhere('subscription.createdAt >= :monthStart', { monthStart }).getCount(),
-      qb.clone().andWhere('subscription.createdAt >= :yearStart', { yearStart }).getCount(),
-      qb
-        .clone()
-        .andWhere('subscription.createdAt >= :monthStart', { monthStart })
-        .select('SUM(COALESCE(subscription.priceInUsd, subscription.price))', 'sum')
-        .getRawOne(),
-      qb
-        .clone()
-        .andWhere('subscription.createdAt >= :yearStart', { yearStart })
-        .select('SUM(COALESCE(subscription.priceInUsd, subscription.price))', 'sum')
-        .getRawOne(),
-      qb
-        .clone()
-        .select('subscription.planInterval', 'planInterval')
-        .addSelect("SUM(CASE WHEN subscription.userId IS NULL THEN 1 ELSE 0 END)", 'anonymous')
-        .addSelect("SUM(CASE WHEN subscription.userId IS NOT NULL THEN 1 ELSE 0 END)", 'linked')
-        .groupBy('subscription.planInterval')
-        .getRawMany(),
-      qb
-        .clone()
-        .andWhere('subscription.createdAt >= :monthStart', { monthStart })
-        .select("SUM(CASE WHEN subscription.userId IS NULL THEN 1 ELSE 0 END)", 'anonymous')
-        .addSelect("SUM(CASE WHEN subscription.userId IS NOT NULL THEN 1 ELSE 0 END)", 'linked')
-        .getRawOne(),
-      qb
-        .clone()
-        .andWhere('subscription.createdAt >= :yearStart', { yearStart })
-        .select("SUM(CASE WHEN subscription.userId IS NULL THEN 1 ELSE 0 END)", 'anonymous')
-        .addSelect("SUM(CASE WHEN subscription.userId IS NOT NULL THEN 1 ELSE 0 END)", 'linked')
-        .getRawOne(),
-    ]);
+    // Helper to create filtered query builder (filters are already applied to baseQb)
+    const createFilteredQb = () => baseQb.clone();
+
+    // Count by plan interval
+    const planIntervalCounts = await Promise.all(
+      Object.values(SubscriptionPlanInterval).map(async (interval) => {
+        const qb = createFilteredQb();
+        qb.andWhere('subscription.planInterval = :interval', { interval });
+        const count = await qb.getCount();
+        return { planInterval: interval, count };
+      }),
+    );
+
+    // Count by status
+    const statusCounts = await Promise.all(
+      Object.values(SubscriptionStatus).map(async (status) => {
+        const qb = createFilteredQb();
+        qb.andWhere('subscription.status = :status', { status });
+        const count = await qb.getCount();
+        return { status, count };
+      }),
+    );
+
+    // Month and year counts
+    const monthQb = createFilteredQb();
+    monthQb.andWhere('subscription.createdAt >= :monthStart', { monthStart });
+    const monthCount = await monthQb.getCount();
+
+    const yearQb = createFilteredQb();
+    yearQb.andWhere('subscription.createdAt >= :yearStart', { yearStart });
+    const yearCount = await yearQb.getCount();
+
+    // Revenue calculations
+    const monthRevenueQb = createFilteredQb();
+    monthRevenueQb
+      .andWhere('subscription.createdAt >= :monthStart', { monthStart })
+      .select('SUM(COALESCE(subscription.priceInUsd, subscription.price))', 'sum');
+    const monthRevenueRaw = await monthRevenueQb.getRawOne();
+
+    const yearRevenueQb = createFilteredQb();
+    yearRevenueQb
+      .andWhere('subscription.createdAt >= :yearStart', { yearStart })
+      .select('SUM(COALESCE(subscription.priceInUsd, subscription.price))', 'sum');
+    const yearRevenueRaw = await yearRevenueQb.getRawOne();
+
+    // Auth breakdown by plan interval
+    const planAuthBreakdown = await Promise.all(
+      Object.values(SubscriptionPlanInterval).map(async (interval) => {
+        const linkedQb = createFilteredQb();
+        linkedQb
+          .andWhere('subscription.planInterval = :interval', { interval })
+          .andWhere('subscription.userId IS NOT NULL');
+        const linked = await linkedQb.getCount();
+
+        const anonymousQb = createFilteredQb();
+        anonymousQb
+          .andWhere('subscription.planInterval = :interval', { interval })
+          .andWhere('subscription.userId IS NULL');
+        const anonymous = await anonymousQb.getCount();
+
+        return { planInterval: interval, linked, anonymous };
+      }),
+    );
+
+    // Month auth breakdown
+    const monthLinkedQb = createFilteredQb();
+    monthLinkedQb
+      .andWhere('subscription.createdAt >= :monthStart', { monthStart })
+      .andWhere('subscription.userId IS NOT NULL');
+    const monthLinked = await monthLinkedQb.getCount();
+
+    const monthAnonymousQb = createFilteredQb();
+    monthAnonymousQb
+      .andWhere('subscription.createdAt >= :monthStart', { monthStart })
+      .andWhere('subscription.userId IS NULL');
+    const monthAnonymous = await monthAnonymousQb.getCount();
+
+    // Year auth breakdown
+    const yearLinkedQb = createFilteredQb();
+    yearLinkedQb
+      .andWhere('subscription.createdAt >= :yearStart', { yearStart })
+      .andWhere('subscription.userId IS NOT NULL');
+    const yearLinked = await yearLinkedQb.getCount();
+
+    const yearAnonymousQb = createFilteredQb();
+    yearAnonymousQb
+      .andWhere('subscription.createdAt >= :yearStart', { yearStart })
+      .andWhere('subscription.userId IS NULL');
+    const yearAnonymous = await yearAnonymousQb.getCount();
 
     return {
-      countByPlanInterval: this.toPlanCountMap(planCountsRaw),
-      countByStatus: this.toStatusCountMap(statusCountsRaw),
+      countByPlanInterval: this.toPlanCountMap(planIntervalCounts),
+      countByStatus: this.toStatusCountMap(statusCounts),
       totals: {
         month: { count: monthCount, startDate: monthStart.toISOString() },
         year: { count: yearCount, startDate: yearStart.toISOString() },
@@ -392,19 +468,19 @@ export class SubscriptionsService {
         },
       },
       authBreakdown: {
-        byPlanInterval: planAuthRaw.map((row) => ({
-          planInterval: (row.planInterval as SubscriptionPlanInterval) ?? SubscriptionPlanInterval.UNKNOWN,
-          linked: this.formatNumber(row.linked),
-          anonymous: this.formatNumber(row.anonymous),
+        byPlanInterval: planAuthBreakdown.map((row) => ({
+          planInterval: row.planInterval ?? SubscriptionPlanInterval.UNKNOWN,
+          linked: row.linked,
+          anonymous: row.anonymous,
         })),
         month: {
-          linked: this.formatNumber(monthAuthRaw?.linked),
-          anonymous: this.formatNumber(monthAuthRaw?.anonymous),
+          linked: monthLinked,
+          anonymous: monthAnonymous,
           startDate: monthStart.toISOString(),
         },
         year: {
-          linked: this.formatNumber(yearAuthRaw?.linked),
-          anonymous: this.formatNumber(yearAuthRaw?.anonymous),
+          linked: yearLinked,
+          anonymous: yearAnonymous,
           startDate: yearStart.toISOString(),
         },
       },
@@ -424,7 +500,7 @@ export class SubscriptionsService {
     return numeric.toFixed(2);
   }
 
-  private toPlanCountMap(raw: Array<{ planInterval: SubscriptionPlanInterval; count: string }>): Record<string, number> {
+  private toPlanCountMap(raw: Array<{ planInterval: SubscriptionPlanInterval; count: number }>): Record<string, number> {
     const base: Record<string, number> = {
       [SubscriptionPlanInterval.MONTHLY]: 0,
       [SubscriptionPlanInterval.YEARLY]: 0,
@@ -433,13 +509,13 @@ export class SubscriptionsService {
 
     raw.forEach((row) => {
       const key = row.planInterval || SubscriptionPlanInterval.UNKNOWN;
-      base[key] = this.formatNumber(row.count);
+      base[key] = row.count ?? 0;
     });
 
     return base;
   }
 
-  private toStatusCountMap(raw: Array<{ status: SubscriptionStatus; count: string }>): Record<string, number> {
+  private toStatusCountMap(raw: Array<{ status: SubscriptionStatus; count: number }>): Record<string, number> {
     const result: Record<string, number> = {};
     Object.values(SubscriptionStatus).forEach((status) => {
       result[status] = 0;
@@ -447,7 +523,7 @@ export class SubscriptionsService {
 
     raw.forEach((row) => {
       const status = row.status || SubscriptionStatus.UNKNOWN;
-      result[status] = this.formatNumber(row.count);
+      result[status] = row.count ?? 0;
     });
 
     return result;
@@ -481,8 +557,8 @@ export class SubscriptionsService {
     if (filters.status) {
       qb.andWhere('subscription.status = :filterStatus', { filterStatus: filters.status });
     }
-    if (filters.productId) {
-      qb.andWhere('subscription.productId = :filterProductId', { filterProductId: filters.productId });
+    if (filters.provider) {
+      qb.andWhere('subscription.provider = :filterProvider', { filterProvider: filters.provider });
     }
     if (filters.isLinked === true) {
       qb.andWhere('subscription.userId IS NOT NULL');

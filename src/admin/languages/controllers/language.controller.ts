@@ -11,6 +11,7 @@ import {
   UseGuards,
   ParseIntPipe,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import * as fs from 'fs';
 import {
@@ -76,6 +77,37 @@ export class LanguageController {
     @CurrentUser('email') adminUser: string,
   ) {
     return this.languageService.createLanguage(createLanguageDto, adminUser);
+  }
+
+  @Get(':id/language')
+  @ApiOperation({
+    summary: 'Get language by ID',
+    description: 'Returns language information by Google Drive file ID from cache',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Google Drive file ID',
+    type: String,
+    example: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Language information',
+    type: LanguageResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Language not found',
+  })
+  async getLanguageById(@Param('id') id: string) {
+    const languages = this.languageService.getLanguagesFromCache();
+    const language = languages.find(lang => lang.id === id || lang.googleDriveFileId === id);
+    
+    if (!language) {
+      throw new BadRequestException(`Language with ID "${id}" not found in cache`);
+    }
+    
+    return language;
   }
 
   @Put(':id')
@@ -410,7 +442,7 @@ export class LanguageController {
     return {
       languages,
       total: languages.length,
-      lastSyncDate,
+      lastSyncDate: lastSyncDate ? lastSyncDate.toISOString() : null,
     };
   }
 
@@ -438,7 +470,7 @@ export class LanguageController {
     return {
       languages,
       total: languages.length,
-      lastSyncDate,
+      lastSyncDate: lastSyncDate ? lastSyncDate.toISOString() : null,
     };
   }
 
@@ -470,7 +502,7 @@ export class LanguageController {
       message: 'Languages successfully synchronized from Google Drive',
       languages: result.languages,
       total: result.languages.length,
-      syncedAt: result.syncedAt,
+      syncedAt: result.syncedAt.toISOString(),
     };
   }
 
@@ -499,7 +531,7 @@ export class LanguageController {
       message: 'Archived languages successfully synchronized from Google Drive',
       languages: result.languages,
       total: result.languages.length,
-      syncedAt: result.syncedAt,
+      syncedAt: result.syncedAt.toISOString(),
     };
   }
 }

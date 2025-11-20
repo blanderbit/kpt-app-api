@@ -30,6 +30,7 @@ export class SuggestedActivityQueueService {
           },
           removeOnComplete: 100,
           removeOnFail: 50,
+          delay: 30000, 
         }
       );
 
@@ -62,6 +63,7 @@ export class SuggestedActivityQueueService {
           },
           removeOnComplete: 100,
           removeOnFail: 50,
+          delay: 30000, // 1 minute delay
         }
       );
 

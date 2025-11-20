@@ -22,6 +22,7 @@ import { ErrorCode } from '../common/error-codes';
 import { AppException } from '../common/exceptions/app.exception';
 import { GenerateActivityRecommendationsDto, ActivityRecommendationsResponseDto, ActivityRecommendationDto } from './dto/generate-activity-recommendations.dto';
 import { SubscriptionsService } from '../pay/subscriptions/subscriptions.service';
+import { TemporaryItemsQueueService } from '../admin/settings/queue/temporary-items-queue.service';
 
 @Injectable()
 export class AuthService {
@@ -39,6 +40,7 @@ export class AuthService {
     private readonly subscriptionsService: SubscriptionsService,
     private readonly onboardingQuestionsService: OnboardingQuestionsService,
     private readonly activityTypesService: ActivityTypesService,
+    private readonly temporaryItemsQueueService: TemporaryItemsQueueService,
   ) {}
 
   @Transactional()
@@ -115,6 +117,32 @@ export class AuthService {
 
     if (appUserId) {
       await this.subscriptionsService.linkSubscriptionsToUser(appUserId, user.id, email);
+      
+      // Check if any subscriptions exist for user
+      const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
+      
+      if (!existingSubscription) {
+        // No subscriptions found, create trial subscription
+        await this.subscriptionsService.createTrialSubscription(
+          user.id,
+          email,
+        );
+      }
+    } else if (user.id) {
+      // No appUserId, create trial subscription
+      await this.subscriptionsService.createTrialSubscription(
+        user.id,
+        email,
+      );
+    }
+
+    // Generate temporary articles and surveys for the new user
+    try {
+      await this.temporaryItemsQueueService.addGenerateTemporaryArticlesJob(user.id);
+      await this.temporaryItemsQueueService.addGenerateTemporarySurveysJob(user.id);
+    } catch (error) {
+      // Log error but don't fail registration
+      console.error('Failed to queue temporary items generation for new user:', error);
     }
 
     return { message: 'Registration successful. You can now send verification email when needed.' };
@@ -371,6 +399,17 @@ export class AuthService {
           // Save all activities in one operation
           await activityRepository.save(activitiesToCreate);
         }
+
+        // If this is registration, generate temporary articles and surveys for the new user
+        if (firebaseAuthDto.authType === AuthType.REGISTER && user && user.id) {
+          try {
+            await this.temporaryItemsQueueService.addGenerateTemporaryArticlesJob(user.id);
+            await this.temporaryItemsQueueService.addGenerateTemporarySurveysJob(user.id);
+          } catch (error) {
+            // Log error but don't fail registration
+            console.error('Failed to queue temporary items generation for new Firebase user:', error);
+          }
+        }
       }
       
       // Ensure user exists (should not be null at this point)
@@ -397,6 +436,23 @@ export class AuthService {
       if (firebaseAuthDto.appUserId && currentUser.id) {
         await this.subscriptionsService.linkSubscriptionsToUser(
           firebaseAuthDto.appUserId,
+          currentUser.id,
+          firebaseUser.email || undefined,
+        );
+        
+        // Check if any subscriptions exist for user
+        const existingSubscription = await this.subscriptionsService.getLatestSubscription(currentUser.id);
+        
+        if (!existingSubscription) {
+          // No subscriptions found, create trial subscription
+          await this.subscriptionsService.createTrialSubscription(
+            currentUser.id,
+            firebaseUser.email || undefined,
+          );
+        }
+      } else if (currentUser.id) {
+        // No appUserId, create trial subscription
+        await this.subscriptionsService.createTrialSubscription(
           currentUser.id,
           firebaseUser.email || undefined,
         );

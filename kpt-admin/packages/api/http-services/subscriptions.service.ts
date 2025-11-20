@@ -46,10 +46,12 @@ export interface SubscriptionStats {
   }
 }
 
+export type SubscriptionProvider = 'revenuecat' | 'stripe' | 'none'
+
 export interface SubscriptionFilters {
   planInterval?: SubscriptionPlanInterval | ''
   status?: SubscriptionStatus | ''
-  productId?: string
+  provider?: SubscriptionProvider | ''
   linked?: 'linked' | 'anonymous'
   startDate?: string
   endDate?: string
@@ -168,7 +170,7 @@ const buildQueryParams = (
 
   setFilter('planInterval', filters.planInterval, { useEqualityPrefix: true })
   setFilter('status', filters.status, { useEqualityPrefix: true })
-  setFilter('productId', filters.productId, { useEqualityPrefix: true })
+  setFilter('provider', filters.provider, { useEqualityPrefix: true })
   setFilter('linked', filters.linked)
   setFilter('startDate', filters.startDate)
   setFilter('endDate', filters.endDate)

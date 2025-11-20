@@ -8,7 +8,7 @@ export const subscriptionsPaginationConfig: PaginateConfig<Subscription> = {
   filterableColumns: {
     planInterval: true,
     status: true,
-    productId: true,
+    provider: true,
     userId: true,
     userEmail: true,
     appUserId: true,

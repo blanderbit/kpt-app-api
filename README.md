@@ -69,9 +69,33 @@ npm run cli:build             # Сборка CLI
 
 # Управление администраторами
 npm run cli:create-admin -- --email admin@example.com --password password123
+npm run cli:create-admin -- --email admin@example.com --password password123 --firstName "John"
 npm run cli:remove-admin -- --email admin@example.com
 npm run cli:list-admins
+
+# Заполнение базы данных тестовыми данными
+npm run cli seed-database
+npm run cli seed-database -- --users 50 --admins 5
+npm run cli seed-database -- --users 200 --admins 10 --skip-clean
 ```
+
+#### Command descriptions:
+
+**create-admin** - Create a new administrator
+- `--email, -e <email>` - Administrator email (required)
+- `--password, -p <password>` - Administrator password (required)
+- `--firstName <firstName>` - Administrator first name (optional, default: "Admin")
+
+**remove-admin** - Remove an administrator
+- `--email, -e <email>` - Administrator email to remove (required)
+
+**list-admins** - List all administrators
+- No parameters, displays a list of all administrators with their data
+
+**seed-database** - Populate the database with test data
+- `--users <number>` - Number of regular users (default: 100)
+- `--admins <number>` - Number of administrators (default: 10)
+- `--skip-clean` - Do not truncate tables before seeding (by default tables are cleaned)
 
 ### 4. Запуск приложения
 ```bash

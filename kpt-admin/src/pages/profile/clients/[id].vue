@@ -549,6 +549,39 @@ meta:
     </v-row>
 
     <v-row class="mb-6">
+      <v-col cols="12" lg="6">
+        <v-card class="info-card h-100">
+          <v-card-title>
+            <v-icon left>mdi-clipboard-text</v-icon>
+            Mood Survey Answers Statistics
+          </v-card-title>
+          <v-card-text v-if="moodSurveyAnswersStats">
+            <v-alert
+              v-if="Object.keys(moodSurveyAnswersStats).length === 0"
+              type="info"
+              variant="tonal"
+            >
+              No mood survey answers found for this user.
+            </v-alert>
+            <v-list v-else density="compact">
+              <v-list-item
+                v-for="(count, answer) in moodSurveyAnswersStats"
+                :key="answer"
+              >
+                <v-list-item-title>{{ answer }}</v-list-item-title>
+                <v-list-item-subtitle>
+                  <v-chip size="small" color="primary" variant="tonal">
+                    {{ count }}
+                  </v-chip>
+                </v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row class="mb-6">
       <v-col cols="12">
         <v-card class="table-card">
           <v-card-title>
@@ -646,6 +679,7 @@ const articles = ref<Article[]>([])
 const articleAnalytics = ref<UserArticlesAnalytics | null>(null)
 const notificationDevices = ref<NotificationDevice[]>([])
 const notificationTracker = ref<NotificationTrackerEntry[]>([])
+const moodSurveyAnswersStats = ref<Record<string, number> | null>(null)
 
 const activitiesDate = ref(new Date().toISOString().split('T')[0])
 const currentDate = new Date()
@@ -664,6 +698,7 @@ const articlesData = route.meta.articles as { articles: Article[]; total: number
 const notificationDevicesData = route.meta.notificationDevices as NotificationDevice[]
 const notificationTrackerData = route.meta.notificationTracker as NotificationTrackerEntry[]
 const articleAnalyticsData = route.meta.articleAnalytics as UserArticlesAnalytics | undefined
+const moodSurveyAnswersStatsData = route.meta.moodSurveyAnswersStats as Record<string, number> | undefined
 const subscriptionListData = route.meta.clientSubscriptions as
   | { data: SubscriptionModel[]; meta?: { itemsPerPage?: number; totalItems?: number; currentPage?: number; totalPages?: number } }
   | undefined
@@ -683,6 +718,7 @@ articles.value = articlesData.articles ?? []
 notificationDevices.value = notificationDevicesData ?? []
 notificationTracker.value = notificationTrackerData ?? []
 articleAnalytics.value = articleAnalyticsData ?? null
+moodSurveyAnswersStats.value = moodSurveyAnswersStatsData ?? null
 const defaultSubscriptionStart = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD')
 const defaultSubscriptionEnd = dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD')
 

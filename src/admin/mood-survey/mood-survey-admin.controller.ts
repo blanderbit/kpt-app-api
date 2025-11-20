@@ -197,4 +197,36 @@ export class MoodSurveyAdminController {
   ): Promise<{ success: boolean; message: string }> {
     return this.moodSurveyAdminService.restoreMoodSurvey(id);
   }
+
+  @Get('user/:userId/answers-stats')
+  @ApiOperation({
+    summary: 'Get mood survey answers statistics by user',
+    description: 'Returns count of each mood survey answer for a specific user',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Mood survey answers statistics',
+    schema: {
+      type: 'object',
+      additionalProperties: {
+        type: 'number',
+      },
+      example: {
+        'Survey Title 1': 5,
+        'Survey Title 2': 3,
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions (admin required)' })
+  async getUserMoodSurveyAnswersStats(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<Record<string, number>> {
+    return this.moodSurveyAdminService.getUserMoodSurveyAnswersStats(userId);
+  }
 }

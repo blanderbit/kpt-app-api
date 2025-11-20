@@ -478,7 +478,6 @@ export class SeedDatabaseCommand extends CommandRunner {
       const firstName = faker.person.firstName();
       const profile = this.buildUserProfile(referenceData);
       const googleId = faker.helpers.maybe(() => faker.string.alphanumeric(12), { probability: 0.4 });
-      const appleId = faker.helpers.maybe(() => faker.string.alphanumeric(12), { probability: 0.2 });
       const sequence = startIndex + index + 1;
 
       return {
@@ -489,7 +488,6 @@ export class SeedDatabaseCommand extends CommandRunner {
         emailVerified: true,
         googleId: googleId ?? undefined,
         firebaseUid: faker.string.uuid(),
-        appleId: appleId ?? undefined,
         theme: faker.helpers.arrayElement(['light', 'dark']),
         roles: 'admin',
         meta: {
@@ -522,7 +520,6 @@ export class SeedDatabaseCommand extends CommandRunner {
       const firstName = faker.person.firstName();
       const profile = this.buildUserProfile(referenceData);
       const googleId = faker.helpers.maybe(() => faker.string.alphanumeric(12), { probability: 0.3 });
-      const appleId = faker.helpers.maybe(() => faker.string.alphanumeric(12), { probability: 0.1 });
       const emailVerified = faker.datatype.boolean();
       const sequence = startIndex + index + 1;
 
@@ -534,7 +531,6 @@ export class SeedDatabaseCommand extends CommandRunner {
         emailVerified,
         googleId: googleId ?? undefined,
         firebaseUid: faker.string.uuid(),
-        appleId: appleId ?? undefined,
         theme: faker.helpers.arrayElement(['light', 'dark']),
         roles: 'user',
         meta: {

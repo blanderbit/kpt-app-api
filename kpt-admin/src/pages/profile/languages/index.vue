@@ -76,13 +76,23 @@ name: languages
             Languages
             <v-spacer></v-spacer>
             <span class="text-caption text-grey">
-              Last sync: {{ lastSyncDate ? new Date(lastSyncDate).toLocaleString() : 'Never' }}
+              Last sync: {{ formatLastSyncDate(lastSyncDate) }}
             </span>
           </v-card-title>
           <v-card-text>
+            <v-text-field
+              v-model="searchQuery"
+              label="Search by code, name, or native name"
+              prepend-inner-icon="mdi-magnify"
+              variant="outlined"
+              density="comfortable"
+              clearable
+              class="mb-4"
+              hide-details
+            ></v-text-field>
             <v-data-table
               :headers="headers"
-              :items="languages"
+              :items="filteredLanguages"
               :items-per-page="-1"
               hide-default-footer
             >
@@ -211,10 +221,10 @@ name: languages
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LanguagesService } from '@api'
-import type { Language, LanguageStatistics, LanguageCache } from '@api'
+import { LanguagesService, SettingsService } from '@api'
+import type { Language, LanguageStatistics, LanguageCache, SettingsResponse } from '@api'
 import { asyncGlobalSpinner, startGlobalSpinner, finishGlobalSpinner } from '@workers/loading-worker'
 import { showSuccessToast, showErrorToast } from '@workers/toast-worker'
 
@@ -223,10 +233,28 @@ const router = useRouter()
 
 const cacheData = route.meta.languageCache as LanguageCache
 const statisticsData = route.meta.languageStatistics as LanguageStatistics
+const settingsData = route.meta.settings as SettingsResponse | undefined
 
 const languages = ref<Language[]>(cacheData?.languages ?? [])
-const lastSyncDate = ref<string | null>(cacheData?.lastSyncDate ?? null)
+const lastSyncDate = ref<string | null>(settingsData?.googleDriveSync?.languages ?? null)
 const statistics = ref<LanguageStatistics>(statisticsData)
+const searchQuery = ref<string>('')
+
+const filteredLanguages = computed(() => {
+  if (!searchQuery.value || !searchQuery.value.trim()) {
+    return languages.value
+  }
+
+  const query = searchQuery.value.toLowerCase().trim()
+  
+  return languages.value.filter((language) => {
+    const code = (language.code || '').toLowerCase()
+    const name = (language.name || '').toLowerCase()
+    const nativeName = (language.nativeName || '').toLowerCase()
+    
+    return code.includes(query) || name.includes(query) || nativeName.includes(query)
+  })
+})
 
 const headers = [
   { title: 'Code', key: 'code', sortable: false },
@@ -249,13 +277,14 @@ const isDownloadDialogOpen = ref(false)
 const downloadCode = ref('')
 
 const loadData = async (showToast: boolean = true) => {
-  const [cacheResponse, statsResponse] = (await asyncGlobalSpinner(
+  const [cacheResponse, statsResponse, settingsResponse] = (await asyncGlobalSpinner(
     LanguagesService.getCache(),
     LanguagesService.getStatistics(),
-  )) as [LanguageCache, LanguageStatistics]
+    SettingsService.getSettings(),
+  )) as [LanguageCache, LanguageStatistics, SettingsResponse]
 
   languages.value = cacheResponse.languages
-  lastSyncDate.value = cacheResponse.lastSyncDate
+  lastSyncDate.value = settingsResponse?.googleDriveSync?.languages ?? null
   statistics.value = statsResponse
 
   if (showToast) {
@@ -264,12 +293,17 @@ const loadData = async (showToast: boolean = true) => {
 }
 
 const handleSync = async () => {
-  const [syncResponse] = (await asyncGlobalSpinner(
+  const [syncResponse, settingsResponse] = (await asyncGlobalSpinner(
     LanguagesService.sync(),
-    LanguagesService.getStatistics(),
-  )) as [LanguageCache & { message: string; syncedAt: string }]
+    SettingsService.getSettings(),
+  )) as [LanguageCache & { message: string; syncedAt: string }, SettingsResponse]
 
-  await loadData()
+  languages.value = syncResponse.languages
+  lastSyncDate.value = settingsResponse?.googleDriveSync?.languages ?? null
+  
+  const statsResponse = await LanguagesService.getStatistics()
+  statistics.value = statsResponse
+
   showSuccessToast(syncResponse.message || 'Languages synced successfully.')
 }
 
@@ -308,13 +342,14 @@ const confirmArchive = async () => {
 
   await asyncGlobalSpinner(LanguagesService.archive(archiveLanguage.value.id, archiveReason.value || undefined))
 
-  const [cacheResponse, statsResponse] = await asyncGlobalSpinner(
+  const [cacheResponse, statsResponse, settingsResponse] = await asyncGlobalSpinner(
     LanguagesService.sync(),
     LanguagesService.getStatistics(),
-  ) as [LanguageCache & { message: string; syncedAt: string }, LanguageStatistics]
+    SettingsService.getSettings(),
+  ) as [LanguageCache & { message: string; syncedAt: string }, LanguageStatistics, SettingsResponse]
 
   languages.value = cacheResponse.languages
-  lastSyncDate.value = cacheResponse.lastSyncDate
+  lastSyncDate.value = settingsResponse?.googleDriveSync?.languages ?? null
   statistics.value = statsResponse
   showSuccessToast('Language archived successfully.')
   closeArchiveDialog()
@@ -368,6 +403,28 @@ const goToUpdate = (id: string) => {
 
 const goToArchived = () => {
   router.push('/profile/languages/archived')
+}
+
+const formatLastSyncDate = (date: string | null): string => {
+  if (!date) {
+    return 'Never'
+  }
+  
+  // If date is already formatted (DD.MM.YYYY HH:mm format from settings), return as is
+  if (date.includes('.') && date.includes(':')) {
+    return date
+  }
+  
+  // Otherwise, try to parse as ISO date
+  try {
+    const parsedDate = new Date(date)
+    if (isNaN(parsedDate.getTime())) {
+      return 'Never'
+    }
+    return parsedDate.toLocaleString()
+  } catch {
+    return 'Never'
+  }
 }
 </script>
 

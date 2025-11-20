@@ -1,13 +1,17 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Subscription } from './entities/subscription.entity';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsController } from './subscriptions.controller';
 import { SubscriptionsAdminController } from './subscriptions-admin.controller';
 import { RevenueCatService } from './revenuecat.service';
+import { SettingsModule } from '../../admin/settings/settings.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Subscription])],
+  imports: [
+    TypeOrmModule.forFeature([Subscription]),
+    forwardRef(() => SettingsModule),
+  ],
   controllers: [SubscriptionsController, SubscriptionsAdminController],
   providers: [SubscriptionsService, RevenueCatService],
   exports: [SubscriptionsService],

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { MoodSurvey } from '../../profile/mood-tracker/entities/mood-survey.entity';
+import { MoodTracker } from '../../profile/mood-tracker/entities/mood-tracker.entity';
 import {
   CreateMoodSurveyDto,
   UpdateMoodSurveyDto,
@@ -18,6 +19,8 @@ export class MoodSurveyAdminService {
   constructor(
     @InjectRepository(MoodSurvey)
     private readonly moodSurveyRepository: Repository<MoodSurvey>,
+    @InjectRepository(MoodTracker)
+    private readonly moodTrackerRepository: Repository<MoodTracker>,
   ) {}
 
   /**
@@ -222,6 +225,40 @@ export class MoodSurveyAdminService {
         error: error.message,
         operation: 'restoreMoodSurvey',
         surveyId: id,
+      });
+    }
+  }
+
+  /**
+   * Get mood survey answers statistics by user
+   * Returns count of each mood survey answer for a specific user
+   */
+  async getUserMoodSurveyAnswersStats(userId: number): Promise<Record<string, number>> {
+    try {
+      const moodTrackers = await this.moodTrackerRepository
+        .createQueryBuilder('tracker')
+        .leftJoinAndSelect('tracker.moodSurveys', 'survey')
+        .where('tracker.userId = :userId', { userId })
+        .getMany();
+
+      const stats: Record<string, number> = {};
+
+      moodTrackers.forEach((tracker) => {
+        if (tracker.moodSurveys && tracker.moodSurveys.length > 0) {
+          tracker.moodSurveys.forEach((survey) => {
+            const surveyTitle = survey.title;
+            stats[surveyTitle] = (stats[surveyTitle] || 0) + 1;
+          });
+        }
+      });
+
+      return stats;
+    } catch (error) {
+      this.logger.error('Failed to get user mood survey answers stats:', error);
+      throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
+        error: error.message,
+        operation: 'getUserMoodSurveyAnswersStats',
+        userId,
       });
     }
   }

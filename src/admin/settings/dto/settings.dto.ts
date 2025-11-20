@@ -139,6 +139,28 @@ export class SurveysDto {
   expirationDays?: number;
 }
 
+export class TrialModeDto {
+  @ApiProperty({ description: 'Number of days for trial period', example: 7, default: 7 })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  periodDays?: number;
+
+  @ApiProperty({ description: 'Number of activities per day in trial mode', example: 3, default: 3 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  activitiesPerDay?: number;
+
+  @ApiProperty({ description: 'Whether articles are available in trial mode', example: false, default: false })
+  @IsOptional()
+  articlesAvailable?: boolean;
+
+  @ApiProperty({ description: 'Whether surveys are available in trial mode', example: false, default: false })
+  @IsOptional()
+  surveysAvailable?: boolean;
+}
+
 export class UpdateSettingsDto {
   @ApiProperty({ description: 'Google Drive sync timestamps', type: GoogleDriveSyncDto, required: false })
   @IsOptional()
@@ -159,6 +181,10 @@ export class UpdateSettingsDto {
   @ApiProperty({ description: 'Notifications cron configuration', type: NotificationsCronDto, required: false })
   @IsOptional()
   notifications?: NotificationsCronDto;
+
+  @ApiProperty({ description: 'Trial mode configuration', type: TrialModeDto, required: false })
+  @IsOptional()
+  trialMode?: TrialModeDto;
 }
 
 export class SettingsResponseDto {
@@ -209,6 +235,14 @@ export class SettingsResponseDto {
       articles: string;
       globalActivity: string;
     };
+  };
+
+  @ApiProperty({ description: 'Trial mode configuration' })
+  trialMode: {
+    periodDays: number;
+    activitiesPerDay: number;
+    articlesAvailable: boolean;
+    surveysAvailable: boolean;
   };
 
   @ApiProperty({ description: 'Available cron expression presets', type: [String] })

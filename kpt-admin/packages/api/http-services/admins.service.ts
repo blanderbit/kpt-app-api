@@ -10,7 +10,6 @@ export interface User {
   emailVerified: boolean
   googleId: string | null
   firebaseUid: string | null
-  appleId: string | null
   theme: string
   roles: string
   createdAt: string

@@ -216,6 +216,43 @@ meta:
           </v-card-actions>
         </v-card>
       </v-col>
+      <v-col cols="12" md="6">
+        <v-card variant="outlined">
+          <v-card-title class="d-flex align-center">
+            <v-icon class="me-2" color="purple">mdi-timer-sand</v-icon>
+            Trial Mode
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text>
+            <div class="setting-line">
+              <span>Trial period (days)</span>
+              <strong>{{ settings?.trialMode?.periodDays ?? '-' }}</strong>
+            </div>
+            <div class="setting-line">
+              <span>Activities per day</span>
+              <strong>{{ settings?.trialMode?.activitiesPerDay ?? '-' }}</strong>
+            </div>
+            <div class="setting-line">
+              <span>Articles available</span>
+              <v-chip size="small" :color="settings?.trialMode?.articlesAvailable ? 'success' : 'error'" variant="tonal">
+                {{ settings?.trialMode?.articlesAvailable ? 'Yes' : 'No' }}
+              </v-chip>
+            </div>
+            <div class="setting-line">
+              <span>Surveys available</span>
+              <v-chip size="small" :color="settings?.trialMode?.surveysAvailable ? 'success' : 'error'" variant="tonal">
+                {{ settings?.trialMode?.surveysAvailable ? 'Yes' : 'No' }}
+              </v-chip>
+            </div>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn variant="text" color="primary" @click="openDialog('trialMode')">
+              Edit
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-col>
     </v-row>
 
     <!-- Suggested Activities Dialog -->
@@ -422,6 +459,49 @@ meta:
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Trial Mode Dialog -->
+    <v-dialog v-model="dialogs.trialMode" persistent max-width="480">
+      <v-card>
+        <v-card-title>Edit Trial Mode</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model.number="forms.trialMode.periodDays"
+            label="Trial period (days)"
+            type="number"
+            min="1"
+            variant="outlined"
+            class="mb-3"
+          ></v-text-field>
+          <v-text-field
+            v-model.number="forms.trialMode.activitiesPerDay"
+            label="Activities per day"
+            type="number"
+            min="0"
+            variant="outlined"
+            class="mb-3"
+          ></v-text-field>
+          <v-switch
+            v-model="forms.trialMode.articlesAvailable"
+            label="Articles available"
+            color="primary"
+            hide-details
+            class="mb-3"
+          ></v-switch>
+          <v-switch
+            v-model="forms.trialMode.surveysAvailable"
+            label="Surveys available"
+            color="primary"
+            hide-details
+          ></v-switch>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="dialogs.trialMode = false">Cancel</v-btn>
+          <v-btn color="primary" @click="saveTrialMode">Save</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -450,7 +530,7 @@ import { asyncGlobalSpinner } from '@workers/loading-worker'
 import { showSuccessToast } from '@workers/toast-worker'
 
 type SyncKey = 'onboardingQuestions' | 'languages' | 'activityTypes' | 'socialNetworks' | 'moodTypes'
-type DialogKey = 'suggested' | 'articles' | 'surveys' | 'notifications'
+type DialogKey = 'suggested' | 'articles' | 'surveys' | 'notifications' | 'trialMode'
 type NotificationFieldKey = keyof SettingsResponse['notifications']['cron']
 
 const route = useRoute()
@@ -464,6 +544,7 @@ const dialogs = reactive<Record<DialogKey, boolean>>({
   articles: false,
   surveys: false,
   notifications: false,
+  trialMode: false,
 })
 
 const forms = reactive({
@@ -498,6 +579,12 @@ const forms = reactive({
       articles: '',
       globalActivity: '',
     },
+  },
+  trialMode: {
+    periodDays: 7,
+    activitiesPerDay: 3,
+    articlesAvailable: false,
+    surveysAvailable: false,
   },
 })
 
@@ -589,6 +676,13 @@ const applySettingsToForms = () => {
   forms.notifications.cron.surveys = settings.value.notifications.cron.surveys || ''
   forms.notifications.cron.articles = settings.value.notifications.cron.articles || ''
   forms.notifications.cron.globalActivity = settings.value.notifications.cron.globalActivity || ''
+
+  if (settings.value.trialMode) {
+    forms.trialMode.periodDays = settings.value.trialMode.periodDays
+    forms.trialMode.activitiesPerDay = settings.value.trialMode.activitiesPerDay
+    forms.trialMode.articlesAvailable = settings.value.trialMode.articlesAvailable
+    forms.trialMode.surveysAvailable = settings.value.trialMode.surveysAvailable
+  }
 }
 
 const loadSettings = async () => {
@@ -750,6 +844,25 @@ const triggerGenerateSurveys = async () => {
 const triggerCleanupSurveys = async () => {
   await asyncGlobalSpinner(SettingsService.triggerCleanupSurveys())
   showSuccessToast('Survey cleanup triggered.')
+}
+
+const saveTrialMode = async () => {
+  const payload: UpdateSettingsPayload = {
+    trialMode: {
+      periodDays: forms.trialMode.periodDays,
+      activitiesPerDay: forms.trialMode.activitiesPerDay,
+      articlesAvailable: forms.trialMode.articlesAvailable,
+      surveysAvailable: forms.trialMode.surveysAvailable,
+    },
+  }
+  const [updated] = (await asyncGlobalSpinner(
+    SettingsService.updateSettings(payload),
+  )) as [SettingsResponse]
+  settings.value = updated
+  cronOptions.value = updated.cronExpressions
+  applySettingsToForms()
+  dialogs.trialMode = false
+  showSuccessToast('Trial mode settings updated.')
 }
 
 applySettingsToForms()

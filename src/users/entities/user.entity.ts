@@ -44,10 +44,6 @@ export class User {
   @Column({ nullable: true })
   firebaseUid: string;
 
-  @ApiProperty({ description: 'Apple ID' })
-  @Column({ nullable: true })
-  appleId: string;
-
   @ApiProperty({ description: 'Application theme' })
   @Column({ default: 'light' })
   theme: string;

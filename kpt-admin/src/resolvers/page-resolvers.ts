@@ -88,6 +88,7 @@ export const pageLoadData: PageResolverConfig[] = [
     routerAuthResolver.routeInterceptor(() => ({
       languageCache: () => LanguagesService.getCache(),
       languageStatistics: () => LanguagesService.getStatistics(),
+      settings: () => SettingsService.getSettings(),
     })),
   ),
   createComponentResolver(
@@ -147,6 +148,7 @@ export const pageLoadData: PageResolverConfig[] = [
     routerAuthResolver.routeInterceptor(() => ({
       socialNetworks: () => SocialNetworksService.getAll(),
       socialNetworksStats: () => SocialNetworksService.getStats(),
+      settings: () => SettingsService.getSettings(),
     })),
   ),
   createComponentResolver(
@@ -226,7 +228,6 @@ export const pageLoadData: PageResolverConfig[] = [
         | SubscriptionPlanInterval
         | undefined
       const status = stripEq(normalizeQueryString(to.query.status)) as SubscriptionStatus | undefined
-      const productId = stripEq(normalizeQueryString(to.query.productId))
       const linked = normalizeQueryString(to.query.linked) as 'linked' | 'anonymous' | undefined
       const startDate = normalizeQueryString(to.query.startDate)
       const endDate = normalizeQueryString(to.query.endDate)
@@ -234,7 +235,6 @@ export const pageLoadData: PageResolverConfig[] = [
       const baseFilters: SubscriptionFilters = {
         planInterval,
         status,
-        productId,
         linked,
         startDate,
         endDate,
@@ -299,6 +299,7 @@ export const pageLoadData: PageResolverConfig[] = [
             endDate: defaultEndDate,
           }),
         clientLatestSubscription: () => SubscriptionsService.getUserLatestSubscription(clientId),
+        moodSurveyAnswersStats: () => MoodSurveysService.getUserAnswersStats(clientId),
       }
     }),
   ),

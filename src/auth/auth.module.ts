@@ -15,6 +15,7 @@ import { ChatGPTModule } from '../core/chatgpt';
 import { PayModule } from '../pay';
 import { OnboardingQuestionsModule } from '../core/onboarding-questions';
 import { ActivityTypesModule } from '../core/activity-types';
+import { SettingsModule } from '../admin/settings/settings.module';
 import { jwtConfig } from '../config/jwt.config';
 import { RedisBlacklistService } from './redis-blacklist.service';
 import { BlacklistGuard } from './guards/blacklist.guard';
@@ -39,6 +40,7 @@ import { CleanupVerificationCodesCron } from './cron/cleanup-verification-codes.
     PayModule,
     OnboardingQuestionsModule,
     ActivityTypesModule,
+    SettingsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, RedisBlacklistService, BlacklistGuard, JwtAuthGuard, CleanupVerificationCodesCron],

@@ -11,12 +11,14 @@ if (typeof window !== 'undefined' && typeof window.logout === 'undefined') {
 const roleProfileName = ref(null);
 
 const _checkAsyncIsUser = async (to) => {
+  debugger
   try {
     const response = await authService.getMe();
     to.meta.user = response;
     if (typeof window !== 'undefined') {
       window.logout = false;
     }
+   
     return true;
   } catch (e) {
     console.log('Auth check error:', e)
@@ -28,7 +30,6 @@ const _checkAsyncIsUser = async (to) => {
     if (statusCode === 401) {
       console.log('401 Unauthorized - redirecting to login');
       // Only redirect if we're not already on the login page
-      const currentPath = window.location.pathname;
       if (to.path !== '/login') {
         // Redirect to login using Vue Router
         if (window.router) {

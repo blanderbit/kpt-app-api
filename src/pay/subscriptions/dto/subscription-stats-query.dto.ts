@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsOptional, IsString, IsIn } from 'class-validator';
 import { SubscriptionPlanInterval } from '../enums/subscription-plan-interval.enum';
 import { SubscriptionStatus } from '../enums/subscription-status.enum';
+import { SubscriptionProvider } from '../enums/subscription-provider.enum';
 
 export class SubscriptionStatsQueryDto {
   @ApiPropertyOptional({ enum: SubscriptionPlanInterval, description: 'Plan interval to filter by' })
@@ -14,10 +15,10 @@ export class SubscriptionStatsQueryDto {
   @IsEnum(SubscriptionStatus)
   status?: SubscriptionStatus;
 
-  @ApiPropertyOptional({ description: 'Product identifier to filter by' })
+  @ApiPropertyOptional({ enum: SubscriptionProvider, description: 'Subscription provider to filter by' })
   @IsOptional()
-  @IsString()
-  productId?: string;
+  @IsEnum(SubscriptionProvider)
+  provider?: SubscriptionProvider;
 
   @ApiPropertyOptional({ enum: ['linked', 'anonymous'], description: 'Linked status filter' })
   @IsOptional()

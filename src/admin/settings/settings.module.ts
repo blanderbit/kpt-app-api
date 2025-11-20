@@ -45,6 +45,6 @@ import { TemporaryItemsProcessor } from './queue/temporary-items.processor';
     TemporaryItemsQueueService,
     TemporaryItemsProcessor,
   ],
-  exports: [SettingsService],
+  exports: [SettingsService, TemporaryItemsQueueService],
 })
 export class SettingsModule {}

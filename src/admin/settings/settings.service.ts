@@ -56,6 +56,12 @@ interface SettingsConfig {
   notifications: {
     cron: NotificationCronConfig;
   };
+  trialMode: {
+    periodDays: number;
+    activitiesPerDay: number;
+    articlesAvailable: boolean;
+    surveysAvailable: boolean;
+  };
 }
 
 @Injectable()
@@ -131,6 +137,12 @@ export class SettingsService implements OnModuleInit {
           globalActivity: CronExpression.EVERY_DAY_AT_1PM,
         },
       },
+      trialMode: {
+        periodDays: 7,
+        activitiesPerDay: 3,
+        articlesAvailable: false,
+        surveysAvailable: false,
+      },
     };
   }
 
@@ -177,6 +189,12 @@ export class SettingsService implements OnModuleInit {
           articles: this.config.notifications.cron.articles,
           globalActivity: this.config.notifications.cron.globalActivity,
         },
+      },
+      trialMode: {
+        periodDays: this.config.trialMode.periodDays,
+        activitiesPerDay: this.config.trialMode.activitiesPerDay,
+        articlesAvailable: this.config.trialMode.articlesAvailable,
+        surveysAvailable: this.config.trialMode.surveysAvailable,
       },
       cronExpressions: Array.from(new Set(Object.values(CronExpression))),
     };
@@ -267,6 +285,21 @@ export class SettingsService implements OnModuleInit {
           this.config.surveys.cron.cleanupOldSurveys = updateDto.surveys.cron.cleanupOldSurveys;
           this.updateCronJob('cleanupOldSurveys', this.config.surveys.cron.cleanupOldSurveys);
         }
+      }
+    }
+
+    if (updateDto.trialMode) {
+      if (updateDto.trialMode.periodDays !== undefined) {
+        this.config.trialMode.periodDays = updateDto.trialMode.periodDays;
+      }
+      if (updateDto.trialMode.activitiesPerDay !== undefined) {
+        this.config.trialMode.activitiesPerDay = updateDto.trialMode.activitiesPerDay;
+      }
+      if (updateDto.trialMode.articlesAvailable !== undefined) {
+        this.config.trialMode.articlesAvailable = updateDto.trialMode.articlesAvailable;
+      }
+      if (updateDto.trialMode.surveysAvailable !== undefined) {
+        this.config.trialMode.surveysAvailable = updateDto.trialMode.surveysAvailable;
       }
     }
 

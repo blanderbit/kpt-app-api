@@ -50,6 +50,18 @@ meta:
               </v-col>
               <v-col cols="12" md="3">
                 <v-select
+                  v-model="filters.provider.value"
+                  :items="providerOptions"
+                  label="Provider"
+                  clearable
+                  density="comfortable"
+                  variant="outlined"
+                  hide-details
+                  @update:model-value="handleFilterChange"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-select
                   v-model="filters.linked.value"
                   :items="linkedOptions"
                   label="Auth type"
@@ -59,17 +71,6 @@ meta:
                   hide-details
                   @update:model-value="handleFilterChange"
                 ></v-select>
-              </v-col>
-              <v-col cols="12" md="3">
-                <v-text-field
-                  v-model="filters.productId.value"
-                  label="Product ID"
-                  density="comfortable"
-                  variant="outlined"
-                  hide-details
-                  clearable
-                  @update:model-value="handleFilterChange"
-                ></v-text-field>
               </v-col>
               <v-col cols="12" md="3">
                 <v-text-field
@@ -305,8 +306,8 @@ import { FilterPatch } from '@api/filter.patch'
 const route = useRoute()
 const router = useRouter()
 
-const defaultStartDate = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD')
-const defaultEndDate = dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD')
+const defaultStartDate = dayjs().startOf('month').format('YYYY-MM-DD')
+const defaultEndDate = dayjs().endOf('month').format('YYYY-MM-DD')
 
 const stripEq = (value?: string | null): string | undefined =>
   typeof value === 'string' && value.startsWith('$eq:') ? value.slice(4) : value ?? undefined
@@ -341,7 +342,7 @@ const pageSize = initialSubscriptions?.meta?.itemsPerPage ?? DEFAULT_PAGE_SIZE
 
 const planIntervalQuery = stripEq(route.query.planInterval as string | undefined)
 const statusQuery = stripEq(route.query.status as string | undefined)
-const productQuery = stripEq(route.query.productId as string | undefined)
+const providerQuery = stripEq(route.query.provider as string | undefined)
 const linkedQuery = route.query.linked as string | undefined
 const startDateQuery = (route.query.startDate as string | undefined) ?? defaultStartDate
 const endDateQuery = (route.query.endDate as string | undefined) ?? defaultEndDate
@@ -367,9 +368,9 @@ const {
       value: (statusQuery as SubscriptionStatus | undefined) ?? '',
       default: '',
     },
-    productId: {
+    provider: {
       type: String,
-      value: productQuery ?? '',
+      value: (providerQuery as 'revenuecat' | 'stripe' | undefined) ?? '',
       default: '',
     },
     linked: {
@@ -426,6 +427,12 @@ const statusOptions = [
   { title: 'Unknown', value: 'unknown' },
 ]
 
+const providerOptions = [
+  { title: 'RevenueCat', value: 'revenuecat' },
+  { title: 'Stripe', value: 'stripe' },
+  { title: 'None (Trial)', value: 'none' },
+]
+
 const linkedOptions = [
   { title: 'Linked accounts', value: 'linked' },
   { title: 'Anonymous accounts', value: 'anonymous' },
@@ -469,13 +476,17 @@ const revenueCards = computed(() => [
   {
     key: 'month',
     label: 'Last month',
-    value: stats.value.revenue.month.amount.toFixed(2),
+    value: typeof stats.value.revenue.month.amount === 'number' 
+      ? stats.value.revenue.month.amount.toFixed(2) 
+      : Number(stats.value.revenue.month.amount || 0).toFixed(2),
     startDate: stats.value.revenue.month.startDate,
   },
   {
     key: 'year',
     label: 'Last year',
-    value: stats.value.revenue.year.amount.toFixed(2),
+    value: typeof stats.value.revenue.year.amount === 'number'
+      ? stats.value.revenue.year.amount.toFixed(2)
+      : Number(stats.value.revenue.year.amount || 0).toFixed(2),
     startDate: stats.value.revenue.year.startDate,
   },
 ])
@@ -538,7 +549,7 @@ const buildQueryParams = (pageOverride?: number) => {
     limit,
     planInterval: stripEq(rawFilters.planInterval) as SubscriptionPlanInterval | undefined,
     status: stripEq(rawFilters.status) as SubscriptionStatus | undefined,
-    productId: stripEq(rawFilters.productId),
+    provider: stripEq(rawFilters.provider) as 'revenuecat' | 'stripe' | undefined,
     linked: stripEq(rawFilters.linked) as 'linked' | 'anonymous' | undefined,
     startDate: stripEq(rawFilters.startDate),
     endDate: stripEq(rawFilters.endDate),

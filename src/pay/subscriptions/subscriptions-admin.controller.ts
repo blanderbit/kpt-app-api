@@ -10,6 +10,7 @@ import { subscriptionsPaginationConfig } from './subscription.config';
 import { SubscriptionStatsQueryDto } from './dto/subscription-stats-query.dto';
 import { SubscriptionPlanInterval } from './enums/subscription-plan-interval.enum';
 import { SubscriptionStatus } from './enums/subscription-status.enum';
+import { SubscriptionProvider } from './enums/subscription-provider.enum';
 
 @ApiTags('admin/subscriptions')
 @ApiBearerAuth()
@@ -43,7 +44,7 @@ export class SubscriptionsAdminController {
   @ApiOperation({ summary: 'Get aggregated subscription statistics' })
   @ApiQuery({ name: 'planInterval', required: false, enum: SubscriptionPlanInterval })
   @ApiQuery({ name: 'status', required: false, enum: SubscriptionStatus })
-  @ApiQuery({ name: 'productId', required: false, type: String })
+  @ApiQuery({ name: 'provider', required: false, enum: SubscriptionProvider })
   @ApiQuery({ name: 'linked', required: false, enum: ['linked', 'anonymous'] })
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'ISO date string (inclusive)' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'ISO date string (inclusive)' })
@@ -57,7 +58,6 @@ export class SubscriptionsAdminController {
   @ApiOperation({ summary: 'Get aggregated subscription statistics for a user' })
   @ApiQuery({ name: 'planInterval', required: false, enum: SubscriptionPlanInterval })
   @ApiQuery({ name: 'status', required: false, enum: SubscriptionStatus })
-  @ApiQuery({ name: 'productId', required: false, type: String })
   @ApiQuery({ name: 'linked', required: false, enum: ['linked', 'anonymous'] })
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'ISO date string (inclusive)' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'ISO date string (inclusive)' })
@@ -88,8 +88,8 @@ export class SubscriptionsAdminController {
       filters.status = query.status;
     }
 
-    if (query.productId) {
-      filters.productId = query.productId;
+    if (query.provider) {
+      filters.provider = query.provider;
     }
 
     if (query.linked === 'linked') {

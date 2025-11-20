@@ -42,6 +42,12 @@ export interface SettingsResponse {
       globalActivity: string
     }
   }
+  trialMode: {
+    periodDays: number
+    activitiesPerDay: number
+    articlesAvailable: boolean
+    surveysAvailable: boolean
+  }
   cronExpressions: string[]
 }
 
@@ -82,6 +88,12 @@ export interface UpdateSettingsPayload {
     surveys?: string
     articles?: string
     globalActivity?: string
+  }
+  trialMode?: {
+    periodDays?: number
+    activitiesPerDay?: number
+    articlesAvailable?: boolean
+    surveysAvailable?: boolean
   }
 }
 

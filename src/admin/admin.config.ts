@@ -18,7 +18,6 @@ export const ADMIN_USERS_PAGINATION_CONFIG: PaginateConfig<User> = {
     'firstName',
     'googleId',
     'firebaseUid',
-    'appleId',
   ],
   filterableColumns: {
     id: [FilterOperator.EQ, FilterOperator.GT, FilterOperator.LT, FilterOperator.GTE, FilterOperator.LTE],
@@ -32,7 +31,6 @@ export const ADMIN_USERS_PAGINATION_CONFIG: PaginateConfig<User> = {
     updatedAt: [FilterOperator.BTW, FilterOperator.GTE, FilterOperator.LTE, FilterOperator.GT, FilterOperator.LT],
     googleId: [FilterOperator.EQ, FilterOperator.NULL, FilterSuffix.NOT],
     firebaseUid: [FilterOperator.EQ, FilterOperator.NULL, FilterSuffix.NOT],
-    appleId: [FilterOperator.EQ, FilterOperator.NULL, FilterSuffix.NOT],
   },
   select: [
     'id',
@@ -46,7 +44,6 @@ export const ADMIN_USERS_PAGINATION_CONFIG: PaginateConfig<User> = {
     'updatedAt',
     'googleId',
     'firebaseUid',
-    'appleId',
   ],
   defaultLimit: 20,
   maxLimit: 100,

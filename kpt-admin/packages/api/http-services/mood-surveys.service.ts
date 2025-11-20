@@ -53,6 +53,12 @@ export class MoodSurveysService {
   static restore(id: number): Promise<{ message: string }> {
     return axios.post(`${ApiBaseUrl.MoodSurveys}/${id}/restore`)
   }
+
+  static getUserAnswersStats(userId: number): Promise<Record<string, number>> {
+    return axios.get<Record<string, number>, Record<string, number>>(
+      `${ApiBaseUrl.MoodSurveys}/user/${userId}/answers-stats`,
+    )
+  }
 }
 
 const formatMoodSurvey = (survey: MoodSurvey): MoodSurvey => {

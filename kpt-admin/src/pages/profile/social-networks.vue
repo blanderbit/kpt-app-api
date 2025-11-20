@@ -16,6 +16,32 @@ meta:
           </v-card-text>
         </v-card>
       </v-col>
+      <v-col cols="12" md="4">
+        <v-card>
+          <v-card-text>
+            <div class="text-caption text-grey">Last Sync</div>
+            <div class="text-body-1 font-weight-medium">{{ lastSync || 'Never' }}</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="4">
+        <v-card>
+          <v-card-text class="d-flex align-center justify-space-between">
+            <div>
+              <div class="text-caption text-grey">Synchronization</div>
+              <div class="text-body-1 font-weight-medium">Google Drive</div>
+            </div>
+            <v-btn
+              color="primary"
+              prepend-icon="mdi-sync"
+              @click="handleSync"
+              :loading="syncing"
+            >
+              Sync
+            </v-btn>
+          </v-card-text>
+        </v-card>
+      </v-col>
     </v-row>
 
     <!-- No Data -->
@@ -66,9 +92,9 @@ meta:
   </v-container>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { SocialNetworksService, type SocialNetwork, type SocialNetworksStats } from '@api'
+import { SocialNetworksService, type SocialNetwork, type SocialNetworksStats, type SettingsResponse } from '@api'
 import { asyncGlobalSpinner } from '@workers/loading-worker'
 import { showSuccessToast } from '@workers/toast-worker'
 
@@ -81,10 +107,13 @@ const stats = ref<SocialNetworksStats | null>(null)
 // Данные из резолвера
 const socialNetworksData = route.meta.socialNetworks as SocialNetwork[]
 const socialNetworksStatsData = route.meta.socialNetworksStats as SocialNetworksStats
+const settingsData = route.meta.settings as SettingsResponse
 
 allSocialNetworks.value = socialNetworksData || []
 socialNetworks.value = allSocialNetworks.value
 stats.value = socialNetworksStatsData || null
+
+const lastSync = computed(() => settingsData?.googleDriveSync?.socialNetworks || null)
 
 const loadSocialNetworks = async () => {
   const [networks, statsData] = (await asyncGlobalSpinner(

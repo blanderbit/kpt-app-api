@@ -84,7 +84,7 @@ export class LanguagesService {
   }
 
   static async getById(id: string): Promise<Language> {
-    const language = await axios.get<Language, Language>(`${ApiBaseUrl.Languages}/${id}`)
+    const language = await axios.get<Language, Language>(`${ApiBaseUrl.Languages}/${id}/language`)
     return formatLanguage(language)
   }
 
