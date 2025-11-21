@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transactional } from 'typeorm-transactional';
@@ -10,6 +10,7 @@ import { UpdateTooltipDto } from '../dto/update-tooltip.dto';
 import { SearchTooltipDto } from '../dto/search-tooltip.dto';
 import { AppException } from '../../../common/exceptions/app.exception';
 import { ErrorCode } from '../../../common/error-codes';
+import { LanguageService } from '../../languages/services/language.service';
 
 @Injectable()
 export class TooltipService {
@@ -18,6 +19,8 @@ export class TooltipService {
     private readonly tooltipRepository: Repository<Tooltip>,
     @InjectRepository(UserClosedTooltip)
     private readonly userClosedTooltipRepository: Repository<UserClosedTooltip>,
+    @Inject(forwardRef(() => LanguageService))
+    private readonly languageService: LanguageService,
   ) {}
 
   @Transactional()
@@ -49,6 +52,10 @@ export class TooltipService {
         query.andWhere('tooltip.page = :page', { page: searchDto.page });
       }
 
+      if (searchDto?.language) {
+        query.andWhere('tooltip.language = :language', { language: searchDto.language });
+      }
+
       return await query.getMany();
     } catch (error) {
       throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
@@ -58,14 +65,32 @@ export class TooltipService {
     }
   }
 
-  async findByPage(page: TooltipPage, userId?: number): Promise<Tooltip[]> {
+  async findByPage(page: TooltipPage, userId?: number, language?: string): Promise<Tooltip[]> {
     try {
+      // Если язык не передан, получаем дефолтный язык
+      let targetLanguage: string | undefined = language;
+      if (!targetLanguage) {
+        const languages = this.languageService.getLanguagesFromCache();
+        const defaultLanguage = languages.find(lang => lang.isDefault);
+        targetLanguage = defaultLanguage?.code || undefined;
+      }
+
       const query = this.tooltipRepository
         .createQueryBuilder('tooltip')
         .orderBy('tooltip.createdAt', 'DESC')
-        .leftJoinAndSelect('tooltip.closedTooltips', 'closed', 'closed.userId = :userId', { userId })
-        .where('tooltip.page = :page', { page })
-        .andWhere('closed.id IS NULL');
+        .where('tooltip.page = :page', { page });
+
+      // Фильтр по языку: если есть дефолтный язык, фильтруем по нему или по null, иначе возвращаем все
+      if (targetLanguage) {
+        query.andWhere('(tooltip.language = :language OR tooltip.language IS NULL)', { language: targetLanguage });
+      }
+
+      // Исключаем закрытые tooltips для пользователя
+      if (userId) {
+        query
+          .leftJoin('tooltip.closedTooltips', 'closed', 'closed.userId = :userId', { userId })
+          .andWhere('closed.id IS NULL');
+      }
 
       return await query.getMany();
     } catch (error) {
@@ -73,7 +98,8 @@ export class TooltipService {
         error: error.message,
         operation: 'findByPage',
         page,
-        userId
+        userId,
+        language
       });
     }
   }
@@ -140,13 +166,26 @@ export class TooltipService {
     }
   }
 
-  async findByTypeAndPage(type: TooltipType, page: TooltipPage, userId?: number): Promise<Tooltip[]> {
+  async findByTypeAndPage(type: TooltipType, page: TooltipPage, userId?: number, language?: string): Promise<Tooltip[]> {
     try {
+      // Если язык не передан, получаем дефолтный язык
+      let targetLanguage: string | undefined = language;
+      if (!targetLanguage) {
+        const languages = this.languageService.getLanguagesFromCache();
+        const defaultLanguage = languages.find(lang => lang.isDefault);
+        targetLanguage = defaultLanguage?.code || undefined;
+      }
+
       const query = this.tooltipRepository
         .createQueryBuilder('tooltip')
         .where('tooltip.type = :type', { type })
         .andWhere('tooltip.page = :page', { page })
         .orderBy('tooltip.createdAt', 'DESC');
+
+      // Фильтр по языку: если есть дефолтный язык, фильтруем по нему или по null, иначе возвращаем все
+      if (targetLanguage) {
+        query.andWhere('(tooltip.language = :language OR tooltip.language IS NULL)', { language: targetLanguage });
+      }
 
       // Если пользователь авторизован, исключаем закрытые им тултипы
       if (userId) {
@@ -162,7 +201,8 @@ export class TooltipService {
         operation: 'findByTypeAndPage',
         type,
         page,
-        userId
+        userId,
+        language
       });
     }
   }
@@ -218,6 +258,28 @@ export class TooltipService {
         operation: 'closeTooltipForUser',
         tooltipId,
         userId: user.id
+      });
+    }
+  }
+
+  /**
+   * Get closed tooltips for a specific user
+   */
+  async getClosedTooltipsByUserId(userId: number): Promise<Tooltip[]> {
+    try {
+      const closedTooltips = await this.userClosedTooltipRepository
+        .createQueryBuilder('closed')
+        .leftJoinAndSelect('closed.tooltip', 'tooltip')
+        .where('closed.userId = :userId', { userId })
+        .orderBy('closed.createdAt', 'DESC')
+        .getMany();
+
+      return closedTooltips.map(closed => closed.tooltip);
+    } catch (error) {
+      throw AppException.internal(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, undefined, {
+        error: error.message,
+        operation: 'getClosedTooltipsByUserId',
+        userId
       });
     }
   }

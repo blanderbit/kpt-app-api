@@ -72,15 +72,16 @@ export class SurveyAdminController {
   ): Promise<SurveyResponseDto> {
     const survey = await this.surveyAdminService.createSurvey(createSurveyDto, user.email, file);
 
-    if (file && survey.file) {
+    if (file && survey.files && survey.files.length > 0) {
+      const surveyFile = survey.files[0];
       const uploadInfo = await this.fileUploadService.uploadFile(file, 'surveys');
       await this.surveyAdminService.updateFileUrls(
-        { id: survey.file.id },
+        { id: surveyFile.id },
         uploadInfo.url,
         uploadInfo.key,
       );
-      survey.file.fileUrl = uploadInfo.url;
-      survey.file.fileKey = uploadInfo.key;
+      surveyFile.fileUrl = uploadInfo.url;
+      surveyFile.fileKey = uploadInfo.key;
     }
 
     return survey;
@@ -184,15 +185,18 @@ export class SurveyAdminController {
   ): Promise<SurveyResponseDto> {
     const survey = await this.surveyAdminService.updateSurvey(id, updateSurveyDto, user.email, file);
 
-    if (file && survey.file && (!survey.file.fileKey || !survey.file.fileUrl)) {
-      const uploadInfo = await this.fileUploadService.uploadFile(file, 'surveys');
-      await this.surveyAdminService.updateFileUrls(
-        { id: survey.file.id },
-        uploadInfo.url,
-        uploadInfo.key,
-      );
-      survey.file.fileUrl = uploadInfo.url;
-      survey.file.fileKey = uploadInfo.key;
+    if (file && survey.files && survey.files.length > 0) {
+      const surveyFile = survey.files[0];
+      if (!surveyFile.fileKey || !surveyFile.fileUrl) {
+        const uploadInfo = await this.fileUploadService.uploadFile(file, 'surveys');
+        await this.surveyAdminService.updateFileUrls(
+          { id: surveyFile.id },
+          uploadInfo.url,
+          uploadInfo.key,
+        );
+        surveyFile.fileUrl = uploadInfo.url;
+        surveyFile.fileKey = uploadInfo.key;
+      }
     }
 
     return survey;

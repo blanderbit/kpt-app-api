@@ -49,6 +49,29 @@ meta:
                   density="comfortable"
                 />
               </v-col>
+              <v-col cols="12" md="4">
+                <v-select
+                  v-model="selectedLanguage"
+                  :items="languageFilterItems"
+                  label="Filter by Language"
+                  item-title="title"
+                  item-value="value"
+                  density="comfortable"
+                  clearable
+                >
+                  <template v-slot:item="{ item, props }">
+                    <v-list-item v-bind="props">
+                      <template v-if="item.value === null">
+                        <v-list-item-title>All Languages</v-list-item-title>
+                      </template>
+                    </v-list-item>
+                  </template>
+                  <template v-slot:selection="{ item }">
+                    <span v-if="item.value === null">All Languages</span>
+                    <span v-else>{{ item.title }}</span>
+                  </template>
+                </v-select>
+              </v-col>
             </v-row>
 
             <v-data-table
@@ -67,6 +90,9 @@ meta:
               </template>
               <template #item.page="{ item }">
                 {{ formatLabel(item.page) }}
+              </template>
+              <template #item.language="{ item }">
+                {{ item.language || '—' }}
               </template>
               <template #item.description="{ item }">
                 {{ item.description || '—' }}
@@ -130,6 +156,17 @@ meta:
                   density="comfortable"
                   :rules="[requiredRule]"
                   required
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="form.language"
+                  :items="languageSelectItems"
+                  label="Language"
+                  item-title="title"
+                  item-value="value"
+                  density="comfortable"
+                  clearable
                 />
               </v-col>
               <!-- Content type selection removed; type is chosen directly -->
@@ -274,6 +311,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   TooltipsService,
+  LanguagesService,
   type Tooltip,
   type TooltipType,
   type TooltipPage,
@@ -282,6 +320,7 @@ import {
   type SwipeTooltipJson,
   type TooltipTableItem,
   type CreateTooltipPayload,
+  type Language,
 } from '@api'
 import { asyncGlobalSpinner } from '@workers/loading-worker'
 import { showSuccessToast, showErrorToast } from '@workers/toast-worker'
@@ -298,6 +337,7 @@ interface TooltipFormState {
   id: number | null
   type: TooltipType
   page: TooltipPage | ''
+  language: string | ''
   title: string
   description: string
   linkLabel: string
@@ -310,10 +350,34 @@ const route = useRoute()
 const search = ref('')
 const selectedType = ref<TooltipType | 'all'>('all')
 const selectedPage = ref<TooltipPage | 'all'>('all')
+const selectedLanguage = ref<string | null>(null)
 
 const tooltips = ref<TooltipTableItem[]>(((route.meta.tooltips as TooltipTableItem[]) ?? []).slice())
 const tooltipTypes = ref<TooltipType[]>((route.meta.tooltipTypes as TooltipType[]) ?? [])
 const tooltipPages = ref<TooltipPage[]>((route.meta.tooltipPages as TooltipPage[]) ?? [])
+const languagesData = route.meta.languages.languages as Language[] | undefined
+
+const languageFilterItems = computed(() => {
+  const options: Array<{ title: string; value: string | null }> = [
+    { title: 'All Languages', value: null },
+  ]
+  if (Array.isArray(languagesData)) {
+    languagesData.forEach((lang) => {
+      options.push({ title: `${lang.name} (${lang.code})`, value: lang.code })
+    })
+  }
+  return options
+})
+
+const languageSelectItems = computed(() => {
+  const options: Array<{ title: string; value: string }> = []
+  if (Array.isArray(languagesData)) {
+    languagesData.forEach((lang) => {
+      options.push({ title: `${lang.name} (${lang.code})`, value: lang.code })
+    })
+  }
+  return options
+})
 
 const isDialogOpen = ref(false)
 const isDeleteDialogOpen = ref(false)
@@ -331,6 +395,7 @@ const form = reactive<TooltipFormState>({
   id: null,
   type: 'text',
   page: '',
+  language: '',
   title: '',
   description: '',
   linkLabel: '',
@@ -344,6 +409,7 @@ const headers = [
   { title: 'ID', key: 'id', sortable: false },
   { title: 'Type', key: 'type', sortable: false },
   { title: 'Page', key: 'page', sortable: false },
+  { title: 'Language', key: 'language', sortable: false },
   { title: 'Title', key: 'title', sortable: false },
   { title: 'Description', key: 'description', sortable: false },
   { title: 'Closed', key: 'closedCount', sortable: false },
@@ -428,6 +494,7 @@ const resetForm = () => {
   form.linkUrl = ''
   form.slides = [defaultSlide()]
   form.page = tooltipPages.value[0] ?? ''
+  form.language = ''
   formRef.value?.resetValidation()
 }
 
@@ -482,10 +549,15 @@ watch(
   { immediate: true },
 )
 
+watch([selectedType, selectedPage, selectedLanguage], () => {
+  loadTooltips()
+})
+
 const populateForm = (tooltip: Tooltip) => {
   form.id = tooltip.id
   form.type = tooltip.type
   form.page = tooltip.page
+  form.language = tooltip.language || ''
   form.title = extractTitle(tooltip.json)
   form.description = extractDescription(tooltip.json)
   form.linkLabel = ''
@@ -526,12 +598,15 @@ const populateForm = (tooltip: Tooltip) => {
 }
 
 const loadTooltips = async () => {
-  const params: { type?: TooltipType; page?: TooltipPage } = {};
+  const params: { type?: TooltipType; page?: TooltipPage; language?: string } = {};
   if (selectedType.value !== 'all') {
     params.type = selectedType.value as TooltipType;
   }
   if (selectedPage.value !== 'all') {
     params.page = selectedPage.value as TooltipPage;
+  }
+  if (selectedLanguage.value) {
+    params.language = selectedLanguage.value;
   }
   const [tooltipsResponse] = (await asyncGlobalSpinner(TooltipsService.getTooltipTableItems(params))) as [TooltipTableItem[]]
   tooltips.value = tooltipsResponse;
@@ -617,6 +692,7 @@ const buildTooltipPayload = (): CreateTooltipPayload => {
     type: form.type,
     page,
     json,
+    language: form.language || undefined,
   }
 }
 

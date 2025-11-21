@@ -20,6 +20,10 @@ export class MoodSurvey {
   @ApiProperty({ description: 'Survey title' })
   title: string;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  @ApiProperty({ description: 'Language code for the mood survey', example: 'en' })
+  language: string | null;
+
   @Column({ default: false })
   @ApiProperty({ description: 'Whether the survey is archived' })
   isArchived: boolean;

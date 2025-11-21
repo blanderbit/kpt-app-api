@@ -98,10 +98,7 @@ export interface ClientSurvey {
   file?: ClientSurveyFile | null
 }
 
-export interface ClientSurveysResponse {
-  surveys: ClientSurvey[]
-  total: number
-}
+export interface ClientSurveysResponse extends PaginatedResponse<ClientSurvey> {}
 
 export interface ClientSurveyFile {
   id: number
@@ -134,10 +131,7 @@ export interface ClientArticle {
   archivedBy: string | null
 }
 
-export interface ClientArticlesResponse {
-  articles: ClientArticle[]
-  total: number
-}
+export interface ClientArticlesResponse extends PaginatedResponse<ClientArticle> {}
 
 export interface ClientsPaginatedResponse {
   data: Client[]
@@ -283,19 +277,35 @@ export class ClientsService {
     return axios.get<ClientAnalyticsResponse, ClientAnalyticsResponse>(`${ApiBaseUrl.Clients}/${id}/analytics`)
   }
 
-  static async getClientSurveys(id: number): Promise<ClientSurveysResponse> {
-    const response = await axios.get<ClientSurveysResponse, ClientSurveysResponse>(`${ApiBaseUrl.Clients}/${id}/surveys`)
+  static async getClientSurveys(
+    id: number,
+    params?: { page?: number; limit?: number },
+  ): Promise<ClientSurveysResponse> {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', String(params.page))
+    if (params?.limit) queryParams.append('limit', String(params.limit))
+    
+    const url = `${ApiBaseUrl.Clients}/${id}/surveys${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    const response = await axios.get<ClientSurveysResponse, ClientSurveysResponse>(url)
     return {
       ...response,
-      surveys: response.surveys.map(formatSurvey),
+      data: response.data.map(formatSurvey),
     }
   }
 
-  static async getClientArticles(id: number): Promise<ClientArticlesResponse> {
-    const response = await axios.get<ClientArticlesResponse, ClientArticlesResponse>(`${ApiBaseUrl.Clients}/${id}/articles`)
+  static async getClientArticles(
+    id: number,
+    params?: { page?: number; limit?: number },
+  ): Promise<ClientArticlesResponse> {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', String(params.page))
+    if (params?.limit) queryParams.append('limit', String(params.limit))
+    
+    const url = `${ApiBaseUrl.Clients}/${id}/articles${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    const response = await axios.get<ClientArticlesResponse, ClientArticlesResponse>(url)
     return {
       ...response,
-      articles: response.articles.map(formatArticle),
+      data: response.data.map(formatArticle),
     }
   }
 }

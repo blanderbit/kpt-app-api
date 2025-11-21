@@ -59,8 +59,7 @@ export class SubscriptionsAdminController {
   @ApiQuery({ name: 'planInterval', required: false, enum: SubscriptionPlanInterval })
   @ApiQuery({ name: 'status', required: false, enum: SubscriptionStatus })
   @ApiQuery({ name: 'linked', required: false, enum: ['linked', 'anonymous'] })
-  @ApiQuery({ name: 'startDate', required: false, type: String, description: 'ISO date string (inclusive)' })
-  @ApiQuery({ name: 'endDate', required: false, type: String, description: 'ISO date string (inclusive)' })
+  @ApiQuery({ name: 'year', required: false, type: Number, description: 'Year to filter statistics (if not provided, returns all-time stats)' })
   @ApiOkResponse({ description: 'Aggregated subscription statistics for specified user' })
   async getUserStats(
     @Param('userId') userId: number,
@@ -98,12 +97,11 @@ export class SubscriptionsAdminController {
       filters.isLinked = false;
     }
 
-    if (query.startDate) {
-      filters.startDate = new Date(query.startDate);
-    }
-
-    if (query.endDate) {
-      filters.endDate = new Date(query.endDate);
+    if (query.year !== undefined && query.year !== null) {
+      const year = typeof query.year === 'string' ? parseInt(query.year, 10) : query.year;
+      if (!isNaN(year) && year > 0) {
+        filters.year = year;
+      }
     }
 
     if (userId !== undefined) {

@@ -12,6 +12,9 @@ import { Article } from '../articles/entities/article.entity';
 import { UserHiddenArticle } from '../articles/entities/user-hidden-article.entity';
 import { RateActivity } from '../../profile/activity/entities/rate-activity.entity';
 import { CLIENT_PAGINATION_CONFIG } from './client-management.config';
+import { surveyConfig } from '../survey/survey.config';
+import { articleConfig } from '../articles/articles.config';
+import { FilterOperator } from 'nestjs-paginate';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import {
@@ -248,9 +251,9 @@ export class ClientManagementService {
   }
 
   /**
-   * Get surveys user answered
+   * Get surveys user answered with pagination
    */
-  async getUserSurveys(userId: number): Promise<UserSurveysResponseDto> {
+  async getUserSurveys(userId: number, query: PaginateQuery): Promise<Paginated<Survey>> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw AppException.notFound(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, 'User not found');
@@ -262,20 +265,30 @@ export class ClientManagementService {
     });
 
     const surveyIds = userSurveys.map(us => us.surveyId);
-    const surveys = await this.surveyRepository.find({
-      where: surveyIds.map(id => ({ id })),
-    });
+    
+    if (surveyIds.length === 0) {
+      return paginate(query, this.surveyRepository.createQueryBuilder('survey').where('1=0'), {
+        ...surveyConfig,
+        defaultLimit: 10,
+      });
+    }
 
-    return {
-      surveys: surveys.map(survey => this.mapSurveyToDto(survey)),
-      total: surveys.length,
-    };
+    const queryBuilder = this.surveyRepository
+      .createQueryBuilder('survey')
+      .leftJoinAndSelect('survey.files', 'files')
+      .where('survey.id IN (:...surveyIds)', { surveyIds })
+      .orderBy('survey.createdAt', 'DESC');
+
+    return paginate(query, queryBuilder, {
+      ...surveyConfig,
+      defaultLimit: 10,
+    });
   }
 
   /**
-   * Get articles user hidden
+   * Get articles user hidden with pagination
    */
-  async getUserArticles(userId: number): Promise<UserArticlesResponseDto> {
+  async getUserArticles(userId: number, query: PaginateQuery): Promise<Paginated<Article>> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw AppException.notFound(ErrorCode.ADMIN_INTERNAL_SERVER_ERROR, 'User not found');
@@ -286,15 +299,24 @@ export class ClientManagementService {
     });
 
     const articleIds = hiddenArticles.map(ha => ha.articleId);
-    const articles = await this.articleRepository.find({
-      where: articleIds.map(id => ({ id })),
-      relations: ['files'],
-    });
+    
+    if (articleIds.length === 0) {
+      return paginate(query, this.articleRepository.createQueryBuilder('article').where('1=0'), {
+        ...articleConfig,
+        defaultLimit: 10,
+      });
+    }
 
-    return {
-      articles: articles.map(article => this.mapArticleToDto(article)),
-      total: articles.length,
-    };
+    const queryBuilder = this.articleRepository
+      .createQueryBuilder('article')
+      .leftJoinAndSelect('article.files', 'files')
+      .where('article.id IN (:...articleIds)', { articleIds })
+      .orderBy('article.createdAt', 'DESC');
+
+    return paginate(query, queryBuilder, {
+      ...articleConfig,
+      defaultLimit: 10,
+    });
   }
 
   // Helper methods for mapping entities to DTOs
@@ -352,8 +374,6 @@ export class ClientManagementService {
   }
 
   private mapSurveyToDto(survey: Survey): SurveyResponseDto {
-    const file = survey.files?.[0];
-
     return {
       id: survey.id,
       title: survey.title,
@@ -366,16 +386,14 @@ export class ClientManagementService {
       updatedAt: survey.updatedAt,
       archivedAt: survey.archivedAt,
       archivedBy: survey.archivedBy,
-      file: file
-        ? {
-            id: file.id,
-            fileUrl: file.fileUrl,
-            fileKey: file.fileKey,
-            fileName: file.fileName,
-            mimeType: file.mimeType,
-            size: file.size,
-          }
-        : null,
+      files: survey.files?.map(file => ({
+        id: file.id,
+        fileUrl: file.fileUrl,
+        fileKey: file.fileKey,
+        fileName: file.fileName,
+        mimeType: file.mimeType,
+        size: file.size,
+      })) || [],
     };
   }
 

@@ -208,7 +208,14 @@ export class SurveyPublicService {
       updatedAt: survey.updatedAt,
       archivedAt: survey.archivedAt,
       archivedBy: survey.archivedBy,
-      files: survey.files
+      files: survey.files?.map((f) => ({
+        id: f.id,
+        fileUrl: f.fileUrl,
+        fileKey: f.fileKey,
+        fileName: f.fileName,
+        mimeType: f.mimeType,
+        size: f.size,
+      })) || null,
     };
   }
 }

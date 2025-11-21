@@ -71,6 +71,12 @@ export class MoodSurveyAdminController {
     required: false,
     type: Boolean,
   })
+  @ApiQuery({
+    name: 'language',
+    description: 'Filter by language code',
+    required: false,
+    type: String,
+  })
   @ApiResponse({
     status: 200,
     description: 'List of mood surveys',
@@ -80,8 +86,9 @@ export class MoodSurveyAdminController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions (admin required)' })
   async getAllMoodSurveys(
     @Query('isArchived') archived?: string,
+    @Query('language') language?: string,
   ): Promise<MoodSurveyResponseDto[]> {
-    return this.moodSurveyAdminService.getAllMoodSurveys(archived === 'true' ? 1 : 0);
+    return this.moodSurveyAdminService.getAllMoodSurveys(archived === 'true' ? 1 : 0, language);
   }
 
   @Get(':id')
@@ -201,7 +208,7 @@ export class MoodSurveyAdminController {
   @Get('user/:userId/answers-stats')
   @ApiOperation({
     summary: 'Get mood survey answers statistics by user',
-    description: 'Returns count of each mood survey answer for a specific user',
+    description: 'Returns count of each mood survey answer for a specific user, grouped by language',
   })
   @ApiParam({
     name: 'userId',
@@ -210,15 +217,23 @@ export class MoodSurveyAdminController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Mood survey answers statistics',
+    description: 'Mood survey answers statistics grouped by language',
     schema: {
       type: 'object',
       additionalProperties: {
-        type: 'number',
+        type: 'object',
+        additionalProperties: {
+          type: 'number',
+        },
       },
       example: {
-        'Survey Title 1': 5,
-        'Survey Title 2': 3,
+        en: {
+          'Survey Title 1': 5,
+          'Survey Title 2': 3,
+        },
+        uk: {
+          'Survey Title 1': 2,
+        },
       },
     },
   })
@@ -226,7 +241,7 @@ export class MoodSurveyAdminController {
   @ApiResponse({ status: 403, description: 'Insufficient permissions (admin required)' })
   async getUserMoodSurveyAnswersStats(
     @Param('userId', ParseIntPipe) userId: number,
-  ): Promise<Record<string, number>> {
+  ): Promise<Record<string, Record<string, number>>> {
     return this.moodSurveyAdminService.getUserMoodSurveyAnswersStats(userId);
   }
 }

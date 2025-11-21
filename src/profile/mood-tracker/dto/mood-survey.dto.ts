@@ -9,6 +9,15 @@ export class CreateMoodSurveyDto {
   @IsString()
   @IsNotEmpty()
   title: string;
+
+  @ApiProperty({
+    description: 'Language code for the mood survey',
+    example: 'en',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  language?: string;
 }
 
 export class UpdateMoodSurveyDto {
@@ -20,6 +29,15 @@ export class UpdateMoodSurveyDto {
   @IsOptional()
   @IsString()
   title?: string;
+
+  @ApiProperty({
+    description: 'Language code for the mood survey',
+    example: 'en',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  language?: string;
 }
 
 export class MoodSurveyResponseDto {
@@ -34,6 +52,13 @@ export class MoodSurveyResponseDto {
     example: 'Daily Mood Assessment',
   })
   title: string;
+
+  @ApiProperty({
+    description: 'Language code for the mood survey',
+    example: 'en',
+    nullable: true,
+  })
+  language: string | null;
 
   @ApiProperty({
     description: 'Whether the survey is archived',

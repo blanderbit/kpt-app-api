@@ -61,23 +61,6 @@ meta:
                 <v-list-item-title>Created At</v-list-item-title>
                 <v-list-item-subtitle>{{ client.createdAt }}</v-list-item-subtitle>
               </v-list-item>
-              <v-list-item>
-                <v-list-item-title>Latest Subscription</v-list-item-title>
-                <v-list-item-subtitle>
-                  <template v-if="latestSubscription">
-                    <v-chip :color="latestSubscriptionColor" size="small" variant="tonal">
-                      {{ latestSubscriptionLabel }}
-                    </v-chip>
-                    <span class="text-caption text-medium-emphasis ms-2">
-                      {{ latestSubscriptionProduct }}
-                    </span>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ latestSubscriptionPeriod }}
-                    </div>
-                  </template>
-                  <span v-else>No subscriptions</span>
-                </v-list-item-subtitle>
-              </v-list-item>
             </v-list>
           </v-card-text>
         </v-card>
@@ -88,6 +71,10 @@ meta:
           <v-card-title>
             <v-icon left>mdi-cellphone-bell</v-icon>
             Active Device Tokens
+            <v-spacer></v-spacer>
+            <v-chip color="primary" variant="tonal" size="small">
+              Total: {{ devicesPagination.total }}
+            </v-chip>
           </v-card-title>
           <v-card-text>
             <v-alert
@@ -112,6 +99,16 @@ meta:
                 </v-list-item-subtitle>
               </v-list-item>
             </v-list>
+            <VPagination
+              v-if="devicesPagination.totalPages && devicesPagination.totalPages > 1"
+              v-model="devicesPagination.page"
+              :length="devicesPagination.totalPages"
+              rounded="circle"
+              variant="outlined"
+              class="mt-3"
+              active-color="blue_dark"
+              @update:model-value="handleDevicesPageChange"
+            />
           </v-card-text>
         </v-card>
       </v-col>
@@ -197,6 +194,31 @@ meta:
           </v-card-title>
           <v-card-text>
             <div class="mb-4">
+              <div class="text-subtitle-2 mb-2">Year filter</div>
+              <v-select
+                v-model="subscriptionStatsYear"
+                :items="yearOptions"
+                label="Year"
+                density="comfortable"
+                variant="outlined"
+                clearable
+                hide-details
+                @update:model-value="handleSubscriptionStatsYearChange"
+              >
+                <template v-slot:item="{ item, props }">
+                  <v-list-item v-bind="props">
+                    <template v-if="item.value === null">
+                      <v-list-item-title>All time</v-list-item-title>
+                    </template>
+                  </v-list-item>
+                </template>
+                <template v-slot:selection="{ item }">
+                  <span v-if="item.value === null">All time</span>
+                  <span v-else>{{ item.value }}</span>
+                </template>
+              </v-select>
+            </div>
+            <div class="mb-4">
               <div class="text-subtitle-2 mb-2">Latest status</div>
               <div class="d-flex align-center">
                 <v-chip :color="latestSubscriptionColor" size="small" variant="tonal">
@@ -239,7 +261,8 @@ meta:
                   <span>{{ card.value }}</span>
                 </div>
                 <div class="text-caption text-medium-emphasis">
-                  Start: {{ card.startDate }}
+                  <span v-if="card.endDate">{{ card.startDate }} - {{ card.endDate }}</span>
+                  <span v-else>Start: {{ card.startDate }}</span>
                 </div>
               </v-col>
             </v-row>
@@ -252,7 +275,8 @@ meta:
                   <span>{{ card.value }}</span>
                 </div>
                 <div class="text-caption text-medium-emphasis">
-                  Start: {{ card.startDate }}
+                  <span v-if="card.endDate">{{ card.startDate }} - {{ card.endDate }}</span>
+                  <span v-else>Start: {{ card.startDate }}</span>
                 </div>
               </v-col>
             </v-row>
@@ -302,28 +326,6 @@ meta:
                   hide-details
                   @update:model-value="handleSubscriptionFilterChange"
                 ></v-select>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="subscriptionFilters.startDate"
-                  label="Start date"
-                  type="date"
-                  density="comfortable"
-                  variant="outlined"
-                  hide-details
-                  @update:model-value="handleSubscriptionFilterChange"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="subscriptionFilters.endDate"
-                  label="End date"
-                  type="date"
-                  density="comfortable"
-                  variant="outlined"
-                  hide-details
-                  @update:model-value="handleSubscriptionFilterChange"
-                ></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
                 <v-select
@@ -467,24 +469,26 @@ meta:
             <v-icon left>mdi-emoticon-happy</v-icon>
             Mood Tracker (Monthly)
             <v-spacer></v-spacer>
-            <v-select
-              v-model="moodTrackerMonth"
-              :items="monthOptions"
-              label="Month"
-              style="max-width: 150px; margin-right: 10px;"
-              @update:model-value="loadMoodTracker"
-              density="compact"
-              hide-details
-            ></v-select>
-            <v-select
-              v-model="moodTrackerYear"
-              :items="yearOptions"
-              label="Year"
-              style="max-width: 120px;"
-              @update:model-value="loadMoodTracker"
-              density="compact"
-              hide-details
-            ></v-select>
+            <div class="d-flex align-center gap-2">
+              <v-select
+                v-model="moodTrackerMonth"
+                :items="monthOptions"
+                label="Month"
+                style="max-width: 150px;"
+                @update:model-value="loadMoodTracker"
+                density="compact"
+                hide-details
+              ></v-select>
+              <v-select
+                v-model="moodTrackerYear"
+                :items="yearOptions"
+                label="Year"
+                style="max-width: 120px;"
+                @update:model-value="loadMoodTracker"
+                density="compact"
+                hide-details
+              ></v-select>
+            </div>
           </v-card-title>
           <v-card-text>
             <div v-if="moodTracker">
@@ -567,19 +571,31 @@ meta:
             >
               No mood survey answers found for this user.
             </v-alert>
-            <v-list v-else density="compact">
-              <v-list-item
-                v-for="(count, answer) in moodSurveyAnswersStats"
-                :key="answer"
-              >
-                <v-list-item-title>{{ answer }}</v-list-item-title>
-                <v-list-item-subtitle>
-                  <v-chip size="small" color="primary" variant="tonal">
-                    {{ count }}
-                  </v-chip>
-                </v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
+            <div v-else>
+              <v-expansion-panels v-model="moodStatsPanels" variant="accordion" class="mb-2">
+                <v-expansion-panel
+                  v-for="(stats, language) in moodSurveyAnswersStats"
+                  :key="language"
+                  :title="`${language || 'Unknown'} (${Object.keys(stats).length} surveys)`"
+                >
+                  <v-expansion-panel-text>
+                    <v-list density="compact">
+                      <v-list-item
+                        v-for="(count, answer) in stats"
+                        :key="answer"
+                      >
+                        <v-list-item-title>{{ answer }}</v-list-item-title>
+                        <v-list-item-subtitle>
+                          <v-chip size="small" color="primary" variant="tonal">
+                            {{ count }}
+                          </v-chip>
+                        </v-list-item-subtitle>
+                      </v-list-item>
+                    </v-list>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -590,7 +606,11 @@ meta:
         <v-card class="table-card">
           <v-card-title>
             <v-icon left>mdi-clipboard-text</v-icon>
-            Surveys ({{ surveys.length }})
+            Surveys
+            <v-spacer></v-spacer>
+            <v-chip color="primary" variant="tonal" size="small">
+              Total: {{ surveysPagination.total }}
+            </v-chip>
           </v-card-title>
           <v-card-text>
             <v-list v-if="surveys.length > 0">
@@ -610,6 +630,16 @@ meta:
             <v-alert v-else type="info" variant="tonal">
               No surveys found.
             </v-alert>
+            <VPagination
+              v-if="surveysPagination.totalPages && surveysPagination.totalPages > 1"
+              v-model="surveysPagination.page"
+              :length="surveysPagination.totalPages"
+              rounded="circle"
+              variant="outlined"
+              class="mt-3"
+              active-color="blue_dark"
+              @update:model-value="handleSurveysPageChange"
+            />
           </v-card-text>
         </v-card>
       </v-col>
@@ -617,7 +647,11 @@ meta:
         <v-card class="table-card">
           <v-card-title>
             <v-icon left>mdi-file-document</v-icon>
-            Hidden Articles ({{ articles.length }})
+            Hidden Articles
+            <v-spacer></v-spacer>
+            <v-chip color="primary" variant="tonal" size="small">
+              Total: {{ articlesPagination.total }}
+            </v-chip>
           </v-card-title>
           <v-card-text>
             <v-list v-if="articles.length > 0">
@@ -637,6 +671,59 @@ meta:
             <v-alert v-else type="info" variant="tonal">
               No hidden articles found.
             </v-alert>
+            <VPagination
+              v-if="articlesPagination.totalPages && articlesPagination.totalPages > 1"
+              v-model="articlesPagination.page"
+              :length="articlesPagination.totalPages"
+              rounded="circle"
+              variant="outlined"
+              class="mt-3"
+              active-color="blue_dark"
+              @update:model-value="handleArticlesPageChange"
+            />
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row class="mb-6">
+      <v-col cols="12">
+        <v-card class="table-card">
+          <v-card-title>
+            <v-icon left>mdi-close-circle</v-icon>
+            Closed Tooltips
+            <v-spacer></v-spacer>
+            <v-chip color="primary" variant="tonal" size="small">
+              Total: {{ closedTooltips.length }}
+            </v-chip>
+          </v-card-title>
+          <v-card-text>
+            <v-alert
+              v-if="closedTooltips.length === 0"
+              type="info"
+              variant="tonal"
+            >
+              No closed tooltips found for this user.
+            </v-alert>
+            <v-list v-else density="compact">
+              <v-list-item
+                v-for="tooltip in closedTooltips"
+                :key="tooltip.id"
+              >
+                <template #prepend>
+                  <v-icon>{{ getTooltipTypeIcon(tooltip.type) }}</v-icon>
+                </template>
+                <v-list-item-title>{{ getTooltipTitle(tooltip.json) }}</v-list-item-title>
+                <v-list-item-subtitle>
+                  <span class="text-grey">Page:</span>
+                  <span class="ms-1">{{ tooltip.page }}</span>
+                  <span class="text-grey ms-2">Type:</span>
+                  <span class="ms-1">{{ tooltip.type }}</span>
+                  <span v-if="tooltip.language" class="text-grey ms-2">Language:</span>
+                  <span v-if="tooltip.language" class="ms-1">{{ tooltip.language }}</span>
+                </v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
           </v-card-text>
         </v-card>
       </v-col>
@@ -646,16 +733,18 @@ meta:
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   ClientsService,
   SubscriptionsService,
+  TooltipsService,
   type NotificationDevice,
   type NotificationTrackerEntry,
   type SubscriptionModel,
   type SubscriptionStats,
   type SubscriptionPlanInterval,
   type SubscriptionStatus,
+  type Tooltip,
 } from '@api'
 import type {
   Client,
@@ -670,8 +759,10 @@ import type {
 import { asyncGlobalSpinner } from '@workers/loading-worker'
 import { showSuccessToast } from '@workers/toast-worker'
 import dayjs from 'dayjs'
+import { NotificationsService } from '@api'
 
 const route = useRoute()
+const router = useRouter()
 
 const client = ref<Client | null>(null)
 const activities = ref<Activity[]>([])
@@ -679,11 +770,35 @@ const suggestedActivities = ref<SuggestedActivity[]>([])
 const moodTracker = ref<ClientMoodTrackerMonthlyResponse | null>(null)
 const analytics = ref<ClientAnalyticsResponse | null>(null)
 const surveys = ref<Survey[]>([])
+const surveysPagination = reactive({
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 0,
+})
 const articles = ref<Article[]>([])
+const articlesPagination = reactive({
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 0,
+})
 const articleAnalytics = ref<UserArticlesAnalytics | null>(null)
 const notificationDevices = ref<NotificationDevice[]>([])
+const notificationDevicesPagination = ref<{
+  data: NotificationDevice[]
+  meta?: { itemsPerPage?: number; totalItems?: number; currentPage?: number; totalPages?: number }
+} | undefined>(undefined)
+const devicesPagination = reactive({
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 0,
+})
 const notificationTracker = ref<NotificationTrackerEntry[]>([])
-const moodSurveyAnswersStats = ref<Record<string, number> | null>(null)
+const moodSurveyAnswersStats = ref<Record<string, Record<string, number>> | null>(null)
+const moodStatsPanels = ref<number[]>([])
+const closedTooltips = ref<Tooltip[]>([])
 
 const activitiesDate = ref(new Date().toISOString().split('T')[0])
 const currentDate = new Date()
@@ -697,12 +812,19 @@ const activitiesData = route.meta.activities as { activities: Activity[]; date: 
 const suggestedActivitiesData = route.meta.suggestedActivities as { suggestedActivities: SuggestedActivity[] }
 const moodTrackerData = route.meta.moodTracker as ClientMoodTrackerMonthlyResponse
 const analyticsData = route.meta.analytics as ClientAnalyticsResponse
-const surveysData = route.meta.surveys as { surveys: Survey[]; total: number }
-const articlesData = route.meta.articles as { articles: Article[]; total: number }
-const notificationDevicesData = route.meta.notificationDevices as NotificationDevice[]
+const surveysData = route.meta.surveys as
+  | { data: Survey[]; meta?: { itemsPerPage?: number; totalItems?: number; currentPage?: number; totalPages?: number } }
+  | undefined
+const articlesData = route.meta.articles as
+  | { data: Article[]; meta?: { itemsPerPage?: number; totalItems?: number; currentPage?: number; totalPages?: number } }
+  | undefined
+const notificationDevicesData = route.meta.notificationDevices as
+  | { data: NotificationDevice[]; meta?: { itemsPerPage?: number; totalItems?: number; currentPage?: number; totalPages?: number } }
+  | undefined
 const notificationTrackerData = route.meta.notificationTracker as NotificationTrackerEntry[]
 const articleAnalyticsData = route.meta.articleAnalytics as UserArticlesAnalytics | undefined
-const moodSurveyAnswersStatsData = route.meta.moodSurveyAnswersStats as Record<string, number> | undefined
+const moodSurveyAnswersStatsData = route.meta.moodSurveyAnswersStats as Record<string, Record<string, number>> | undefined
+const closedTooltipsData = route.meta.closedTooltips as Tooltip[] | undefined
 const subscriptionListData = route.meta.clientSubscriptions as
   | { data: SubscriptionModel[]; meta?: { itemsPerPage?: number; totalItems?: number; currentPage?: number; totalPages?: number } }
   | undefined
@@ -717,12 +839,27 @@ moodTracker.value = moodTrackerData
 moodTrackerMonth.value = moodTrackerData.month
 moodTrackerYear.value = moodTrackerData.year
 analytics.value = analyticsData
-surveys.value = surveysData.surveys ?? []
-articles.value = articlesData.articles ?? []
-notificationDevices.value = notificationDevicesData ?? []
+surveys.value = surveysData?.data ?? []
+surveysPagination.page = surveysData?.meta?.currentPage ?? 1
+surveysPagination.limit = surveysData?.meta?.itemsPerPage ?? 10
+surveysPagination.total = surveysData?.meta?.totalItems ?? 0
+surveysPagination.totalPages = surveysData?.meta?.totalPages ?? 0
+
+articles.value = articlesData?.data ?? []
+articlesPagination.page = articlesData?.meta?.currentPage ?? 1
+articlesPagination.limit = articlesData?.meta?.itemsPerPage ?? 10
+articlesPagination.total = articlesData?.meta?.totalItems ?? 0
+articlesPagination.totalPages = articlesData?.meta?.totalPages ?? 0
+notificationDevicesPagination.value = notificationDevicesData
+notificationDevices.value = notificationDevicesData?.data ?? []
+devicesPagination.page = notificationDevicesData?.meta?.currentPage ?? 1
+devicesPagination.limit = notificationDevicesData?.meta?.itemsPerPage ?? 10
+devicesPagination.total = notificationDevicesData?.meta?.totalItems ?? 0
+devicesPagination.totalPages = notificationDevicesData?.meta?.totalPages ?? 0
 notificationTracker.value = notificationTrackerData ?? []
 articleAnalytics.value = articleAnalyticsData ?? null
 moodSurveyAnswersStats.value = moodSurveyAnswersStatsData ?? null
+closedTooltips.value = closedTooltipsData ?? []
 const defaultSubscriptionStart = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD')
 const defaultSubscriptionEnd = dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD')
 
@@ -761,8 +898,18 @@ const subscriptionFilters = reactive({
   planInterval: '' as SubscriptionPlanInterval | '',
   status: '' as SubscriptionStatus | '',
   linked: '' as 'linked' | 'anonymous' | '',
-  startDate: defaultSubscriptionStart,
-  endDate: defaultSubscriptionEnd,
+})
+
+const subscriptionStatsYear = ref<number | null>(new Date().getFullYear())
+const yearOptions = computed(() => {
+  const currentYear = new Date().getFullYear()
+  const years: Array<{ title: string; value: number | null }> = [
+    { title: 'All time', value: null },
+  ]
+  for (let year = currentYear; year >= currentYear - 10; year--) {
+    years.push({ title: String(year), value: year })
+  }
+  return years
 })
 
 const subscriptionLoading = ref(false)
@@ -871,35 +1018,55 @@ const subscriptionStatusCards = computed(() => {
   ]
 })
 
-const subscriptionTotals = computed(() => [
-  {
-    key: 'month',
-    label: 'Last month',
-    value: subscriptionStats.value.totals.month.count,
-    startDate: subscriptionStats.value.totals.month.startDate,
-  },
-  {
-    key: 'year',
-    label: 'Last year',
-    value: subscriptionStats.value.totals.year.count,
-    startDate: subscriptionStats.value.totals.year.startDate,
-  },
-])
+const subscriptionTotals = computed(() => {
+  const yearLabel = subscriptionStatsYear.value 
+    ? `${subscriptionStatsYear.value} year` 
+    : 'All time'
+  const monthLabel = subscriptionStatsYear.value
+    ? `Current month (${subscriptionStatsYear.value})`
+    : 'Last month'
+  
+  return [
+    {
+      key: 'month',
+      label: monthLabel,
+      value: subscriptionStats.value.totals.month.count,
+      startDate: subscriptionStats.value.totals.month.startDate,
+    },
+    {
+      key: 'year',
+      label: yearLabel,
+      value: subscriptionStats.value.totals.year.count,
+      startDate: subscriptionStats.value.totals.year.startDate,
+      ...(subscriptionStats.value.totals.year.endDate && { endDate: subscriptionStats.value.totals.year.endDate }),
+    },
+  ]
+})
 
-const subscriptionRevenue = computed(() => [
-  {
-    key: 'month',
-    label: 'Revenue last month',
-    value: subscriptionStats.value.revenue.month.amount.toFixed(2),
-    startDate: subscriptionStats.value.revenue.month.startDate,
-  },
-  {
-    key: 'year',
-    label: 'Revenue last year',
-    value: subscriptionStats.value.revenue.year.amount.toFixed(2),
-    startDate: subscriptionStats.value.revenue.year.startDate,
-  },
-])
+const subscriptionRevenue = computed(() => {
+  const yearLabel = subscriptionStatsYear.value 
+    ? `${subscriptionStatsYear.value} year` 
+    : 'All time'
+  const monthLabel = subscriptionStatsYear.value
+    ? `Current month (${subscriptionStatsYear.value})`
+    : 'Last month'
+  
+  return [
+    {
+      key: 'month',
+      label: `Revenue ${monthLabel.toLowerCase()}`,
+      value: subscriptionStats.value.revenue.month.amount.toFixed(2),
+      startDate: subscriptionStats.value.revenue.month.startDate,
+    },
+    {
+      key: 'year',
+      label: `Revenue ${yearLabel.toLowerCase()}`,
+      value: subscriptionStats.value.revenue.year.amount.toFixed(2),
+      startDate: subscriptionStats.value.revenue.year.startDate,
+      ...(subscriptionStats.value.revenue.year.endDate && { endDate: subscriptionStats.value.revenue.year.endDate }),
+    },
+  ]
+})
 
 const buildClientSubscriptionQuery = (pageOverride?: number) => ({
   page: pageOverride ?? subscriptionPagination.page,
@@ -907,8 +1074,6 @@ const buildClientSubscriptionQuery = (pageOverride?: number) => ({
   planInterval: subscriptionFilters.planInterval || undefined,
   status: subscriptionFilters.status || undefined,
   linked: subscriptionFilters.linked || undefined,
-  startDate: subscriptionFilters.startDate || undefined,
-  endDate: subscriptionFilters.endDate || undefined,
 })
 
 const loadClientSubscriptionStats = async () => {
@@ -916,10 +1081,13 @@ const loadClientSubscriptionStats = async () => {
     planInterval: subscriptionFilters.planInterval || undefined,
     status: subscriptionFilters.status || undefined,
     linked: subscriptionFilters.linked || undefined,
-    startDate: subscriptionFilters.startDate || undefined,
-    endDate: subscriptionFilters.endDate || undefined,
+    year: subscriptionStatsYear.value || undefined,
   })
   subscriptionStats.value = response
+}
+
+const handleSubscriptionStatsYearChange = () => {
+  loadClientSubscriptionStats()
 }
 
 const loadClientSubscriptions = async ({ force = false, page }: { force?: boolean; page?: number } = {}) => {
@@ -987,10 +1155,10 @@ const monthOptions = Array.from({ length: 12 }, (_, i) => ({
   value: i + 1
 }))
 
-const yearOptions = Array.from({ length: 10 }, (_, i) => {
-  const year = currentDate.getFullYear() - 5 + i
-  return { title: year.toString(), value: year }
-})
+// const yearOptions = Array.from({ length: 10 }, (_, i) => {
+//   const year = currentDate.getFullYear() - 5 + i
+//   return { title: year.toString(), value: year }
+// })
 
 const activityHeaders = [
   { title: 'ID', key: 'id', sortable: false },
@@ -1049,6 +1217,101 @@ const platformIcon = (platform: string | null): string => {
 const shortenToken = (token: string): string => {
   if (token.length <= 16) return token
   return `${token.slice(0, 6)}…${token.slice(-6)}`
+}
+
+const loadDevices = async (page?: number) => {
+  if (!clientId) return
+  const targetPage = page ?? devicesPagination.page
+  const response = await asyncGlobalSpinner(
+    NotificationsService.getDevices(clientId, { page: targetPage, limit: devicesPagination.limit }),
+  )
+  notificationDevices.value = response.data ?? []
+  devicesPagination.page = response.meta?.currentPage ?? targetPage
+  devicesPagination.limit = response.meta?.itemsPerPage ?? devicesPagination.limit
+  devicesPagination.total = response.meta?.totalItems ?? 0
+  devicesPagination.totalPages = response.meta?.totalPages ?? 0
+  
+  // Update URL query
+  router.replace({
+    query: {
+      ...route.query,
+      devicesPage: targetPage,
+      devicesLimit: devicesPagination.limit,
+    },
+  })
+}
+
+const handleDevicesPageChange = (page: number) => {
+  loadDevices(page)
+}
+
+const loadSurveys = async (page?: number) => {
+  if (!clientId) return
+  const targetPage = page ?? surveysPagination.page
+  const response = await asyncGlobalSpinner(
+    ClientsService.getClientSurveys(clientId, { page: targetPage, limit: surveysPagination.limit }),
+  )
+  surveys.value = response.data ?? []
+  surveysPagination.page = response.meta?.currentPage ?? targetPage
+  surveysPagination.limit = response.meta?.itemsPerPage ?? surveysPagination.limit
+  surveysPagination.total = response.meta?.totalItems ?? 0
+  surveysPagination.totalPages = response.meta?.totalPages ?? 0
+  
+  router.replace({
+    query: {
+      ...route.query,
+      surveysPage: targetPage,
+      surveysLimit: surveysPagination.limit,
+    },
+  })
+}
+
+const handleSurveysPageChange = (page: number) => {
+  loadSurveys(page)
+}
+
+const loadArticles = async (page?: number) => {
+  if (!clientId) return
+  const targetPage = page ?? articlesPagination.page
+  const response = await asyncGlobalSpinner(
+    ClientsService.getClientArticles(clientId, { page: targetPage, limit: articlesPagination.limit }),
+  )
+  articles.value = response.data ?? []
+  articlesPagination.page = response.meta?.currentPage ?? targetPage
+  articlesPagination.limit = response.meta?.itemsPerPage ?? articlesPagination.limit
+  articlesPagination.total = response.meta?.totalItems ?? 0
+  articlesPagination.totalPages = response.meta?.totalPages ?? 0
+  
+  router.replace({
+    query: {
+      ...route.query,
+      articlesPage: targetPage,
+      articlesLimit: articlesPagination.limit,
+    },
+  })
+}
+
+const handleArticlesPageChange = (page: number) => {
+  loadArticles(page)
+}
+
+const getTooltipTitle = (json: any): string => {
+  if (!json || typeof json !== 'object') return 'Unknown'
+  if ('title' in json && typeof json.title === 'string') return json.title
+  return 'Unknown'
+}
+
+const getTooltipTypeIcon = (type: string): string => {
+  switch (type) {
+    case 'swipe':
+      return 'mdi-swipe'
+    case 'text':
+      return 'mdi-text'
+    case 'textWithLink':
+      return 'mdi-link'
+    default:
+      return 'mdi-information'
+  }
 }
 
 const formatNotificationType = (type: string): string =>

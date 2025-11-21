@@ -110,6 +110,7 @@ export class GoogleDriveFilesService {
           mimeType: 'application/json',
           body: contentString,
         },
+        supportsAllDrives: true
       });
 
       this.logger.log(`File updated successfully: ${fileId}`);

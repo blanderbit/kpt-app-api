@@ -58,6 +58,10 @@ export class Tooltip {
   @ApiProperty({ description: 'Tooltip content in JSON format based on type' })
   json: any;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  @ApiProperty({ description: 'Language code for the tooltip', example: 'en', nullable: true })
+  language: string | null;
+
   @OneToMany(() => UserClosedTooltip, (closed) => closed.tooltip)
   closedTooltips: UserClosedTooltip[];
 

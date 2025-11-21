@@ -18,6 +18,7 @@ export interface SubscriptionStatsFilters {
   provider?: SubscriptionProvider;
   startDate?: Date;
   endDate?: Date;
+  year?: number;
   isLinked?: boolean;
   userId?: number;
 }
@@ -354,9 +355,25 @@ export class SubscriptionsService {
     const baseQb = this.subscriptionRepository.createQueryBuilder('subscription');
     this.applyFilters(baseQb, filters);
 
-    const now = filters.endDate ? new Date(filters.endDate) : new Date();
-    const monthStart = this.calculateRelativeStart(now, filters.startDate, 'month');
-    const yearStart = this.calculateRelativeStart(now, filters.startDate, 'year');
+    // If year is provided, use that year; otherwise use all-time stats
+    let monthStart: Date;
+    let yearStart: Date;
+    
+    if (filters.year) {
+      // Use the specified year
+      yearStart = new Date(filters.year, 0, 1); // January 1st of the year
+      const yearEnd = new Date(filters.year, 11, 31, 23, 59, 59, 999); // December 31st of the year
+      monthStart = new Date(filters.year, new Date().getMonth(), 1); // First day of current month in that year
+      
+      // Apply year filter to base query
+      baseQb.andWhere('subscription.createdAt >= :yearStart', { yearStart });
+      baseQb.andWhere('subscription.createdAt <= :yearEnd', { yearEnd });
+    } else {
+      // All-time stats - use current date as reference
+      const now = new Date();
+      monthStart = this.calculateRelativeStart(now, undefined, 'month');
+      yearStart = this.calculateRelativeStart(now, undefined, 'year');
+    }
 
     // Helper to create filtered query builder (filters are already applied to baseQb)
     const createFilteredQb = () => baseQb.clone();
@@ -382,8 +399,15 @@ export class SubscriptionsService {
     );
 
     // Month and year counts
+    // If year filter is applied, month count is for the current month of that year
+    // Otherwise, month count is for the last month
     const monthQb = createFilteredQb();
-    monthQb.andWhere('subscription.createdAt >= :monthStart', { monthStart });
+    if (filters.year) {
+      const currentMonthStart = new Date(filters.year, new Date().getMonth(), 1);
+      monthQb.andWhere('subscription.createdAt >= :monthStart', { monthStart: currentMonthStart });
+    } else {
+      monthQb.andWhere('subscription.createdAt >= :monthStart', { monthStart });
+    }
     const monthCount = await monthQb.getCount();
 
     const yearQb = createFilteredQb();
@@ -392,9 +416,16 @@ export class SubscriptionsService {
 
     // Revenue calculations
     const monthRevenueQb = createFilteredQb();
-    monthRevenueQb
-      .andWhere('subscription.createdAt >= :monthStart', { monthStart })
-      .select('SUM(COALESCE(subscription.priceInUsd, subscription.price))', 'sum');
+    if (filters.year) {
+      const currentMonthStart = new Date(filters.year, new Date().getMonth(), 1);
+      monthRevenueQb
+        .andWhere('subscription.createdAt >= :monthStart', { monthStart: currentMonthStart })
+        .select('SUM(COALESCE(subscription.priceInUsd, subscription.price))', 'sum');
+    } else {
+      monthRevenueQb
+        .andWhere('subscription.createdAt >= :monthStart', { monthStart })
+        .select('SUM(COALESCE(subscription.priceInUsd, subscription.price))', 'sum');
+    }
     const monthRevenueRaw = await monthRevenueQb.getRawOne();
 
     const yearRevenueQb = createFilteredQb();
@@ -424,15 +455,29 @@ export class SubscriptionsService {
 
     // Month auth breakdown
     const monthLinkedQb = createFilteredQb();
-    monthLinkedQb
-      .andWhere('subscription.createdAt >= :monthStart', { monthStart })
-      .andWhere('subscription.userId IS NOT NULL');
+    if (filters.year) {
+      const currentMonthStart = new Date(filters.year, new Date().getMonth(), 1);
+      monthLinkedQb
+        .andWhere('subscription.createdAt >= :monthStart', { monthStart: currentMonthStart })
+        .andWhere('subscription.userId IS NOT NULL');
+    } else {
+      monthLinkedQb
+        .andWhere('subscription.createdAt >= :monthStart', { monthStart })
+        .andWhere('subscription.userId IS NOT NULL');
+    }
     const monthLinked = await monthLinkedQb.getCount();
 
     const monthAnonymousQb = createFilteredQb();
-    monthAnonymousQb
-      .andWhere('subscription.createdAt >= :monthStart', { monthStart })
-      .andWhere('subscription.userId IS NULL');
+    if (filters.year) {
+      const currentMonthStart = new Date(filters.year, new Date().getMonth(), 1);
+      monthAnonymousQb
+        .andWhere('subscription.createdAt >= :monthStart', { monthStart: currentMonthStart })
+        .andWhere('subscription.userId IS NULL');
+    } else {
+      monthAnonymousQb
+        .andWhere('subscription.createdAt >= :monthStart', { monthStart })
+        .andWhere('subscription.userId IS NULL');
+    }
     const monthAnonymous = await monthAnonymousQb.getCount();
 
     // Year auth breakdown
@@ -448,23 +493,33 @@ export class SubscriptionsService {
       .andWhere('subscription.userId IS NULL');
     const yearAnonymous = await yearAnonymousQb.getCount();
 
+    // Format start dates for response
+    const monthStartDate = filters.year 
+      ? new Date(filters.year, new Date().getMonth(), 1).toISOString()
+      : monthStart.toISOString();
+    const yearStartDate = yearStart.toISOString();
+    const yearEndDate = filters.year 
+      ? new Date(filters.year, 11, 31, 23, 59, 59, 999).toISOString()
+      : null;
+
     return {
       countByPlanInterval: this.toPlanCountMap(planIntervalCounts),
       countByStatus: this.toStatusCountMap(statusCounts),
       totals: {
-        month: { count: monthCount, startDate: monthStart.toISOString() },
-        year: { count: yearCount, startDate: yearStart.toISOString() },
+        month: { count: monthCount, startDate: monthStartDate },
+        year: { count: yearCount, startDate: yearStartDate, ...(yearEndDate && { endDate: yearEndDate }) },
       },
       revenue: {
         month: {
           amount: this.formatNumber(monthRevenueRaw?.sum),
           currency: 'USD',
-          startDate: monthStart.toISOString(),
+          startDate: monthStartDate,
         },
         year: {
           amount: this.formatNumber(yearRevenueRaw?.sum),
           currency: 'USD',
-          startDate: yearStart.toISOString(),
+          startDate: yearStartDate,
+          ...(yearEndDate && { endDate: yearEndDate }),
         },
       },
       authBreakdown: {
@@ -476,12 +531,13 @@ export class SubscriptionsService {
         month: {
           linked: monthLinked,
           anonymous: monthAnonymous,
-          startDate: monthStart.toISOString(),
+          startDate: monthStartDate,
         },
         year: {
           linked: yearLinked,
           anonymous: yearAnonymous,
-          startDate: yearStart.toISOString(),
+          startDate: yearStartDate,
+          ...(yearEndDate && { endDate: yearEndDate }),
         },
       },
     };

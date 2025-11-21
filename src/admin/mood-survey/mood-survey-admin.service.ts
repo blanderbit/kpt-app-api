@@ -56,14 +56,20 @@ export class MoodSurveyAdminService {
    */
   async getAllMoodSurveys(
     includeArchived?: number,
+    language?: string,
   ): Promise<MoodSurveyResponseDto[]> {
     try {
       console.log('includeArchived', includeArchived);
       const query = this.moodSurveyRepository
         .createQueryBuilder('survey')
         .loadRelationCountAndMap('survey.responsesCount', 'survey.moodTrackers')
-        .where('survey.isArchived = :isArchived', { isArchived: includeArchived })
-        .orderBy('survey.createdAt', 'DESC');
+        .where('survey.isArchived = :isArchived', { isArchived: includeArchived });
+      
+      if (language) {
+        query.andWhere('survey.language = :language', { language });
+      }
+      
+      query.orderBy('survey.createdAt', 'DESC');
 
       const surveys = await query.getMany();
       return surveys.map((survey) => this.mapToResponseDto(survey));
@@ -233,7 +239,7 @@ export class MoodSurveyAdminService {
    * Get mood survey answers statistics by user
    * Returns count of each mood survey answer for a specific user
    */
-  async getUserMoodSurveyAnswersStats(userId: number): Promise<Record<string, number>> {
+  async getUserMoodSurveyAnswersStats(userId: number): Promise<Record<string, Record<string, number>>> {
     try {
       const moodTrackers = await this.moodTrackerRepository
         .createQueryBuilder('tracker')
@@ -241,13 +247,19 @@ export class MoodSurveyAdminService {
         .where('tracker.userId = :userId', { userId })
         .getMany();
 
-      const stats: Record<string, number> = {};
+      const stats: Record<string, Record<string, number>> = {};
 
       moodTrackers.forEach((tracker) => {
         if (tracker.moodSurveys && tracker.moodSurveys.length > 0) {
           tracker.moodSurveys.forEach((survey) => {
+            const language = survey.language || 'unknown';
             const surveyTitle = survey.title;
-            stats[surveyTitle] = (stats[surveyTitle] || 0) + 1;
+            
+            if (!stats[language]) {
+              stats[language] = {};
+            }
+            
+            stats[language][surveyTitle] = (stats[language][surveyTitle] || 0) + 1;
           });
         }
       });
@@ -272,6 +284,7 @@ export class MoodSurveyAdminService {
     return {
       id: survey.id,
       title: survey.title,
+      language: survey.language,
       isArchived: survey.isArchived,
       createdBy: survey.createdBy,
       updatedBy: survey.updatedBy,

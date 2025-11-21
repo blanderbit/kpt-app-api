@@ -11,6 +11,34 @@
       </v-col>
     </v-row>
 
+    <!-- Language Filter -->
+    <v-row class="mb-4">
+      <v-col cols="12" md="4">
+        <v-select
+          v-model="selectedLanguage"
+          :items="languageOptions"
+          label="Filter by Language"
+          density="comfortable"
+          variant="outlined"
+          clearable
+          hide-details
+          @update:model-value="handleLanguageFilterChange"
+        >
+          <template v-slot:item="{ item, props }">
+            <v-list-item v-bind="props">
+              <template v-if="item.value === null">
+                <v-list-item-title>All Languages</v-list-item-title>
+              </template>
+            </v-list-item>
+          </template>
+          <template v-slot:selection="{ item }">
+            <span v-if="item.value === null">All Languages</span>
+            <span v-else>{{ item.title }}</span>
+          </template>
+        </v-select>
+      </v-col>
+    </v-row>
+
     <!-- Tabs -->
     <v-row>
       <v-col cols="12">
@@ -34,6 +62,10 @@
               :items-per-page="-1"
               hide-default-footer
             >
+                  <template v-slot:item.language="{ item }">
+                    {{ item.language || '—' }}
+                  </template>
+                  
                   <template v-slot:item.createdAt="{ item }">
                     {{ item.createdAt }}
               </template>
@@ -80,6 +112,10 @@
                   :items-per-page="-1"
                   hide-default-footer
                 >
+                  <template v-slot:item.language="{ item }">
+                    {{ item.language || '—' }}
+                  </template>
+                  
                   <template v-slot:item.createdAt="{ item }">
                     {{ item.createdAt }}
                   </template>
@@ -124,6 +160,14 @@
               label="Survey Title"
               :rules="[v => !!v || 'Title is required']"
               required
+            />
+            <v-select
+              v-model="surveyForm.language"
+              :items="languageOptions.filter(l => l.value !== null)"
+              label="Language"
+              density="comfortable"
+              variant="outlined"
+              clearable
             />
           </v-form>
         </v-card-text>
@@ -187,13 +231,13 @@ meta:
 </route>
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { MoodSurveysService, type MoodSurvey } from '@api'
+import { useRoute, useRouter } from 'vue-router'
+import { MoodSurveysService, type MoodSurvey, LanguagesService, type Language } from '@api'
 import { asyncGlobalSpinner } from '@workers/loading-worker'
 import { showSuccessToast, showErrorToast } from '@workers/toast-worker'
 
-
 const route = useRoute()
+const router = useRouter()
 
 const activeTab = ref('active')
 const showCreateDialog = ref(false)
@@ -201,15 +245,31 @@ const editingSurvey = ref<MoodSurvey | null>(null)
 const formValid = ref(false)
 
 const surveyForm = ref({
-  title: ''
+  title: '',
+  language: ''
 })
 
 // Data from resolver
 const activeSurveysData = route.meta.activeSurveys as MoodSurvey[]
 const archivedSurveysData = route.meta.archivedSurveys as MoodSurvey[]
+const languagesData = route.meta.languages as Language[] | undefined
 
 const activeSurveys = ref<MoodSurvey[]>(activeSurveysData || [])
 const archivedSurveys = ref<MoodSurvey[]>(archivedSurveysData || [])
+
+const selectedLanguage = ref<string | null>((route.query.language as string) || null)
+
+const languageOptions = computed(() => {
+  const options: Array<{ title: string; value: string | null }> = [
+    { title: 'All Languages', value: null },
+  ]
+  if (Array.isArray(languagesData)) {
+    languagesData.forEach((lang) => {
+      options.push({ title: `${lang.name} (${lang.code})`, value: lang.code })
+    })
+  }
+  return options
+})
 
 const stats = computed(() => {
   const activeCount = activeSurveys.value.length
@@ -225,6 +285,7 @@ const stats = computed(() => {
 
 const headers = [
   { title: 'Title', key: 'title', sortable: false },
+  { title: 'Language', key: 'language', sortable: false },
   { title: 'Created By', key: 'createdBy', sortable: false },
   { title: 'Created At', key: 'createdAt', sortable: false },
   { title: 'Responses', key: 'responsesCount', sortable: false },
@@ -235,6 +296,7 @@ const headers = [
 
 const archivedHeaders = [
   { title: 'Title', key: 'title', sortable: false },
+  { title: 'Language', key: 'language', sortable: false },
   { title: 'Created By', key: 'createdBy', sortable: false },
   { title: 'Created At', key: 'createdAt', sortable: false },
   { title: 'Responses', key: 'responsesCount', sortable: false },
@@ -245,17 +307,28 @@ const archivedHeaders = [
 
 const loadSurveys = async () => {
   const [active, archived] = (await asyncGlobalSpinner(
-    MoodSurveysService.getAll(),
-    MoodSurveysService.getArchived(),
+    MoodSurveysService.getAll(selectedLanguage.value || undefined),
+    MoodSurveysService.getArchived(selectedLanguage.value || undefined),
   )) as [MoodSurvey[], MoodSurvey[]]
 
   activeSurveys.value = active
   archivedSurveys.value = archived
 }
 
+const handleLanguageFilterChange = () => {
+  router.replace({
+    query: {
+      ...route.query,
+      language: selectedLanguage.value || undefined,
+    },
+  })
+  loadSurveys()
+}
+
 const editSurvey = (survey: MoodSurvey) => {
   editingSurvey.value = survey
   surveyForm.value.title = survey.title
+  surveyForm.value.language = survey.language || ''
   showCreateDialog.value = true
 }
 
@@ -263,6 +336,7 @@ const closeDialog = () => {
   showCreateDialog.value = false
   editingSurvey.value = null
   surveyForm.value.title = ''
+  surveyForm.value.language = ''
 }
 
 const saveSurvey = async () => {
@@ -270,12 +344,18 @@ const saveSurvey = async () => {
 
   if (editingSurvey.value) {
     await asyncGlobalSpinner(
-      MoodSurveysService.update(editingSurvey.value.id, { title: surveyForm.value.title.trim() }),
+      MoodSurveysService.update(editingSurvey.value.id, { 
+        title: surveyForm.value.title.trim(),
+        language: surveyForm.value.language || undefined,
+      }),
     )
     showSuccessToast('Survey updated successfully.')
   } else {
     await asyncGlobalSpinner(
-      MoodSurveysService.create({ title: surveyForm.value.title.trim() }),
+      MoodSurveysService.create({ 
+        title: surveyForm.value.title.trim(),
+        language: surveyForm.value.language || undefined,
+      }),
     )
     showSuccessToast('Survey created successfully.')
   }

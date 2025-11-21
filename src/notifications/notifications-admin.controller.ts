@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Paginate, PaginateQuery, Paginated, PaginatedSwaggerDocs } from 'nestjs-paginate';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { NotificationsService } from './notifications.service';
 import { CustomNotificationDto } from './dto/custom-notification.dto';
+import { UserDevice } from './entities/user-device.entity';
 
 @ApiTags('admin/notifications')
 @Controller('admin/notifications')
@@ -43,7 +45,7 @@ export class NotificationsAdminController {
   @Get('devices')
   @ApiOperation({
     summary: 'List active device tokens',
-    description: 'Returns all currently active device tokens grouped by user',
+    description: 'Returns paginated list of active device tokens',
   })
   @ApiQuery({
     name: 'userId',
@@ -51,12 +53,46 @@ export class NotificationsAdminController {
     type: Number,
     description: 'Optional user identifier to filter active device tokens',
   })
+  @ApiQuery({
+    name: 'page',
+    description: 'Page number',
+    type: Number,
+    required: false,
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Items per page',
+    type: Number,
+    required: false,
+    example: 10,
+  })
+  @PaginatedSwaggerDocs(UserDevice, {
+    defaultLimit: 10,
+    maxLimit: 100,
+    sortableColumns: ['id', 'userId', 'updatedAt', 'lastUsedAt'],
+    filterableColumns: {
+      userId: true,
+      platform: true,
+      isActive: true,
+    },
+  })
   @ApiResponse({ status: 200, description: 'Active device tokens fetched successfully' })
-  async getActiveDevices(@Query('userId') userId?: string) {
+  async getActiveDevices(
+    @Paginate() query: PaginateQuery,
+    @Query('userId') userId?: string,
+  ): Promise<Paginated<UserDevice>> {
     const parsedUserId = typeof userId === 'string' ? Number.parseInt(userId, 10) : undefined;
     const filterUserId =
       parsedUserId !== undefined && !Number.isNaN(parsedUserId) ? parsedUserId : undefined;
-    return this.notificationsService.getActiveDeviceTokens(filterUserId);
+    
+    // Add userId to filter if provided
+    if (filterUserId !== undefined) {
+      query.filter = query.filter || {};
+      query.filter.userId = `$eq:${filterUserId}`;
+    }
+    
+    return this.notificationsService.getActiveDeviceTokensPaginated(query);
   }
 
   @Get('notifications')

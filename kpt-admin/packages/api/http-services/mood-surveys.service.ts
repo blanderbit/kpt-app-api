@@ -5,6 +5,7 @@ import { formatDateSafe } from '../utils/date'
 export interface MoodSurvey {
   id: number
   title: string
+  language: string | null
   isArchived: boolean
   createdBy: string
   updatedBy: string
@@ -17,24 +18,30 @@ export interface MoodSurvey {
 
 export interface CreateMoodSurveyDto {
   title: string
+  language?: string
 }
 
 export interface UpdateMoodSurveyDto {
   title: string
+  language?: string
 }
 
 export class MoodSurveysService {
-  static async getAll(): Promise<MoodSurvey[]> {
-    const data = await axios.get<MoodSurvey[], MoodSurvey[]>(ApiBaseUrl.MoodSurveys, {
-      params: { isArchived: false },
-    })
+  static async getAll(language?: string): Promise<MoodSurvey[]> {
+    const params: Record<string, unknown> = { isArchived: false }
+    if (language) {
+      params.language = language
+    }
+    const data = await axios.get<MoodSurvey[], MoodSurvey[]>(ApiBaseUrl.MoodSurveys, { params })
     return data.map(formatMoodSurvey)
   }
 
-  static async getArchived(): Promise<MoodSurvey[]> {
-     const data = await axios.get<MoodSurvey[], MoodSurvey[]>(ApiBaseUrl.MoodSurveys, {
-       params: { isArchived: true },
-     })
+  static async getArchived(language?: string): Promise<MoodSurvey[]> {
+    const params: Record<string, unknown> = { isArchived: true }
+    if (language) {
+      params.language = language
+    }
+    const data = await axios.get<MoodSurvey[], MoodSurvey[]>(ApiBaseUrl.MoodSurveys, { params })
     return data.map(formatMoodSurvey)
   }
 
@@ -54,8 +61,8 @@ export class MoodSurveysService {
     return axios.post(`${ApiBaseUrl.MoodSurveys}/${id}/restore`)
   }
 
-  static getUserAnswersStats(userId: number): Promise<Record<string, number>> {
-    return axios.get<Record<string, number>, Record<string, number>>(
+  static getUserAnswersStats(userId: number): Promise<Record<string, Record<string, number>>> {
+    return axios.get<Record<string, Record<string, number>>, Record<string, Record<string, number>>>(
       `${ApiBaseUrl.MoodSurveys}/user/${userId}/answers-stats`,
     )
   }

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
+import { PaginateQuery, paginate, Paginated } from 'nestjs-paginate';
 import { NotificationsConfigService } from './notifications.config';
 import type { NotificationsConfig } from './notifications.config';
 import { UserDevice } from './entities/user-device.entity';
@@ -402,6 +403,29 @@ export class NotificationsService {
       platform: device.platform ?? null,
       lastUsedAt: device.lastUsedAt ?? null,
     }));
+  }
+
+  async getActiveDeviceTokensPaginated(query: PaginateQuery): Promise<Paginated<UserDevice>> {
+    const queryBuilder = this.userDeviceRepository
+      .createQueryBuilder('device')
+      .where('device.isActive = :isActive', { isActive: true })
+      .orderBy('device.userId', 'ASC')
+      .addOrderBy('device.updatedAt', 'DESC');
+
+    return paginate(query, queryBuilder, {
+      defaultLimit: 10,
+      maxLimit: 100,
+      sortableColumns: ['id', 'userId', 'updatedAt', 'lastUsedAt', 'createdAt'],
+      searchableColumns: ['token', 'platform'],
+      filterableColumns: {
+        userId: true,
+        platform: true,
+        isActive: true,
+        lastUsedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   }
 
   async getNotificationTracker(

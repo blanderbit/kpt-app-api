@@ -46,7 +46,9 @@ export class ProfileTooltipController {
         `Invalid page. Allowed values: ${Object.values(TooltipPage).join(', ')}`
       );
     }
-    return this.tooltipService.findByPage(page as TooltipPage, user.id);
+    // Get user's language if available
+    const userLanguage = user.language || undefined;
+    return this.tooltipService.findByPage(page as TooltipPage, user.id, userLanguage);
   }
 
   @Get('page/:page/type/:type')
@@ -82,7 +84,9 @@ export class ProfileTooltipController {
       );
     }
     
-    return this.tooltipService.findByTypeAndPage(type as TooltipType, page as TooltipPage, user.id);
+    // Get user's language if available
+    const userLanguage = user.language || undefined;
+    return this.tooltipService.findByTypeAndPage(type as TooltipType, page as TooltipPage, user.id, userLanguage);
   }
 
   @Post('close/:tooltipId')

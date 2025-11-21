@@ -33,16 +33,16 @@ export interface SubscriptionStats {
   countByStatus: Record<string, number>
   totals: {
     month: { count: number; startDate: string }
-    year: { count: number; startDate: string }
+    year: { count: number; startDate: string; endDate?: string }
   }
   revenue: {
     month: { amount: number; currency: string; startDate: string }
-    year: { amount: number; currency: string; startDate: string }
+    year: { amount: number; currency: string; startDate: string; endDate?: string }
   }
   authBreakdown: {
     byPlanInterval: Array<{ planInterval: SubscriptionPlanInterval; linked: number; anonymous: number }>
     month: { linked: number; anonymous: number; startDate: string }
-    year: { linked: number; anonymous: number; startDate: string }
+    year: { linked: number; anonymous: number; startDate: string; endDate?: string }
   }
 }
 
@@ -53,8 +53,7 @@ export interface SubscriptionFilters {
   status?: SubscriptionStatus | ''
   provider?: SubscriptionProvider | ''
   linked?: 'linked' | 'anonymous'
-  startDate?: string
-  endDate?: string
+  year?: number
 }
 
 export interface SubscriptionQueryParams extends SubscriptionFilters {
@@ -172,8 +171,11 @@ const buildQueryParams = (
   setFilter('status', filters.status, { useEqualityPrefix: true })
   setFilter('provider', filters.provider, { useEqualityPrefix: true })
   setFilter('linked', filters.linked)
-  setFilter('startDate', filters.startDate)
-  setFilter('endDate', filters.endDate)
+  
+  // For stats endpoint, use year instead of startDate/endDate
+  if (!useFilterPrefix && filters.year !== undefined) {
+    params.year = filters.year
+  }
 
   return params
 }

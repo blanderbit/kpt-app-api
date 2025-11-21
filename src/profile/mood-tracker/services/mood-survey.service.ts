@@ -77,6 +77,7 @@ export class MoodSurveyService {
     return {
       id: survey.id,
       title: survey.title,
+      language: survey.language,
       isArchived: survey.isArchived,
       createdBy: survey.createdBy,
       updatedBy: survey.updatedBy,

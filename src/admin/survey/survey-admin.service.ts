@@ -448,16 +448,25 @@ export class SurveyAdminService {
       updatedAt: survey.updatedAt,
       archivedAt: survey.archivedAt,
       archivedBy: survey.archivedBy,
-      file: file
-        ? {
-            id: file.id,
-            fileUrl: file.fileUrl,
-            fileKey: file.fileKey,
-            fileName: file.fileName,
-            mimeType: file.mimeType,
-            size: file.size,
-          }
-        : null,
+      files: file
+        ? [
+            {
+              id: file.id,
+              fileUrl: file.fileUrl,
+              fileKey: file.fileKey,
+              fileName: file.fileName,
+              mimeType: file.mimeType,
+              size: file.size,
+            },
+          ]
+        : survey.files?.map((f) => ({
+            id: f.id,
+            fileUrl: f.fileUrl,
+            fileKey: f.fileKey,
+            fileName: f.fileName,
+            mimeType: f.mimeType,
+            size: f.size,
+          })) || null,
     };
   }
 

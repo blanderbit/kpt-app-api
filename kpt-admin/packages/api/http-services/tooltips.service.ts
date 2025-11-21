@@ -39,6 +39,7 @@ export interface Tooltip {
   type: TooltipType
   page: TooltipPage
   json: TooltipJson
+  language: string | null
   createdAt: string
   updatedAt: string
   closedCount?: number
@@ -47,12 +48,14 @@ export interface Tooltip {
 export interface SearchTooltipParams {
   type?: TooltipType
   page?: TooltipPage
+  language?: string
 }
 
 export interface CreateTooltipPayload {
   type: TooltipType
   page: TooltipPage
   json: TooltipJson
+  language?: string
 }
 
 export type UpdateTooltipPayload = CreateTooltipPayload
@@ -124,5 +127,9 @@ export class TooltipsService {
 
   static getPages(): Promise<TooltipPage[]> {
     return axios.get<TooltipPage[], TooltipPage[]>(`${this.baseUrl}/pages`)
+  }
+
+  static getClosedTooltipsByUserId(userId: number): Promise<Tooltip[]> {
+    return axios.get<Tooltip[], Tooltip[]>(`${this.baseUrl}/user/${userId}/closed`)
   }
 }

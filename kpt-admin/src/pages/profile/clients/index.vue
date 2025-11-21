@@ -23,7 +23,7 @@ meta:
             >
               <template v-slot:top>
                 <v-row class="mb-4">
-                  <v-col cols="12" md="4">
+                  <v-col cols="12" md="2">
                     <v-text-field
                       v-model="filters.search.value"
                       append-icon="mdi-magnify"
@@ -144,7 +144,7 @@ meta:
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ClientsService, type Client, type ClientsPaginatedResponse, type Language } from '@api'
 import { PaginationWorker } from '@workers/pagination-worker'
@@ -370,6 +370,7 @@ const headers = [
   { title: 'First Name', key: 'firstName', sortable: false },
   { title: 'Email Verified', key: 'emailVerified', sortable: false },
   { title: 'Theme', key: 'theme', sortable: false },
+  { title: 'Language', key: 'language', sortable: false },
   { title: 'Init Satisfaction', key: 'initSatisfactionLevel', sortable: false },
   { title: 'Init Hardness', key: 'initHardnessLevel', sortable: false },
   { title: 'Created At', key: 'createdAt', sortable: false },

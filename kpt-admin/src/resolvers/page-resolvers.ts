@@ -170,10 +170,12 @@ export const pageLoadData: PageResolverConfig[] = [
     routerAuthResolver.routeInterceptor((to) => {
       const page = normalizeQueryNumber(to.query.page, 1)
       const limit = normalizePageSize(to.query.limit, SMALL_PAGE_SIZE)
+      const language = normalizeQueryString(to.query.language)
 
       return {
-        activeSurveys: () => MoodSurveysService.getAll(),
-        archivedSurveys: () => MoodSurveysService.getArchived(),
+        activeSurveys: () => MoodSurveysService.getAll(language),
+        archivedSurveys: () => MoodSurveysService.getArchived(language),
+        languages: () => LanguagesService.getCache(),
       }
     }),
   ),
@@ -199,6 +201,7 @@ export const pageLoadData: PageResolverConfig[] = [
       tooltips: () => TooltipsService.getTooltipTableItems(),
       tooltipTypes: () => TooltipsService.getTooltipTypes(),
       tooltipPages: () => TooltipsService.getPages(),
+      languages: () => LanguagesService.getCache(),
     })),
   ),
   createComponentResolver(
@@ -305,6 +308,13 @@ export const pageLoadData: PageResolverConfig[] = [
       const currentYear = dayjs().year()
       const defaultStartDate = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD')
       const defaultEndDate = dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD')
+      
+      const surveysPage = normalizeQueryNumber(to.query.surveysPage, 1)
+      const surveysLimit = normalizePageSize(to.query.surveysLimit, SMALL_PAGE_SIZE)
+      const articlesPage = normalizeQueryNumber(to.query.articlesPage, 1)
+      const articlesLimit = normalizePageSize(to.query.articlesLimit, SMALL_PAGE_SIZE)
+      const devicesPage = normalizeQueryNumber(to.query.devicesPage, 1)
+      const devicesLimit = normalizePageSize(to.query.devicesLimit, SMALL_PAGE_SIZE)
 
       return {
         client: () => ClientsService.getClient(clientId),
@@ -312,23 +322,23 @@ export const pageLoadData: PageResolverConfig[] = [
         suggestedActivities: () => ClientsService.getClientSuggestedActivities(clientId),
         moodTracker: () => ClientsService.getClientMoodTrackerMonthly(clientId, currentYear, currentMonth),
         analytics: () => ClientsService.getClientAnalytics(clientId),
-        surveys: () => ClientsService.getClientSurveys(clientId),
-        articles: () => ClientsService.getClientArticles(clientId),
-        notificationDevices: () => NotificationsService.getDevices(clientId),
+        surveys: () => ClientsService.getClientSurveys(clientId, { page: surveysPage, limit: surveysLimit }),
+        articles: () => ClientsService.getClientArticles(clientId, { page: articlesPage, limit: articlesLimit }),
+        notificationDevices: () => NotificationsService.getDevices(clientId, { page: devicesPage, limit: devicesLimit }),
         notificationTracker: () => NotificationsService.getNotificationTracker(clientId),
         articleAnalytics: () => ArticlesService.getUserArticlesAnalytics(clientId),
         clientSubscriptions: () =>
           SubscriptionsService.getUserSubscriptions(clientId, {
-            page: 1,
-            limit: 10,
+            page: normalizeQueryNumber(to.query.subscriptionsPage, 1),
+            limit: normalizePageSize(to.query.subscriptionsLimit, DEFAULT_PAGE_SIZE),
           }),
         clientSubscriptionStats: () =>
           SubscriptionsService.getUserStats(clientId, {
-            startDate: defaultStartDate,
-            endDate: defaultEndDate,
+            year: normalizeQueryNumber(to.query.subscriptionStatsYear, new Date().getFullYear()),
           }),
         clientLatestSubscription: () => SubscriptionsService.getUserLatestSubscription(clientId),
         moodSurveyAnswersStats: () => MoodSurveysService.getUserAnswersStats(clientId),
+        closedTooltips: () => TooltipsService.getClosedTooltipsByUserId(clientId),
       }
     }),
   ),

@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsOptional, IsString, IsIn } from 'class-validator';
+import { IsEnum, IsOptional, IsIn, IsInt } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { SubscriptionPlanInterval } from '../enums/subscription-plan-interval.enum';
 import { SubscriptionStatus } from '../enums/subscription-status.enum';
 import { SubscriptionProvider } from '../enums/subscription-provider.enum';
@@ -25,13 +26,9 @@ export class SubscriptionStatsQueryDto {
   @IsIn(['linked', 'anonymous'])
   linked?: 'linked' | 'anonymous';
 
-  @ApiPropertyOptional({ type: String, format: 'date-time', description: 'Start date (inclusive)' })
+  @ApiPropertyOptional({ type: Number, description: 'Year to filter statistics (if not provided, returns all-time stats)' })
   @IsOptional()
-  @IsDateString()
-  startDate?: string;
-
-  @ApiPropertyOptional({ type: String, format: 'date-time', description: 'End date (inclusive)' })
-  @IsOptional()
-  @IsDateString()
-  endDate?: string;
+  @Transform(({ value }) => (value ? parseInt(value, 10) : undefined))
+  @IsInt()
+  year?: number;
 }

@@ -45,6 +45,7 @@ export class TooltipController {
   @ApiOperation({ summary: 'Get all tooltips with optional filtering' })
   @ApiQuery({ name: 'type', required: false, description: 'Filter by tooltip type', enum: TooltipType })
   @ApiQuery({ name: 'page', required: false, description: 'Filter by page', enum: TooltipPage })
+  @ApiQuery({ name: 'language', required: false, description: 'Filter by language code', type: String })
   @ApiResponse({ 
     status: 200, 
     description: 'Tooltips retrieved successfully',
@@ -80,6 +81,23 @@ export class TooltipController {
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   getPages(): Promise<TooltipPage[]> {
     return this.tooltipService.getPages();
+  }
+
+  @Get('user/:userId/closed')
+  @ApiOperation({ summary: 'Get closed tooltips for a specific user' })
+  @ApiParam({ name: 'userId', description: 'User ID', type: Number })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Closed tooltips retrieved successfully',
+    type: [Tooltip] 
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  getClosedTooltipsByUserId(
+    @Param('userId') userId: string,
+  ): Promise<Tooltip[]> {
+    return this.tooltipService.getClosedTooltipsByUserId(parseInt(userId, 10));
   }
 
   @Get(':id')

@@ -19,6 +19,8 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User } from '../../users/entities/user.entity';
+import { Survey } from '../survey/entities/survey.entity';
+import { Article } from '../articles/entities/article.entity';
 import { CLIENT_PAGINATION_CONFIG } from './client-management.config';
 import { PaginatedSwaggerDocs } from 'nestjs-paginate';
 import { ClientManagementService } from './client-management.service';
@@ -263,7 +265,7 @@ export class ClientManagementController {
   @Get(':id/surveys')
   @ApiOperation({
     summary: 'Get surveys user answered',
-    description: 'Returns all surveys that the user has answered',
+    description: 'Returns paginated list of surveys that the user has answered',
   })
   @ApiParam({
     name: 'id',
@@ -271,10 +273,23 @@ export class ClientManagementController {
     type: Number,
     example: 1,
   })
+  @ApiQuery({
+    name: 'page',
+    description: 'Page number',
+    type: Number,
+    required: false,
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Items per page',
+    type: Number,
+    required: false,
+    example: 10,
+  })
   @ApiResponse({
     status: 200,
-    description: 'Surveys user answered',
-    type: UserSurveysResponseDto,
+    description: 'Paginated surveys user answered',
   })
   @ApiResponse({
     status: 401,
@@ -290,14 +305,15 @@ export class ClientManagementController {
   })
   async getUserSurveys(
     @Param('id', ParseIntPipe) id: number,
-  ): Promise<UserSurveysResponseDto> {
-    return this.clientManagementService.getUserSurveys(id);
+    @Paginate() query: PaginateQuery,
+  ): Promise<Paginated<Survey>> {
+    return this.clientManagementService.getUserSurveys(id, query);
   }
 
   @Get(':id/articles')
   @ApiOperation({
     summary: 'Get articles user hidden',
-    description: 'Returns all articles that the user has hidden (closed)',
+    description: 'Returns paginated list of articles that the user has hidden (closed)',
   })
   @ApiParam({
     name: 'id',
@@ -305,10 +321,23 @@ export class ClientManagementController {
     type: Number,
     example: 1,
   })
+  @ApiQuery({
+    name: 'page',
+    description: 'Page number',
+    type: Number,
+    required: false,
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Items per page',
+    type: Number,
+    required: false,
+    example: 10,
+  })
   @ApiResponse({
     status: 200,
-    description: 'Articles user hidden',
-    type: UserArticlesResponseDto,
+    description: 'Paginated articles user hidden',
   })
   @ApiResponse({
     status: 401,
@@ -324,8 +353,9 @@ export class ClientManagementController {
   })
   async getUserArticles(
     @Param('id', ParseIntPipe) id: number,
-  ): Promise<UserArticlesResponseDto> {
-    return this.clientManagementService.getUserArticles(id);
+    @Paginate() query: PaginateQuery,
+  ): Promise<Paginated<Article>> {
+    return this.clientManagementService.getUserArticles(id, query);
   }
 }
 

@@ -82,4 +82,13 @@ export class CreateTooltipDto {
     return Object;
   })
   json: SwipeModel | TextModel;
+
+  @ApiProperty({ 
+    description: 'Language code for the tooltip',
+    example: 'en',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  language?: string;
 }

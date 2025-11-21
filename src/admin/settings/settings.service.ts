@@ -13,6 +13,8 @@ import { SettingsResponseDto, UpdateSettingsDto } from './dto/settings.dto';
 import { TemporaryItemsQueueService } from './queue/temporary-items-queue.service';
 import { UsersService } from '../../users/users.service';
 import { SuggestedActivityCronService } from '../../suggested-activity/cron/suggested-activity-cron.service';
+import { GoogleDriveService } from '../../core/google-drive';
+import { GoogleDriveFilesService } from '../../common/services/google-drive-files.service';
 
 export interface NotificationCronConfig {
   inactivity: string;
@@ -69,6 +71,8 @@ export class SettingsService implements OnModuleInit {
   private readonly logger = new Logger(SettingsService.name);
   private config: SettingsConfig;
 
+  private readonly settingsFileId: string | undefined;
+
   constructor(
     @InjectRepository(UserTemporaryArticle)
     private readonly userTemporaryArticleRepository: Repository<UserTemporaryArticle>,
@@ -85,14 +89,104 @@ export class SettingsService implements OnModuleInit {
     private readonly suggestedActivityCronService: SuggestedActivityCronService,
     private readonly temporaryItemsQueueService: TemporaryItemsQueueService,
     private readonly usersService: UsersService,
+    private readonly googleDriveService: GoogleDriveService,
+    private readonly googleDriveFilesService: GoogleDriveFilesService,
   ) {
+    this.settingsFileId = process.env.SETTINGS_FILE_ID;
     // Initialize default configuration
     this.config = this.getDefaultConfig();
   }
 
-  onModuleInit() {
+  async onModuleInit() {
+    // Load settings from Google Drive if file ID is configured
+    await this.loadSettingsFromGoogleDrive();
     // Register initial cron jobs
     this.registerCronJobs();
+  }
+
+  /**
+   * Load settings from Google Drive file
+   */
+  private async loadSettingsFromGoogleDrive(): Promise<void> {
+    if (!this.settingsFileId) {
+      this.logger.warn('SETTINGS_FILE_ID not configured, using default settings');
+      return;
+    }
+
+    try {
+      this.logger.log('Loading settings from Google Drive...');
+      const fileContent = await this.googleDriveService.getFileContent(this.settingsFileId);
+      const settingsData = JSON.parse(fileContent);
+
+      // Merge loaded settings with default config
+      if (settingsData.suggestedActivities) {
+        if (settingsData.suggestedActivities.count !== undefined) {
+          this.config.suggestedActivities.count = settingsData.suggestedActivities.count;
+        }
+        if (settingsData.suggestedActivities.cron) {
+          this.config.suggestedActivities.cron = {
+            ...this.config.suggestedActivities.cron,
+            ...settingsData.suggestedActivities.cron,
+          };
+        }
+      }
+
+      if (settingsData.articles) {
+        if (settingsData.articles.count !== undefined) {
+          this.config.articles.count = settingsData.articles.count;
+        }
+        if (settingsData.articles.expirationDays !== undefined) {
+          this.config.articles.expirationDays = settingsData.articles.expirationDays;
+        }
+        if (settingsData.articles.cron) {
+          this.config.articles.cron = {
+            ...this.config.articles.cron,
+            ...settingsData.articles.cron,
+          };
+        }
+      }
+
+      if (settingsData.surveys) {
+        if (settingsData.surveys.count !== undefined) {
+          this.config.surveys.count = settingsData.surveys.count;
+        }
+        if (settingsData.surveys.expirationDays !== undefined) {
+          this.config.surveys.expirationDays = settingsData.surveys.expirationDays;
+        }
+        if (settingsData.surveys.cron) {
+          this.config.surveys.cron = {
+            ...this.config.surveys.cron,
+            ...settingsData.surveys.cron,
+          };
+        }
+      }
+
+      if (settingsData.notifications?.cron) {
+        this.config.notifications.cron = {
+          ...this.config.notifications.cron,
+          ...settingsData.notifications.cron,
+        };
+      }
+
+      if (settingsData.trialMode) {
+        if (settingsData.trialMode.periodDays !== undefined) {
+          this.config.trialMode.periodDays = settingsData.trialMode.periodDays;
+        }
+        if (settingsData.trialMode.activitiesPerDay !== undefined) {
+          this.config.trialMode.activitiesPerDay = settingsData.trialMode.activitiesPerDay;
+        }
+        if (settingsData.trialMode.articlesAvailable !== undefined) {
+          this.config.trialMode.articlesAvailable = settingsData.trialMode.articlesAvailable;
+        }
+        if (settingsData.trialMode.surveysAvailable !== undefined) {
+          this.config.trialMode.surveysAvailable = settingsData.trialMode.surveysAvailable;
+        }
+      }
+
+      this.logger.log('Settings loaded successfully from Google Drive');
+    } catch (error) {
+      this.logger.error('Failed to load settings from Google Drive, using default settings', error);
+    }
   }
 
   private getDefaultConfig(): SettingsConfig {
@@ -307,8 +401,76 @@ export class SettingsService implements OnModuleInit {
       this.updateNotificationCronSettings(updateDto.notifications);
     }
 
+    // Save settings to Google Drive if file ID is configured
+    await this.saveSettingsToGoogleDrive();
+
     this.logger.log('Settings updated successfully');
     return this.getSettings();
+  }
+
+  /**
+   * Save current settings configuration to Google Drive file
+   */
+  private async saveSettingsToGoogleDrive(): Promise<void> {
+    if (!this.settingsFileId) {
+      this.logger.warn('SETTINGS_FILE_ID not configured, skipping save to Google Drive');
+      return;
+    }
+
+    if (!this.googleDriveFilesService.isAvailable()) {
+      this.logger.warn('Google Drive not available, skipping save to Google Drive');
+      return;
+    }
+
+    try {
+      // Prepare settings data in the same format as loaded from Google Drive
+      const settingsData = {
+        suggestedActivities: {
+          count: this.config.suggestedActivities.count,
+          cron: {
+            generateDailySuggestions: this.config.suggestedActivities.cron.generateDailySuggestions,
+            cleanupOldSuggestions: this.config.suggestedActivities.cron.cleanupOldSuggestions,
+          },
+        },
+        articles: {
+          count: this.config.articles.count,
+          cron: {
+            generateArticles: this.config.articles.cron.generateArticles,
+            cleanupOldArticles: this.config.articles.cron.cleanupOldArticles,
+          },
+          expirationDays: this.config.articles.expirationDays,
+        },
+        surveys: {
+          count: this.config.surveys.count,
+          cron: {
+            generateSurveys: this.config.surveys.cron.generateSurveys,
+            cleanupOldSurveys: this.config.surveys.cron.cleanupOldSurveys,
+          },
+          expirationDays: this.config.surveys.expirationDays,
+        },
+        notifications: {
+          cron: {
+            inactivity: this.config.notifications.cron.inactivity,
+            mood: this.config.notifications.cron.mood,
+            surveys: this.config.notifications.cron.surveys,
+            articles: this.config.notifications.cron.articles,
+            globalActivity: this.config.notifications.cron.globalActivity,
+          },
+        },
+        trialMode: {
+          periodDays: this.config.trialMode.periodDays,
+          activitiesPerDay: this.config.trialMode.activitiesPerDay,
+          articlesAvailable: this.config.trialMode.articlesAvailable,
+          surveysAvailable: this.config.trialMode.surveysAvailable,
+        },
+      };
+
+      await this.googleDriveFilesService.updateFileContent(this.settingsFileId, settingsData);
+      this.logger.log('Settings saved successfully to Google Drive');
+    } catch (error) {
+      this.logger.error('Failed to save settings to Google Drive', error);
+      // Don't throw error to prevent breaking the update flow
+    }
   }
 
   /**

@@ -1,6 +1,7 @@
 import axios from '../axios.config'
 import { ApiBaseUrl } from '../enums'
 import { formatDateSafe } from '../utils/date'
+import type { PaginatedResponse } from '../interfaces'
 
 export interface NotificationStats {
   totalUsers: number
@@ -43,18 +44,25 @@ export class NotificationsService {
     )
   }
 
-  static async getDevices(userId: number): Promise<NotificationDevice[]> {
-    const devices = await axios.get<NotificationDevice[], NotificationDevice[]>(
-      `${ApiBaseUrl.Notifications}/devices`,
-      {
-        params: { userId },
-      },
-    )
+  static async getDevices(
+    userId: number,
+    params?: { page?: number; limit?: number },
+  ): Promise<PaginatedResponse<NotificationDevice>> {
+    const queryParams = new URLSearchParams()
+    queryParams.append('userId', String(userId))
+    if (params?.page) queryParams.append('page', String(params.page))
+    if (params?.limit) queryParams.append('limit', String(params.limit))
+    
+    const url = `${ApiBaseUrl.Notifications}/devices?${queryParams.toString()}`
+    const response = await axios.get<PaginatedResponse<NotificationDevice>, PaginatedResponse<NotificationDevice>>(url)
 
-    return devices.map((device) => ({
-      ...device,
-      lastUsedAt: device.lastUsedAt ? formatDateSafe(device.lastUsedAt) ?? device.lastUsedAt : null,
-    }))
+    return {
+      ...response,
+      data: response.data.map((device) => ({
+        ...device,
+        lastUsedAt: device.lastUsedAt ? formatDateSafe(device.lastUsedAt) ?? device.lastUsedAt : null,
+      })),
+    }
   }
 
   static async getNotificationTracker(userId: number): Promise<NotificationTrackerEntry[]> {

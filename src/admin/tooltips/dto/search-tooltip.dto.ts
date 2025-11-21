@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsEnum } from 'class-validator';
+import { IsOptional, IsEnum, IsString } from 'class-validator';
 import { TooltipType, TooltipPage } from '../entities/tooltip.entity';
 
 export class SearchTooltipDto {
@@ -22,4 +22,13 @@ export class SearchTooltipDto {
   @IsOptional()
   @IsEnum(TooltipPage)
   page?: TooltipPage;
+
+  @ApiProperty({ 
+    description: 'Filter by language code',
+    required: false,
+    example: 'en'
+  })
+  @IsOptional()
+  @IsString()
+  language?: string;
 }
