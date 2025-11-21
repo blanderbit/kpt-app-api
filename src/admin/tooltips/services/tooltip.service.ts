@@ -270,8 +270,9 @@ export class TooltipService {
       const closedTooltips = await this.userClosedTooltipRepository
         .createQueryBuilder('closed')
         .leftJoinAndSelect('closed.tooltip', 'tooltip')
-        .where('closed.userId = :userId', { userId })
-        .orderBy('closed.createdAt', 'DESC')
+        .leftJoin('closed.user', 'user')
+        .where('user.id = :userId', { userId })
+        .orderBy('closed.closedAt', 'DESC')
         .getMany();
 
       return closedTooltips.map(closed => closed.tooltip);
