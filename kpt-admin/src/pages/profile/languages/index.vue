@@ -131,7 +131,6 @@ name: languages
                   size="small"
                   variant="text"
                   @click="handleSetDefault(item.id)"
-                  :loading="loadingItems[item.id]"
                 >
                   Set Default
                 </v-btn>
