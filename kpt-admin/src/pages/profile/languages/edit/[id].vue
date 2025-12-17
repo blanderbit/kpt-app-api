@@ -148,15 +148,21 @@ const formData = ref({
 })
 
 // Загружаем translations из данных языка (приходят с API)
-const translations = ref((languageToEdit.value as any).translations || {})
+const originalTranslations = (languageToEdit.value as any).translations || {}
+const translations = ref(originalTranslations)
 
 // Check if there are any changes
 const hasChanges = computed(() => {
-  return formData.value.name !== languageToEdit.value.name ||
+  const formChanged = formData.value.name !== languageToEdit.value.name ||
     formData.value.nativeName !== languageToEdit.value.nativeName ||
     formData.value.direction !== languageToEdit.value.direction ||
     formData.value.notes !== (languageToEdit.value.notes || '') ||
     formData.value.svgLogo !== (languageToEdit.value.svgLogo || '')
+  
+  // Check if translations changed (deep comparison using JSON.stringify)
+  const translationsChanged = JSON.stringify(translations.value) !== JSON.stringify(originalTranslations)
+  
+  return formChanged || translationsChanged
 })
 
 // Validation rules (exclude current language from uniqueness check)

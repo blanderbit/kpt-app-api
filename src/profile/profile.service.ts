@@ -212,5 +212,4 @@ export class ProfileService {
       updatedAt: user.updatedAt,
     };
   }
-
 }
