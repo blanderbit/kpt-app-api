@@ -2,14 +2,14 @@
   <v-container fluid>
     <!-- Header -->
     <v-row class="mb-4">
-      <v-col cols="12" class="d-flex justify-space-between align-center">
+      <v-col cols="12" class="d-flex flex-column flex-md-row justify-space-between align-start align-md-center">
         <div>
           <h2>Activity Types</h2>
           <div class="text-caption text-grey-darken-1">
             Last Drive sync: {{ lastDriveSyncText }}
           </div>
         </div>
-        <v-btn color="primary" @click="handleSync">
+        <v-btn color="primary" @click="handleSync" class="mt-2 mt-md-0">
           <v-icon start>mdi-sync</v-icon>
           Sync with Google Drive
         </v-btn>

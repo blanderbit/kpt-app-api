@@ -9,9 +9,11 @@ meta:
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title class="d-flex align-center">
-            <v-icon left>mdi-help-circle</v-icon>
-            Tooltips Management
+          <v-card-title class="d-flex align-center header-title">
+            <div class="d-flex align-center">
+              <v-icon left>mdi-help-circle</v-icon>
+              Tooltips Management
+            </div>
             <v-spacer />
             <v-btn color="primary" @click="openCreateDialog">
               <v-icon left>mdi-plus</v-icon>
@@ -761,4 +763,19 @@ const confirmDeleteTooltip = async () => {
 
 ensureDefaultPage()
 </script>
+
+<style scoped>
+@media (max-width: 600px) {
+  .header-title {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .header-title .v-spacer {
+    display: none;
+  }
+}
+</style>
 

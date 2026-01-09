@@ -24,16 +24,8 @@
           hide-details
           @update:model-value="handleLanguageFilterChange"
         >
-          <template v-slot:item="{ item, props }">
-            <v-list-item v-bind="props">
-              <template v-if="item.value === null">
-                <v-list-item-title>All Languages</v-list-item-title>
-              </template>
-            </v-list-item>
-          </template>
           <template v-slot:selection="{ item }">
-            <span v-if="item.value === null">All Languages</span>
-            <span v-else>{{ item.title }}</span>
+            <span>{{ item?.title || 'All Languages' }}</span>
           </template>
         </v-select>
       </v-col>
@@ -252,7 +244,8 @@ const surveyForm = ref({
 // Data from resolver
 const activeSurveysData = route.meta.activeSurveys as MoodSurvey[]
 const archivedSurveysData = route.meta.archivedSurveys as MoodSurvey[]
-const languagesData = route.meta.languages as Language[] | undefined
+const languagesData = route.meta.languages as { languages: Language[] } | undefined
+
 
 const activeSurveys = ref<MoodSurvey[]>(activeSurveysData || [])
 const archivedSurveys = ref<MoodSurvey[]>(archivedSurveysData || [])
@@ -260,14 +253,22 @@ const archivedSurveys = ref<MoodSurvey[]>(archivedSurveysData || [])
 const selectedLanguage = ref<string | null>((route.query.language as string) || null)
 
 const languageOptions = computed(() => {
-  const options: Array<{ title: string; value: string | null }> = [
-    { title: 'All Languages', value: null },
-  ]
-  if (Array.isArray(languagesData)) {
-    languagesData.forEach((lang) => {
-      options.push({ title: `${lang.name} (${lang.code})`, value: lang.code })
+  // Убираем опцию "All Languages" из массива, так как clearable уже предоставляет эту функциональность
+  const options: Array<{ title: string; value: string }> = []
+  
+  const languagesArray = languagesData?.languages || []
+  
+  if (Array.isArray(languagesArray) && languagesArray.length > 0) {
+    const seenCodes = new Set<string>()
+    
+    languagesArray.forEach((lang) => {
+      if (lang.code && !seenCodes.has(lang.code)) {
+        seenCodes.add(lang.code)
+        options.push({ title: `${lang.name} (${lang.code})`, value: lang.code })
+      }
     })
   }
+  
   return options
 })
 

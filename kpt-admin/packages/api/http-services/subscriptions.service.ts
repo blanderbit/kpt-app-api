@@ -53,6 +53,8 @@ export interface SubscriptionFilters {
   status?: SubscriptionStatus | ''
   provider?: SubscriptionProvider | ''
   linked?: 'linked' | 'anonymous'
+  startDate?: string
+  endDate?: string
   year?: number
 }
 
@@ -171,6 +173,16 @@ const buildQueryParams = (
   setFilter('status', filters.status, { useEqualityPrefix: true })
   setFilter('provider', filters.provider, { useEqualityPrefix: true })
   setFilter('linked', filters.linked)
+  
+  // Date filters - только для основного запроса (useFilterPrefix = true), не для stats
+  if (useFilterPrefix) {
+    if (filters.startDate) {
+      params.startDate = filters.startDate
+    }
+    if (filters.endDate) {
+      params.endDate = filters.endDate
+    }
+  }
   
   // For stats endpoint, use year instead of startDate/endDate
   if (!useFilterPrefix && filters.year !== undefined) {

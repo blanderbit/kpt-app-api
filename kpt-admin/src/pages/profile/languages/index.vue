@@ -429,4 +429,11 @@ const formatLastSyncDate = (date: string | null): string => {
 
 <style scoped>
 .button-group { display: flex; gap: 12px; }
+
+@media (max-width: 600px) {
+  .button-group {
+    flex-direction: column;
+    width: 100%;
+  }
+}
 </style>

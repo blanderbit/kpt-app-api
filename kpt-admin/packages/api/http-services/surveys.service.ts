@@ -79,6 +79,7 @@ export interface UpdateSurveyDto {
   title?: string
   description?: string
   questions?: SurveyQuestion[]
+  language?: string
   removeFileId?: number
 }
 
@@ -166,6 +167,10 @@ const buildSurveyFormData = (
 
   if ('description' in data && data.description !== undefined) {
     formData.append('description', data.description ?? '')
+  }
+
+  if ('language' in data && data.language !== undefined) {
+    formData.append('language', data.language)
   }
 
   if ('questions' in data && data.questions !== undefined) {
