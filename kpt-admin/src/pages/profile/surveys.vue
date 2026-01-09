@@ -8,8 +8,8 @@ meta:
   <v-container fluid>
     <!-- Header -->
     <v-row class="mb-4">
-      <v-col cols="12" class="d-flex justify-space-between align-center">
-        <div class="d-flex align-center">
+      <v-col cols="12" class="d-flex justify-space-between align-center header-row">
+        <div class="d-flex align-center header-content">
           <h2 class="mr-4">Surveys ({{ paginationTotalCount }})</h2>
           <v-tabs v-model="activeTab" density="comfortable">
             <v-tab value="active">
@@ -462,8 +462,8 @@ meta:
                         :key="`${question.questionId}-${answer.value}`"
                       >
                         <template #prepend>
-                          <v-avatar color="primary" size="28" class="mr-2">
-                            <span class="text-body-2">{{ answer.percentage }}%</span>
+                          <v-avatar color="primary" size="54" class="mr-2">
+                            <span class="text-body-2 font-weight-medium">{{ answer.percentage }}%</span>
                           </v-avatar>
                         </template>
                         <v-list-item-title>{{ answer.label }}</v-list-item-title>
@@ -600,13 +600,13 @@ const {
     ) || normalizedInitialLimit
 
     const params: Record<string, unknown> = {
-      ...rawFilters,
       page: pageNumber,
       limit: limitFromFilters,
       'filter.status': `$eq:${activeTab.value}`,
     }
     
-    if (rawFilters['filter.language']) {
+    // Добавляем filter.language только если он не пустой
+    if (rawFilters['filter.language'] && rawFilters['filter.language'].trim() !== '') {
       params['filter.language'] = `$eq:${rawFilters['filter.language']}`
     }
     
@@ -838,13 +838,26 @@ const saveSurvey = async () => {
 
     await asyncGlobalSpinner(SurveysService.updateSurvey(editingSurvey.value.id, updatePayload, selectedFile))
     showSuccessToast('Survey updated successfully.')
+    closeDialog()
+    await loadSurveys({ reset: true })
   } else {
     await asyncGlobalSpinner(SurveysService.createSurvey(basePayload, selectedFile))
     showSuccessToast('Survey created successfully.')
+    closeDialog()
+    // Новый survey создается со статусом 'available', переключаемся на эту вкладку
+    activeTab.value = 'available'
+    // Удаляем пустые параметры из query
+    const cleanQuery: Record<string, string> = {}
+    Object.keys(route.query).forEach((key) => {
+      const value = route.query[key]
+      if (value && String(value).trim() !== '') {
+        cleanQuery[key] = String(value)
+      }
+    })
+    cleanQuery['filter.status'] = '$eq:available'
+    await router.replace({ query: cleanQuery })
+    await loadSurveys({ reset: true })
   }
-
-  closeDialog()
-  await loadSurveys({ reset: true })
 }
 
 const openDeleteDialog = (survey: Survey) => {
@@ -905,14 +918,17 @@ const activateSurvey = async (survey: Survey) => {
  
  watch(activeTab, async () => {
    filters.value.page.value = 1
-   await router.replace({
-     query: {
-       ...route.query,
-       'filter.status': `$eq:${activeTab.value}`,
-     },
+   // Удаляем пустые параметры из query
+   const cleanQuery: Record<string, string> = {}
+   Object.keys(route.query).forEach((key) => {
+     const value = route.query[key]
+     if (value && String(value).trim() !== '' && key !== 'filter.status') {
+      cleanQuery[key] = String(value)
+     }
    })
-  
-  await loadSurveys({ reset: true })
+   cleanQuery['filter.status'] = `$eq:${activeTab.value}`
+   await router.replace({ query: cleanQuery })
+   await loadSurveys({ reset: true })
  })
 
 </script>
@@ -939,5 +955,24 @@ const activateSurvey = async (survey: Survey) => {
 
 .stats-content .v-card {
   height: 100%;
+}
+
+@media (max-width: 600px) {
+  .header-row {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch !important;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+
+  .header-content h2 {
+    margin-right: 0 !important;
+    margin-bottom: 0;
+  }
 }
 </style>

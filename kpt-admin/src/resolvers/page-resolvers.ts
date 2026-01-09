@@ -133,6 +133,7 @@ export const pageLoadData: PageResolverConfig[] = [
     routerAuthResolver.routeInterceptor(() => ({
       moodTypes: () => MoodTypesService.getAll(),
       moodTypesStats: () => MoodTypesService.getStats(),
+      settings: () => SettingsService.getSettings(),
     })),
   ),
   createComponentResolver(

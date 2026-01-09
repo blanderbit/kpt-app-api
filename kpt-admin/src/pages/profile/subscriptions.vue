@@ -73,26 +73,64 @@ meta:
                 ></v-select>
               </v-col>
               <v-col cols="12" md="3">
-                <v-text-field
-                  v-model="filters.startDate.value"
-                  label="Start date"
-                  type="date"
-                  density="comfortable"
-                  variant="outlined"
-                  hide-details
-                  @update:model-value="handleFilterChange"
-                ></v-text-field>
+                <v-menu
+                  v-model="startDateMenu"
+                  :close-on-content-click="false"
+                  location="bottom start"
+                  transition="scale-transition"
+                  offset-y
+                  :max-width="290"
+                  :min-width="290"
+                  :attach="false"
+                  :content-class="'date-picker-menu'"
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-text-field
+                      v-model="filters.startDate.value"
+                      label="Start date"
+                      density="comfortable"
+                      variant="outlined"
+                      hide-details
+                      readonly
+                      v-bind="props"
+                      @update:model-value="handleFilterChange"
+                    ></v-text-field>
+                  </template>
+                  <v-date-picker
+                    v-model="filters.startDate.value"
+                    @update:model-value="startDateMenu = false; handleFilterChange()"
+                  ></v-date-picker>
+                </v-menu>
               </v-col>
               <v-col cols="12" md="3">
-                <v-text-field
-                  v-model="filters.endDate.value"
-                  label="End date"
-                  type="date"
-                  density="comfortable"
-                  variant="outlined"
-                  hide-details
-                  @update:model-value="handleFilterChange"
-                ></v-text-field>
+                <v-menu
+                  v-model="endDateMenu"
+                  :close-on-content-click="false"
+                  location="bottom start"
+                  transition="scale-transition"
+                  offset-y
+                  :max-width="290"
+                  :min-width="290"
+                  :attach="false"
+                  :content-class="'date-picker-menu'"
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-text-field
+                      v-model="filters.endDate.value"
+                      label="End date"
+                      density="comfortable"
+                      variant="outlined"
+                      hide-details
+                      readonly
+                      v-bind="props"
+                      @update:model-value="handleFilterChange"
+                    ></v-text-field>
+                  </template>
+                  <v-date-picker
+                    v-model="filters.endDate.value"
+                    @update:model-value="endDateMenu = false; handleFilterChange()"
+                  ></v-date-picker>
+                </v-menu>
               </v-col>
             </v-row>
           </v-card-text>
@@ -273,7 +311,7 @@ meta:
 
             <div class="d-flex justify-end mt-4" v-if="paginationLastPage > 1">
               <v-pagination
-                v-model="filters.page.value"
+                :model-value="paginationPage"
                 :length="paginationLastPage"
                 rounded="circle"
                 active-color="primary"
@@ -347,6 +385,16 @@ const linkedQuery = route.query.linked as string | undefined
 const startDateQuery = (route.query.startDate as string | undefined) ?? defaultStartDate
 const endDateQuery = (route.query.endDate as string | undefined) ?? defaultEndDate
 
+const previousFilters = ref({
+  planInterval: (planIntervalQuery as SubscriptionPlanInterval | undefined) ?? '',
+  status: (statusQuery as SubscriptionStatus | undefined) ?? '',
+  provider: (providerQuery as 'revenuecat' | 'stripe' | undefined) ?? '',
+  linked: linkedQuery ?? '',
+  startDate: startDateQuery,
+  endDate: endDateQuery,
+  page: initialPage,
+})
+
 const {
   filters,
   getRawFilters,
@@ -390,7 +438,41 @@ const {
     },
   },
   afterUpdateFiltersCallBack: async () => {
-    await reloadAll({ reset: true })
+    // Проверяем, изменились ли фильтры (кроме страницы)
+    const currentFilters = {
+      planInterval: filters.value.planInterval.value,
+      status: filters.value.status.value,
+      provider: filters.value.provider.value,
+      linked: filters.value.linked.value,
+      startDate: filters.value.startDate.value,
+      endDate: filters.value.endDate.value,
+    }
+    
+    const currentPage = Number(filters.value.page.value) || 1
+    const previousPage = Number(previousFilters.value.page) || 1
+    
+    const filtersChanged = 
+      previousFilters.value.planInterval !== currentFilters.planInterval ||
+      previousFilters.value.status !== currentFilters.status ||
+      previousFilters.value.provider !== currentFilters.provider ||
+      previousFilters.value.linked !== currentFilters.linked ||
+      previousFilters.value.startDate !== currentFilters.startDate ||
+      previousFilters.value.endDate !== currentFilters.endDate
+    
+    // Если изменились фильтры (не страница), сбрасываем на страницу 1
+    if (filtersChanged) {
+      filters.value.page.value = 1
+      paginationPage.value = 1
+      previousFilters.value = { ...currentFilters, page: 1 }
+      await reloadAll({ reset: true })
+    } else if (currentPage !== previousPage) {
+      // Изменилась только страница - это обрабатывается в handlePageChange
+      // Здесь ничего не делаем, чтобы избежать двойной загрузки
+      previousFilters.value = { ...currentFilters, page: currentPage }
+    } else {
+      // Ничего не изменилось, обновляем только previousFilters
+      previousFilters.value = { ...currentFilters, page: currentPage }
+    }
   },
 })
 
@@ -412,6 +494,8 @@ paginationLastPage.value = initialSubscriptions?.meta?.totalPages ?? 1
 paginationPage.value = initialSubscriptions?.meta?.currentPage ?? initialPage
 
 const isRefreshing = ref(false)
+const startDateMenu = ref(false)
+const endDateMenu = ref(false)
 
 const planIntervalOptions = [
   { title: 'Monthly', value: 'monthly' },
@@ -560,6 +644,8 @@ const buildStatsParams = () => {
   const params = buildQueryParams(filters.value.page.value)
   delete params.page
   delete params.limit
+  delete params.startDate
+  delete params.endDate
   return params
 }
 
@@ -569,16 +655,17 @@ const loadStats = async () => {
 }
 
 const reloadAll = async ({ reset = false, force = false }: { reset?: boolean; force?: boolean } = {}) => {
+  const pageToLoad = Number(filters.value.page.value) || 1
+  
   if (reset) {
     paginationClearData()
-    filters.value.page.value = 1
   }
-
+  
   await asyncGlobalSpinner(
     Promise.all([
       loadStats(),
       paginationLoad({
-        pageNumber: Number(filters.value.page.value) || 1,
+        pageNumber: pageToLoad,
         forceUpdate: force,
       }),
     ]),
@@ -598,8 +685,13 @@ const handleFilterChange = () => {
   filters.value.page.value = 1
 }
 
-const handlePageChange = (page: number) => {
+const handlePageChange = async (page: number) => {
+  // Обновляем фильтр страницы
   filters.value.page.value = page
+  // Синхронизируем paginationPage
+  paginationPage.value = page
+  // Загружаем данные для новой страницы без сброса
+  await reloadAll({ reset: false })
 }
 
 const formatPlanInterval = (value: SubscriptionPlanInterval | string | undefined) => {
@@ -664,6 +756,23 @@ const formatPrice = (subscription: SubscriptionModel) => {
 .stat-block {
   border-radius: 12px;
   background-color: rgba(0, 0, 0, 0.02);
+}
+</style>
+
+<style>
+/* Стили для date picker на мобильных устройствах */
+.date-picker-menu {
+  position: fixed !important;
+  z-index: 9999 !important;
+}
+
+@media (max-width: 960px) {
+  .date-picker-menu {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: calc(100vw - 32px) !important;
+    width: calc(100vw - 32px) !important;
+  }
 }
 </style>
 

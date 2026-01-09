@@ -8,7 +8,7 @@ name: queue
   <v-container fluid>
     <!-- Header with Queue Names -->
     <v-row class="mb-4">
-      <v-col cols="12" class="d-flex justify-space-between align-center">
+      <v-col cols="12" class="d-flex justify-space-between align-center header-row">
         <div>
           <h2 class="mb-2">Queue Management</h2>
           <div class="chips-container">
@@ -275,5 +275,13 @@ const handleResume = async (queueName: string) => {
   flex-wrap: wrap;
   gap: 8px;
   row-gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .header-row {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 16px;
+  }
 }
 </style>

@@ -64,7 +64,9 @@ meta:
                     placeholder="Enter notification title"
                     density="comfortable"
                     variant="outlined"
-                    :rules="[requiredRule]"
+                    :rules="titleRules"
+                    :counter="120"
+                    maxlength="120"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12">
@@ -74,7 +76,9 @@ meta:
                     placeholder="Enter notification body"
                     density="comfortable"
                     variant="outlined"
-                    :rules="[requiredRule]"
+                    :rules="bodyRules"
+                    :counter="512"
+                    maxlength="512"
                     rows="3"
                   ></v-textarea>
                 </v-col>
@@ -153,6 +157,18 @@ const errorMessage = ref<string | null>(null)
 const lastResult = ref<BroadcastNotificationResult | null>(null)
 
 const requiredRule = (value: string) => (value && value.trim().length > 0) || 'Field is required'
+const maxLengthRule = (max: number) => (value: string) => 
+  (!value || value.length <= max) || `Must be ${max} characters or less`
+
+const titleRules = [
+  requiredRule,
+  maxLengthRule(120),
+]
+
+const bodyRules = [
+  requiredRule,
+  maxLengthRule(512),
+]
 
 const handleBroadcast = async () => {
   errorMessage.value = null
@@ -162,17 +178,32 @@ const handleBroadcast = async () => {
     return
   }
 
+  // Проверка длины перед отправкой
+  if (form.title.length > 120) {
+    errorMessage.value = 'Title must be 120 characters or less.'
+    return
+  }
+
+  if (form.body.length > 512) {
+    errorMessage.value = 'Message must be 512 characters or less.'
+    return
+  }
+
   const payload = {
     title: form.title.trim(),
     body: form.body.trim(),
     data: form.link.trim() ? { link: form.link.trim() } : undefined,
   }
 
-  lastResult.value = (await asyncGlobalSpinner(
-    NotificationsService.broadcast(payload),
-  )) as BroadcastNotificationResult
+  try {
+    lastResult.value = (await asyncGlobalSpinner(
+      NotificationsService.broadcast(payload),
+    )) as BroadcastNotificationResult
 
-  showSuccessToast('Notification broadcast started.')
+    showSuccessToast('Notification broadcast started.')
+  } catch (error: any) {
+    errorMessage.value = error.response?.data?.message || error.message || 'Failed to send notification.'
+  }
 }
 </script>
 
