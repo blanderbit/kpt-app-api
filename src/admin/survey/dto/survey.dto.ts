@@ -185,6 +185,16 @@ export class UpdateSurveyDto {
   questions?: SurveyQuestionDto[];
 
   @ApiProperty({
+    description: 'Language code for the survey',
+    required: false,
+    example: 'en',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  language?: string;
+
+  @ApiProperty({
     description: 'Identifier of an attached file to remove',
     required: false,
     type: Number,
@@ -234,6 +244,13 @@ export class SurveyResponseDto {
     example: SurveyStatus.AVAILABLE,
   })
   status: SurveyStatus;
+
+  @ApiProperty({
+    description: 'Language code for the survey',
+    example: 'en',
+    nullable: true,
+  })
+  language: string | null;
 
   @ApiProperty({
     description: 'User who created the survey',

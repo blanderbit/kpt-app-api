@@ -380,6 +380,7 @@ export class ClientManagementService {
       description: survey.description,
       questions: survey.questions,
       status: survey.status,
+      language: survey.language ?? null,
       createdBy: survey.createdBy,
       updatedBy: survey.updatedBy,
       createdAt: survey.createdAt,
