@@ -61,7 +61,7 @@ export class SuggestedActivity {
   updatedAt: Date;
 
   @ApiProperty({ description: 'User who owns this suggested activity', type: () => User })
-  @ManyToOne(() => User, user => user.id)
+  @ManyToOne(() => User, user => user.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
 }
