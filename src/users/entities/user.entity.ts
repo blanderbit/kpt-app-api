@@ -51,6 +51,10 @@ export class User {
   @Column({ type: 'varchar', length: 255, default: 'user' })
   roles: string;
 
+  @ApiProperty({ description: 'Whether user has an active paid subscription' })
+  @Column({ default: false })
+  hasPaidSubscription: boolean;
+
   @ApiProperty({ description: 'User metadata as JSON object', example: {} })
   @Column({ type: 'json', nullable: true })
   meta: object | null;

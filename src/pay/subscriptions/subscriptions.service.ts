@@ -1,7 +1,8 @@
 import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder, Not, IsNull } from 'typeorm';
 import { Subscription } from './entities/subscription.entity';
+import { User } from '../../users/entities/user.entity';
 import { SubscriptionStatus } from './enums/subscription-status.enum';
 import { SubscriptionProvider } from './enums/subscription-provider.enum';
 import { RevenueCatWebhookPayload } from './dto/revenuecat-webhook.dto';
@@ -54,6 +55,8 @@ export class SubscriptionsService {
   constructor(
     @InjectRepository(Subscription)
     private readonly subscriptionRepository: Repository<Subscription>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly revenueCatService: RevenueCatService,
     @Inject(forwardRef(() => SettingsService))
     private readonly settingsService: SettingsService,
@@ -72,7 +75,10 @@ export class SubscriptionsService {
       return;
     }
 
-    const userId = this.resolveUserId(appUserId);
+    let userId = this.resolveUserId(appUserId);
+    if (userId === undefined) {
+      userId = await this.findLinkedUserId(appUserId);
+    }
     const status = this.mapRevenueCatStatus(event.type);
     const planInterval = this.determinePlanInterval(event.product_id);
     const priceInfo = this.extractPriceInfo(event);
@@ -86,6 +92,9 @@ export class SubscriptionsService {
           .catch((error) =>
             this.logger.warn(`Failed to cancel subscription after billing issue: ${error?.message || error}`),
           );
+      }
+      if (typeof userId === 'number') {
+        await this.refreshUserPaidStatus(userId);
       }
       return;
     }
@@ -113,6 +122,10 @@ export class SubscriptionsService {
     });
 
     await this.subscriptionRepository.save(subscription);
+
+    if (typeof userId === 'number') {
+      await this.refreshUserPaidStatus(userId);
+    }
   }
 
   async requestCancellation(dto: CancelSubscriptionDto): Promise<void> {
@@ -281,11 +294,26 @@ export class SubscriptionsService {
     return undefined;
   }
 
+  private async findLinkedUserId(appUserId: string): Promise<number | undefined> {
+    const linked = await this.subscriptionRepository.findOne({
+      select: ['userId'],
+      where: {
+        appUserId,
+        userId: Not(IsNull()),
+      },
+      order: { updatedAt: 'DESC' },
+    });
+
+    return linked?.userId;
+  }
+
   private mapRevenueCatStatus(eventType: string): SubscriptionStatus {
     switch (eventType) {
       case 'INITIAL_PURCHASE':
+      case 'NON_RENEWING_PURCHASE':
       case 'RENEWAL':
       case 'UNCANCELLATION':
+      case 'SUBSCRIPTION_RESUMED':
         return SubscriptionStatus.ACTIVE;
       case 'CANCELLATION':
       case 'PRODUCT_CHANGE':
@@ -293,6 +321,7 @@ export class SubscriptionsService {
       case 'EXPIRATION':
         return SubscriptionStatus.EXPIRED;
       case 'BILLING_ISSUE':
+      case 'SUBSCRIPTION_PAUSED':
         return SubscriptionStatus.PAST_DUE;
       default:
         return SubscriptionStatus.UNKNOWN;
@@ -310,6 +339,37 @@ export class SubscriptionsService {
       .set({ userId, userEmail: email || undefined })
       .where('appUserId = :appUserId', { appUserId })
       .execute();
+
+    await this.refreshUserPaidStatus(userId);
+  }
+
+  private async refreshUserPaidStatus(userId: number): Promise<void> {
+    const latestSubscription = await this.getLatestSubscription(userId);
+    const hasPaidSubscription = this.isPaidSubscriptionActive(latestSubscription);
+
+    await this.userRepository.update(userId, {
+      hasPaidSubscription,
+    });
+  }
+
+  private isPaidSubscriptionActive(subscription: Subscription | null): boolean {
+    if (!subscription) {
+      return false;
+    }
+
+    if (subscription.provider === SubscriptionProvider.NONE) {
+      return false;
+    }
+
+    if (subscription.status !== SubscriptionStatus.ACTIVE) {
+      return false;
+    }
+
+    if (!subscription.periodEnd) {
+      return true;
+    }
+
+    return subscription.periodEnd.getTime() > Date.now();
   }
 
   /**
