@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Req, Headers, UnauthorizedException } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Req, Headers, UnauthorizedException, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
+import { SubscriptionSummaryDto } from './dto/subscription-summary.dto';
 import { RevenueCatWebhookPayload } from './dto/revenuecat-webhook.dto';
 import { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -74,5 +75,24 @@ export class SubscriptionsController {
   async getLatestSubscription(@Req() req: any) {
     const userId = req?.user?.sub;
     return this.subscriptionsService.getLatestSubscription(userId);
+  }
+
+  @Get('latest/summary')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get localized latest subscription summary for current user' })
+  @ApiOkResponse({ description: 'Latest subscription summary for current user', type: SubscriptionSummaryDto })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Language code for localized labels',
+    required: false,
+    example: 'en',
+  })
+  async getLatestSubscriptionSummary(
+    @Req() req: any,
+    @Query('lang') language?: string,
+  ): Promise<SubscriptionSummaryDto | null> {
+    const userId = req?.user?.sub;
+    return this.subscriptionsService.getLatestSubscriptionSummary(userId, language);
   }
 }
