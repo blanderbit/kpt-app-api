@@ -48,6 +48,11 @@ export class AuthController {
           type: 'string',
           example: 'Регистрация успешна. Проверьте email для подтверждения.',
         },
+        userId: {
+          type: 'number',
+          description: 'ID созданного пользователя (для вызова Purchases.logIn(userId) в RevenueCat)',
+          example: 233,
+        },
       },
     },
   })
