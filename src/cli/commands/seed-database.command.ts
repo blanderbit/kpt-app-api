@@ -33,9 +33,11 @@ import {
 import { MoodTypesService, MoodType, MoodTypesData } from '../../core/mood-types/mood-types.service';
 import {
   OnboardingQuestionsService,
+  LocalizedText,
   OnboardingStep,
   OnboardingQuestionsData,
 } from '../../core/onboarding-questions/onboarding-questions.service';
+import { OnboardingStepDto } from '../../core/onboarding-questions';
 import {
   SocialNetworksService,
   SocialNetwork,
@@ -57,7 +59,7 @@ interface SeedArguments {
 interface ReferenceData {
   activityTypes: ActivityType[];
   moodTypes: MoodType[];
-  onboardingSteps: OnboardingStep[];
+  onboardingSteps: OnboardingStepDto[];
   socialNetworks: SocialNetwork[];
 }
 
@@ -311,11 +313,11 @@ export class SeedDatabaseCommand extends CommandRunner {
     return types;
   }
 
-  private async loadOnboardingStepsData(): Promise<OnboardingStep[]> {
-    let steps = this.onboardingQuestionsService.getAllOnboardingQuestions() ?? [];
+  private async loadOnboardingStepsData(): Promise<OnboardingStepDto[]> {
+    let steps = this.onboardingQuestionsService.getAllOnboardingQuestions('en') ?? [];
     if (!steps.length) {
       const fallback = await this.loadJsonFile<OnboardingQuestionsData>('onboarding-questions.json');
-      steps = fallback?.onboardingSteps ?? [];
+      steps = this.mapOnboardingStepsToDto(fallback?.onboardingSteps ?? []);
     }
 
     if (!steps.length) {
@@ -385,7 +387,7 @@ export class SeedDatabaseCommand extends CommandRunner {
   }
 
   private buildOnboardingAnswers(
-    steps: OnboardingStep[],
+    steps: OnboardingStepDto[],
   ): {
     answers: Record<string, string>;
     detailed: Record<string, { answerId: string; text: string }>;
@@ -417,7 +419,7 @@ export class SeedDatabaseCommand extends CommandRunner {
 
   private resolveTaskTrackingMethod(
     onboardingAnswers: Record<string, string>,
-    steps: OnboardingStep[],
+    steps: OnboardingStepDto[],
     detailed: Record<string, { answerId: string; text: string }>,
   ): { text: string; answerId: string | null } {
     const stepName = 'starting_approach';
@@ -466,6 +468,47 @@ export class SeedDatabaseCommand extends CommandRunner {
       return null;
     }
     return faker.helpers.arrayElement(items);
+  }
+
+  private mapOnboardingStepsToDto(steps: OnboardingStep[]): OnboardingStepDto[] {
+    return steps.map((step) => ({
+      stepName: step.stepName,
+      stepQuestion: this.resolveLocalizedText(step.stepQuestion),
+      answers: step.answers.map((answer) => ({
+        id: answer.id,
+        text: this.resolveLocalizedText(answer.text),
+        subtitle: this.resolveLocalizedText(answer.subtitle),
+        icon: answer.icon,
+      })),
+      inputType: step.inputType,
+      required: step.required,
+    }));
+  }
+
+  private resolveLocalizedText(value: LocalizedText): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return '';
+    }
+
+    const preferredOrder = ['en', 'ru', 'uk'];
+    for (const code of preferredOrder) {
+      if (typeof value[code] === 'string') {
+        return value[code] as string;
+      }
+    }
+
+    for (const key of Object.keys(value)) {
+      const candidate = value[key];
+      if (typeof candidate === 'string' && candidate.trim() !== '') {
+        return candidate;
+      }
+    }
+
+    return '';
   }
 
   private generateAdminUsers(

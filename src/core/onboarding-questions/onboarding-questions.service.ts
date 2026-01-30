@@ -3,19 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleDriveFilesService } from '../../common/services/google-drive-files.service';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
-import { OnboardingStepDto, OnboardingQuestionsDto, OnboardingQuestionsStatsDto } from './onboarding-question.dto';
+import { OnboardingStepDto, OnboardingQuestionsStatsDto } from './onboarding-question.dto';
 import { SettingsService } from '../../admin/settings/settings.service';
+
+export type LocalizedText = string | Record<string, string> | null | undefined;
 
 export interface OnboardingAnswer {
   id: string;
-  text: string;
-  subtitle: string;
+  text: LocalizedText;
+  subtitle: LocalizedText;
   icon: string;
 }
 
 export interface OnboardingStep {
   stepName: string;
-  stepQuestion: string;
+  stepQuestion: LocalizedText;
   answers: OnboardingAnswer[];
   inputType: string;
   required: boolean;
@@ -30,6 +32,7 @@ export class OnboardingQuestionsService implements OnModuleInit {
   private readonly logger = new Logger(OnboardingQuestionsService.name);
   private onboardingQuestionsData: OnboardingQuestionsData;
   private readonly fileId: string;
+  private readonly defaultLanguageCode: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -39,6 +42,7 @@ export class OnboardingQuestionsService implements OnModuleInit {
   ) {
     this.onboardingQuestionsData = { onboardingSteps: [] };
     this.fileId = this.configService.get<string>('ONBOARDING_QUESTIONS_FILE_ID') || '';
+    this.defaultLanguageCode = this.configService.get<string>('DEFAULT_LANGUAGE_CODE') || 'en';
   }
 
   async onModuleInit(): Promise<void> {
@@ -74,17 +78,34 @@ export class OnboardingQuestionsService implements OnModuleInit {
   }
 
   /**
+   * Push onboarding questions content to Google Drive (overwrites the file identified by ONBOARDING_QUESTIONS_FILE_ID).
+   * Call loadOnboardingQuestions() after this to refresh in-memory cache.
+   */
+  async pushContentToDrive(content: OnboardingQuestionsData): Promise<void> {
+    if (!this.fileId) {
+      this.logger.warn('ONBOARDING_QUESTIONS_FILE_ID not set, cannot push to Drive');
+      throw AppException.validation(ErrorCode.ADMIN_CONFIGURATION_ERROR, 'ONBOARDING_QUESTIONS_FILE_ID is not configured');
+    }
+    if (!this.googleDriveFilesService.isAvailable()) {
+      throw AppException.validation(ErrorCode.ADMIN_GOOGLE_DRIVE_CONNECTION_FAILED, 'Google Drive is not available');
+    }
+    await this.googleDriveFilesService.updateFileContent(this.fileId, content);
+    this.logger.log('Onboarding questions content pushed to Google Drive');
+  }
+
+  /**
    * Get all onboarding questions
    */
-  getAllOnboardingQuestions(): OnboardingStepDto[] {
-    return this.onboardingQuestionsData.onboardingSteps;
+  getAllOnboardingQuestions(language?: string): OnboardingStepDto[] {
+    return this.onboardingQuestionsData.onboardingSteps.map(step => this.mapStepForLanguage(step, language));
   }
 
   /**
    * Get onboarding step by name
    */
-  getOnboardingStepByStepName(stepName: string): OnboardingStepDto | undefined {
-    return this.onboardingQuestionsData.onboardingSteps.find(step => step.stepName === stepName);
+  getOnboardingStepByStepName(stepName: string, language?: string): OnboardingStepDto | undefined {
+    const step = this.onboardingQuestionsData.onboardingSteps.find(s => s.stepName === stepName);
+    return step ? this.mapStepForLanguage(step, language) : undefined;
   }
 
   /**
@@ -108,14 +129,85 @@ export class OnboardingQuestionsService implements OnModuleInit {
   /**
    * Get required onboarding steps only
    */
-  getRequiredOnboardingSteps(): OnboardingStepDto[] {
-    return this.onboardingQuestionsData.onboardingSteps.filter(step => step.required);
+  getRequiredOnboardingSteps(language?: string): OnboardingStepDto[] {
+    return this.onboardingQuestionsData.onboardingSteps
+      .filter(step => step.required)
+      .map(step => this.mapStepForLanguage(step, language));
   }
 
   /**
    * Get optional onboarding steps only
    */
-  getOptionalOnboardingSteps(): OnboardingStepDto[] {
-    return this.onboardingQuestionsData.onboardingSteps.filter(step => !step.required);
+  getOptionalOnboardingSteps(language?: string): OnboardingStepDto[] {
+    return this.onboardingQuestionsData.onboardingSteps
+      .filter(step => !step.required)
+      .map(step => this.mapStepForLanguage(step, language));
+  }
+
+  private mapStepForLanguage(step: OnboardingStep, language?: string): OnboardingStepDto {
+    return {
+      stepName: step.stepName,
+      stepQuestion: this.resolveLocalizedText(step.stepQuestion, language),
+      answers: step.answers.map(answer => ({
+        id: answer.id,
+        text: this.resolveLocalizedText(answer.text, language),
+        subtitle: this.resolveLocalizedText(answer.subtitle, language),
+        icon: answer.icon,
+      })),
+      inputType: step.inputType,
+      required: step.required,
+    };
+  }
+
+  private resolveLocalizedText(value: LocalizedText, language?: string): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return '';
+    }
+
+    const normalizedLanguage = this.normalizeLanguageCode(language);
+    const normalizedDefault = this.normalizeLanguageCode(this.defaultLanguageCode);
+
+    if (normalizedLanguage && typeof value[normalizedLanguage] === 'string') {
+      return value[normalizedLanguage] as string;
+    }
+
+    const normalizedLanguageBase = normalizedLanguage?.split('-')[0];
+    if (normalizedLanguageBase && typeof value[normalizedLanguageBase] === 'string') {
+      return value[normalizedLanguageBase] as string;
+    }
+
+    if (normalizedDefault && typeof value[normalizedDefault] === 'string') {
+      return value[normalizedDefault] as string;
+    }
+
+    const normalizedDefaultBase = normalizedDefault?.split('-')[0];
+    if (normalizedDefaultBase && typeof value[normalizedDefaultBase] === 'string') {
+      return value[normalizedDefaultBase] as string;
+    }
+
+    if (typeof value.en === 'string') {
+      return value.en;
+    }
+
+    for (const key of Object.keys(value)) {
+      const candidate = value[key];
+      if (typeof candidate === 'string' && candidate.trim() !== '') {
+        return candidate;
+      }
+    }
+
+    return '';
+  }
+
+  private normalizeLanguageCode(language?: string): string | undefined {
+    if (!language) {
+      return undefined;
+    }
+
+    return language.trim().toLowerCase().replace('_', '-');
   }
 }

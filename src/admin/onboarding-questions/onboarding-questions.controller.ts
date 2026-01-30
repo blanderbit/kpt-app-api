@@ -3,12 +3,14 @@ import {
   Get,
   Post,
   Query,
+  Body,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiQuery,
+  ApiBody,
 } from '@nestjs/swagger';
 import { OnboardingQuestionsAdminService } from './onboarding-questions-admin.service';
 import { OnboardingStepDto, OnboardingQuestionsStatsDto } from '../../core/onboarding-questions';
@@ -28,8 +30,16 @@ export class OnboardingQuestionsController {
     description: 'List of all onboarding questions',
     type: [OnboardingStepDto],
   })
-  async getAllOnboardingQuestions(): Promise<OnboardingStepDto[]> {
-    return this.onboardingQuestionsService.getAllOnboardingQuestions();
+  @ApiQuery({
+    name: 'lang',
+    description: 'Language code for localized questions',
+    required: false,
+    example: 'en',
+  })
+  async getAllOnboardingQuestions(
+    @Query('lang') language?: string,
+  ): Promise<OnboardingStepDto[]> {
+    return this.onboardingQuestionsService.getAllOnboardingQuestions(language);
   }
 
   @Get('by-step')
@@ -43,6 +53,12 @@ export class OnboardingQuestionsController {
     example: 'improvement_goal',
     required: true,
   })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Language code for localized questions',
+    required: false,
+    example: 'en',
+  })
   @ApiResponse({
     status: 200,
     description: 'Onboarding step details',
@@ -54,8 +70,9 @@ export class OnboardingQuestionsController {
   })
   async getOnboardingStepByStepName(
     @Query('stepName') stepName: string,
+    @Query('lang') language?: string,
   ): Promise<OnboardingStepDto | undefined> {
-    return this.onboardingQuestionsService.getOnboardingStepByStepName(stepName);
+    return this.onboardingQuestionsService.getOnboardingStepByStepName(stepName, language);
   }
 
   @Get('required')
@@ -68,8 +85,16 @@ export class OnboardingQuestionsController {
     description: 'List of required onboarding steps',
     type: [OnboardingStepDto],
   })
-  async getRequiredOnboardingSteps(): Promise<OnboardingStepDto[]> {
-    return this.onboardingQuestionsService.getRequiredOnboardingSteps();
+  @ApiQuery({
+    name: 'lang',
+    description: 'Language code for localized questions',
+    required: false,
+    example: 'en',
+  })
+  async getRequiredOnboardingSteps(
+    @Query('lang') language?: string,
+  ): Promise<OnboardingStepDto[]> {
+    return this.onboardingQuestionsService.getRequiredOnboardingSteps(language);
   }
 
   @Get('optional')
@@ -82,8 +107,16 @@ export class OnboardingQuestionsController {
     description: 'List of optional onboarding steps',
     type: [OnboardingStepDto],
   })
-  async getOptionalOnboardingSteps(): Promise<OnboardingStepDto[]> {
-    return this.onboardingQuestionsService.getOptionalOnboardingSteps();
+  @ApiQuery({
+    name: 'lang',
+    description: 'Language code for localized questions',
+    required: false,
+    example: 'en',
+  })
+  async getOptionalOnboardingSteps(
+    @Query('lang') language?: string,
+  ): Promise<OnboardingStepDto[]> {
+    return this.onboardingQuestionsService.getOptionalOnboardingSteps(language);
   }
 
   @Get('stats')
@@ -103,7 +136,7 @@ export class OnboardingQuestionsController {
   @Post('sync-with-drive')
   @ApiOperation({
     summary: 'Sync onboarding questions with Google Drive',
-    description: 'Synchronizes onboarding questions data with Google Drive',
+    description: 'Re-downloads onboarding questions from Google Drive into app cache',
   })
   @ApiResponse({
     status: 200,
@@ -121,5 +154,40 @@ export class OnboardingQuestionsController {
   async syncWithDrive(): Promise<{ message: string }> {
     await this.onboardingQuestionsService.syncWithDrive();
     return { message: 'Onboarding questions successfully synchronized with Google Drive' };
+  }
+
+  @Post('push-to-drive')
+  @ApiOperation({
+    summary: 'Push local onboarding JSON to Google Drive',
+    description: 'Reads a local JSON file (default: docs/current_onboarding_questions.json), uploads it to the file identified by ONBOARDING_QUESTIONS_FILE_ID, then reloads onboarding from Drive',
+  })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: 'object',
+      properties: {
+        filePath: {
+          type: 'string',
+          example: 'docs/current_onboarding_questions.json',
+          description: 'Path relative to project root or absolute',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Push result',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+      },
+    },
+  })
+  async pushToDrive(
+    @Body('filePath') filePath?: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.onboardingQuestionsService.pushLocalFileToDrive(filePath);
   }
 }

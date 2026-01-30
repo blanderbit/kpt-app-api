@@ -4,9 +4,10 @@ import { OnboardingQuestionsPublicController } from './onboarding-questions.publ
 import { OnboardingQuestionsAdminService } from './onboarding-questions-admin.service';
 import { OnboardingQuestionsModule } from '../../core/onboarding-questions';
 import { SettingsModule } from '../settings/settings.module';
+import { LanguageModule } from '../languages/language.module';
 
 @Module({
-  imports: [OnboardingQuestionsModule, SettingsModule],
+  imports: [OnboardingQuestionsModule, SettingsModule, LanguageModule],
   controllers: [OnboardingQuestionsController, OnboardingQuestionsPublicController],
   providers: [OnboardingQuestionsAdminService],
   exports: [OnboardingQuestionsAdminService],
