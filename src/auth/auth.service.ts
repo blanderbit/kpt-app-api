@@ -148,14 +148,7 @@ export class AuthService {
       );
     }
 
-    // Generate temporary articles and surveys for the new user
-    try {
-      await this.temporaryItemsQueueService.addGenerateTemporaryArticlesJob(user.id);
-      await this.temporaryItemsQueueService.addGenerateTemporarySurveysJob(user.id);
-    } catch (error) {
-      // Log error but don't fail registration
-      console.error('Failed to queue temporary items generation for new user:', error);
-    }
+    // Temporary items jobs are queued in the controller after this method returns (after TX commit)
 
     return {
       message: 'Registration successful. You can now send verification email when needed.',
@@ -360,7 +353,7 @@ export class AuthService {
   }
 
   @Transactional()
-  async authenticateWithFirebase(firebaseAuthDto: FirebaseAuthDto): Promise<{ accessToken: string; refreshToken: string; user: Partial<User> }> {
+  async authenticateWithFirebase(firebaseAuthDto: FirebaseAuthDto): Promise<{ accessToken: string; refreshToken: string; user: Partial<User>; isNewUser?: boolean }> {
     try {
       // Verify Firebase ID token
       const decodedToken = await this.firebaseService.verifyIdToken(firebaseAuthDto.idToken);
@@ -372,7 +365,8 @@ export class AuthService {
       let user: User | null = await this.usersRepository.findOne({ 
         where: { email: decodedToken.email } 
       });
-      
+      let isNewUser = false;
+
       // Check if user exists but was not created via Firebase
       if (user && !user.firebaseUid) {
         throw AppException.validation(ErrorCode.AUTH_EMAIL_ALREADY_USED_NON_FIREBASE, 'This email is already registered with a regular account. Please use email/password login instead.');
@@ -431,16 +425,7 @@ export class AuthService {
           await activityRepository.save(activitiesToCreate);
         }
 
-        // If this is registration, generate temporary articles and surveys for the new user
-        if (firebaseAuthDto.authType === AuthType.REGISTER && user && user.id) {
-          try {
-            await this.temporaryItemsQueueService.addGenerateTemporaryArticlesJob(user.id);
-            await this.temporaryItemsQueueService.addGenerateTemporarySurveysJob(user.id);
-          } catch (error) {
-            // Log error but don't fail registration
-            console.error('Failed to queue temporary items generation for new Firebase user:', error);
-          }
-        }
+        // Temporary items jobs are queued in the controller after this method returns (after TX commit) when isNewUser
       }
       
       // Ensure user exists (should not be null at this point)
@@ -462,6 +447,7 @@ export class AuthService {
         accessToken,
         refreshToken,
         user: userWithoutSensitiveData,
+        isNewUser,
       };
 
       if (firebaseAuthDto.appUserId && currentUser.id) {
