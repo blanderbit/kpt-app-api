@@ -22,6 +22,7 @@ import { ErrorCode } from '../common/error-codes';
 import { AppException } from '../common/exceptions/app.exception';
 import { GenerateActivityRecommendationsDto, ActivityRecommendationsResponseDto, ActivityRecommendationDto } from './dto/generate-activity-recommendations.dto';
 import { SubscriptionsService } from '../pay/subscriptions/subscriptions.service';
+import { SubscriptionPendingLinkService } from '../pay/subscriptions/subscription-pending-link.service';
 import { TemporaryItemsQueueService } from '../admin/settings/queue/temporary-items-queue.service';
 
 @Injectable()
@@ -40,6 +41,7 @@ export class AuthService {
     private roleService: RoleService,
     private chatGPTService: ChatGPTService,
     private readonly subscriptionsService: SubscriptionsService,
+    private readonly subscriptionPendingLinkService: SubscriptionPendingLinkService,
     private readonly onboardingQuestionsService: OnboardingQuestionsService,
     private readonly activityTypesService: ActivityTypesService,
     private readonly temporaryItemsQueueService: TemporaryItemsQueueService,
@@ -126,6 +128,7 @@ export class AuthService {
       this.logger.log(
         `[Auth] register: linkSubscriptionsToUser updated ${linkUpdated} row(s) for userId=${user.id}`,
       );
+      await this.subscriptionPendingLinkService.save(appUserId, user.id, email);
 
       // Check if any subscriptions exist for user
       const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
@@ -472,6 +475,11 @@ export class AuthService {
         );
         this.logger.log(
           `[Auth] authenticateWithFirebase: linkSubscriptionsToUser updated ${linkUpdated} row(s) for userId=${currentUser.id}`,
+        );
+        await this.subscriptionPendingLinkService.save(
+          firebaseAuthDto.appUserId,
+          currentUser.id,
+          firebaseUser.email || undefined,
         );
 
         // Check if any subscriptions exist for user

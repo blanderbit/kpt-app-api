@@ -13,6 +13,7 @@ import { PaginateQuery, paginate, Paginated } from 'nestjs-paginate';
 import { subscriptionsPaginationConfig } from './subscription.config';
 import { SubscriptionPlanInterval } from './enums/subscription-plan-interval.enum';
 import { SettingsService } from '../../admin/settings/settings.service';
+import { SubscriptionPendingLinkService } from './subscription-pending-link.service';
 
 export interface SubscriptionStatsFilters {
   planInterval?: SubscriptionPlanInterval;
@@ -67,6 +68,7 @@ export class SubscriptionsService {
     private readonly revenueCatService: RevenueCatService,
     @Inject(forwardRef(() => SettingsService))
     private readonly settingsService: SettingsService,
+    private readonly subscriptionPendingLinkService: SubscriptionPendingLinkService,
   ) {}
 
   async handleRevenueCatWebhook(payload: RevenueCatWebhookPayload): Promise<void> {
@@ -85,6 +87,15 @@ export class SubscriptionsService {
     let userId = this.resolveUserId(appUserId);
     if (userId === undefined) {
       userId = await this.findLinkedUserId(appUserId);
+    }
+    if (userId === undefined) {
+      const pending = await this.subscriptionPendingLinkService.getAndConsume(appUserId);
+      if (pending?.userId != null) {
+        userId = pending.userId;
+        this.logger.log(
+          `[RevenueCat webhook] pending link used for app_user_id=${appUserId.substring(0, 30)}... → userId=${userId}`,
+        );
+      }
     }
     this.logger.log(
       `[RevenueCat webhook] app_user_id=${appUserId.substring(0, 30)}..., eventType=${event.type}, resolved userId=${userId ?? 'null'}`,
