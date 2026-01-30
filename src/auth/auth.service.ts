@@ -149,7 +149,7 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto): Promise<{ accessToken: string; refreshToken: string; user: Partial<User> }> {
-    const { email, password } = loginDto;
+    const { email, password, appUserId } = loginDto;
 
     // Find user
     const user = await this.usersRepository.findOne({ where: { email } });
@@ -163,6 +163,19 @@ export class AuthService {
       throw AppException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, 'Invalid email or password');
     }
 
+    // Link RevenueCat subscriptions (e.g. anonymous) to this user; create trial if none
+    if (appUserId) {
+      await this.subscriptionsService.linkSubscriptionsToUser(appUserId, user.id, user.email);
+      const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
+      if (!existingSubscription) {
+        await this.subscriptionsService.createTrialSubscription(user.id, user.email);
+      }
+    } else {
+      const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
+      if (!existingSubscription) {
+        await this.subscriptionsService.createTrialSubscription(user.id, user.email);
+      }
+    }
 
     // Generate tokens
     const payload = { email: user.email, sub: user.id, roles: user.roles };
