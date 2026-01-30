@@ -185,6 +185,9 @@ export class LanguageResponseDto {
   @ApiProperty()
   completionRate: number;
 
+  @ApiProperty({ required: false, description: 'Full translations object (e.g. for key resolution)' })
+  translations?: Record<string, any>;
+
   @ApiProperty({ required: false })
   notes?: string;
 

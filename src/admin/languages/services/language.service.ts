@@ -44,6 +44,53 @@ export class LanguageService implements OnModuleInit {
   }
 
   /**
+   * Get translations object for a language by code (from cache).
+   * Cache is filled from Google Drive on sync (POST /admin/languages/sync or on app init).
+   * Files in Drive (from admin) have structure { translations: { ...keys... }, language?: {...} };
+   * we return the inner object with keys so that onboarding_questions.* resolve correctly.
+   * Fallback: requested code → 'en' → null.
+   */
+  getTranslationsByCode(code: string): Record<string, any> | null {
+    const normalized = code?.trim().toLowerCase().replace('_', '-') || 'en';
+    const langs = this.getLanguagesFromCache();
+    this.logger.log(`[getTranslationsByCode] code="${code}" normalized="${normalized}" cacheSize=${langs.length} cacheCodes=[${langs.map(l => l.code || '(empty)').join(', ')}]`);
+    let lang = langs.find(l => (l.code || '').toLowerCase().replace('_', '-') === normalized);
+    if (!lang) {
+      lang = langs.find(l => (l.code || '').toLowerCase() === 'en');
+      if (lang) this.logger.log(`[getTranslationsByCode] fallback to en: code=${lang.code}`);
+    }
+    const raw = lang?.translations;
+    if (!raw || typeof raw !== 'object') {
+      this.logger.warn(`[getTranslationsByCode] no translations for code="${code}": lang=${lang ? lang.code : 'not found'}, rawType=${raw === undefined ? 'undefined' : typeof raw}`);
+      return null;
+    }
+    const topKeys = Object.keys(raw).slice(0, 8);
+    const inner = raw.translations;
+    const hasInnerObject = inner && typeof inner === 'object' && !Array.isArray(inner);
+    this.logger.log(`[getTranslationsByCode] code="${code}" raw topKeys=[${topKeys.join(', ')}] hasInnerTranslations=${hasInnerObject} innerType=${inner === undefined ? 'undefined' : inner === null ? 'null' : Array.isArray(inner) ? 'array' : typeof inner}`);
+    // Drive file from admin: { translations: { home, auth, onboarding_questions, ... } }
+    if (hasInnerObject) {
+      const innerKeys = Object.keys(inner).slice(0, 8);
+      this.logger.log(`[getTranslationsByCode] returning inner translations, keys=[${innerKeys.join(', ')}]`);
+      return inner;
+    }
+    // translations might be stored as string (double-encoded JSON)
+    if (inner && typeof inner === 'string') {
+      try {
+        const parsed = JSON.parse(inner);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          this.logger.log(`[getTranslationsByCode] parsed translations string, keys=[${Object.keys(parsed).slice(0, 8).join(', ')}]`);
+          return parsed;
+        }
+      } catch (_) {
+        this.logger.warn(`[getTranslationsByCode] failed to parse translations string for code="${code}"`);
+      }
+    }
+    this.logger.log(`[getTranslationsByCode] returning raw as translations (no inner object)`);
+    return raw;
+  }
+
+  /**
    * Get last sync date
    */
   getLastSyncDate(): Date | null {
@@ -62,13 +109,20 @@ export class LanguageService implements OnModuleInit {
    */
   async syncLanguagesFromGoogleDrive(): Promise<{ languages: LanguageResponseDto[], syncedAt: Date }> {
     try {
-      this.logger.log('Syncing languages from Google Drive...');
+      this.logger.log('[syncLanguagesFromGoogleDrive] Syncing languages from Google Drive...');
       const languages = await this.getLanguagesFromGoogleDrive();
       this.languagesCache = languages;
       this.lastSyncDate = new Date();
       this.settingsService.updateLastSync('languages');
-      this.logger.log(`Successfully synced ${languages.length} languages from Google Drive`);
-      
+      this.logger.log(`[syncLanguagesFromGoogleDrive] Successfully synced ${languages.length} languages from Google Drive`);
+      for (const l of languages) {
+        const raw = l.translations;
+        const hasTranslations = raw && typeof raw === 'object';
+        const topKeys = hasTranslations ? Object.keys(raw).slice(0, 6) : [];
+        const hasInner = hasTranslations && raw.translations && typeof raw.translations === 'object';
+        const innerKeys = hasInner ? Object.keys(raw.translations).slice(0, 6) : [];
+        this.logger.log(`[syncLanguagesFromGoogleDrive] cache lang code="${l.code}" id=${l.id} hasTranslations=${hasTranslations} topKeys=[${topKeys.join(', ')}] hasInnerTranslations=${hasInner} innerKeys=[${innerKeys.join(', ')}]`);
+      }
       return {
         languages: this.languagesCache,
         syncedAt: this.lastSyncDate,
@@ -196,20 +250,31 @@ export class LanguageService implements OnModuleInit {
     try {
       const files = await this.getLanguageFiles();
       const filteredFiles = files.filter(file => !file.name.includes('archived'));
-      
+      this.logger.log(`[getLanguagesFromGoogleDrive] folder LANGUAGES_FOLDER_ID: found ${files.length} files, after filter ${filteredFiles.length}. names=[${filteredFiles.map(f => f.name).join(', ')}]`);
+
       // Загружаем каждый файл параллельно
       const languages = await Promise.all(
         filteredFiles.map(async (file) => {
           try {
             const props = file.appProperties || {};
-            
+            this.logger.log(`[getLanguagesFromGoogleDrive] loading file id=${file.id} name="${file.name}" appProperties.code="${props.code || ''}"`);
+
             // Читаем содержимое файла для получения translations
             const fileContent = await this.googleDriveService.getFileContent(file.id);
             const translations = JSON.parse(fileContent);
-            
+            const fileTopKeys = Object.keys(translations).slice(0, 8);
+            const inner = translations.translations;
+            const hasInner = inner && typeof inner === 'object' && !Array.isArray(inner);
+            const innerTopKeys = hasInner ? Object.keys(inner).slice(0, 6) : [];
+            const innerType = inner === undefined ? 'undefined' : inner === null ? 'null' : Array.isArray(inner) ? 'array' : typeof inner;
+            if (!hasInner && fileTopKeys.includes('translations')) {
+              this.logger.warn(`[getLanguagesFromGoogleDrive] file "${file.name}" has "translations" but it is not a plain object: type=${innerType}. Keys inside: ${inner && typeof inner === 'object' ? Object.keys(inner).slice(0, 6).join(', ') : '(n/a)'}`);
+            }
+            this.logger.log(`[getLanguagesFromGoogleDrive] file "${file.name}" parsed ok. topKeys=[${fileTopKeys.join(', ')}] hasInnerTranslations=${hasInner} innerKeys=[${innerTopKeys.join(', ')}]`);
+
             // Подсчитываем ключи
             const totalKeys = this.countTranslationKeys(translations);
-            
+
             return {
               id: file.id as any,
               code: props.code || '',
@@ -235,7 +300,7 @@ export class LanguageService implements OnModuleInit {
               isArchived: false,
             };
           } catch (error) {
-            this.logger.error(`Failed to load file ${file.name}: ${error.message}`);
+            this.logger.error(`[getLanguagesFromGoogleDrive] Failed to load file ${file.name} id=${file.id}: ${error.message}`);
             // Возвращаем базовую информацию если не удалось загрузить
             const props = file.appProperties || {};
             return {
@@ -854,6 +919,24 @@ export class LanguageService implements OnModuleInit {
       
       this.logger.log(`Set language ${currentFile.appProperties?.code || fileId} as default`);
       
+      const updatedAt = new Date();
+
+      // Обновляем локальный кеш, чтобы UI сразу видел изменения
+      this.languagesCache = this.languagesCache.map((language) => {
+        const isTarget = language.id === fileId || language.googleDriveFileId === fileId;
+        if (language.isArchived) {
+          return language;
+        }
+        return {
+          ...language,
+          isDefault: isTarget,
+          updatedBy: isTarget ? adminUser : language.updatedBy,
+          updatedAt: isTarget ? updatedAt : language.updatedAt,
+        };
+      });
+      this.lastSyncDate = updatedAt;
+      this.settingsService.updateLastSync('languages');
+
       // Получаем полные данные для ответа
       const languageData = await this.getLanguageById(fileId);
       
@@ -861,7 +944,7 @@ export class LanguageService implements OnModuleInit {
         ...languageData,
         isDefault: true,
         updatedBy: adminUser,
-        updatedAt: new Date(),
+        updatedAt,
       };
     } catch (error) {
       this.logger.error(`Failed to set default language: ${fileId}`, error);
