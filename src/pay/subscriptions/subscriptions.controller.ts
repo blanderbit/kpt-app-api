@@ -73,7 +73,7 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'Get latest subscription for current user' })
   @ApiOkResponse({ description: 'Latest subscription for current user', type: Subscription, isArray: false })
   async getLatestSubscription(@Req() req: any) {
-    const userId = req?.user?.sub;
+    const userId = req?.user?.id;
     return this.subscriptionsService.getLatestSubscription(userId);
   }
 
@@ -81,7 +81,16 @@ export class SubscriptionsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get localized latest subscription summary for current user' })
-  @ApiOkResponse({ description: 'Latest subscription summary for current user', type: SubscriptionSummaryDto })
+  @ApiOkResponse({
+    description: 'Latest subscription summary for current user (subscription is null when user has none)',
+    schema: {
+      type: 'object',
+      required: ['subscription'],
+      properties: {
+        subscription: { nullable: true, description: 'Latest subscription summary or null if none' },
+      },
+    },
+  })
   @ApiQuery({
     name: 'lang',
     description: 'Language code for localized labels',
@@ -91,8 +100,9 @@ export class SubscriptionsController {
   async getLatestSubscriptionSummary(
     @Req() req: any,
     @Query('lang') language?: string,
-  ): Promise<SubscriptionSummaryDto | null> {
-    const userId = req?.user?.sub;
-    return this.subscriptionsService.getLatestSubscriptionSummary(userId, language);
+  ): Promise<{ subscription: SubscriptionSummaryDto | null }> {
+    const userId = req?.user?.id;
+    const subscription = await this.subscriptionsService.getLatestSubscriptionSummary(userId, language);
+    return { subscription: subscription ?? null };
   }
 }
