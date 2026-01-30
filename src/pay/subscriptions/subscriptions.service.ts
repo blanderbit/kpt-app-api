@@ -494,7 +494,7 @@ export class SubscriptionsService {
   }
 
   async linkSubscriptionsToUser(appUserId: string, userId: number, email?: string): Promise<void> {
-    if (!appUserId || appUserId.startsWith('$RCAnonymousID')) {
+    if (!appUserId || !appUserId.trim()) {
       return;
     }
 
