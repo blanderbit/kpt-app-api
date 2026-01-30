@@ -72,39 +72,53 @@ export class SubscriptionsService {
   ) {}
 
   async handleRevenueCatWebhook(payload: RevenueCatWebhookPayload): Promise<void> {
+    this.logger.log(`[webhook] handleRevenueCatWebhook: payload received, event present=${!!payload?.event}`);
     const event = payload?.event;
     if (!event) {
-      this.logger.warn('Received RevenueCat webhook without event payload');
+      this.logger.warn('[webhook] handleRevenueCatWebhook: no event payload, exiting');
       return;
     }
+    this.logger.log(`[webhook] handleRevenueCatWebhook: event.type=${event.type}, app_user_id present=${!!event.app_user_id}`);
 
     const appUserId = event.app_user_id;
     if (!appUserId) {
-      this.logger.warn('RevenueCat webhook missing app_user_id');
+      this.logger.warn('[webhook] handleRevenueCatWebhook: missing app_user_id, exiting');
       return;
     }
+    this.logger.log(`[webhook] handleRevenueCatWebhook: app_user_id=${appUserId.substring(0, 40)}`);
 
-    let userId = this.resolveUserId(appUserId);
+    const resolvedNumeric = this.resolveUserId(appUserId);
+    this.logger.log(`[webhook] handleRevenueCatWebhook: resolveUserId(appUserId)=${resolvedNumeric ?? 'undefined'}`);
+    let userId = resolvedNumeric;
     if (userId === undefined) {
-      userId = await this.findLinkedUserId(appUserId);
+      const linkedUserId = await this.findLinkedUserId(appUserId);
+      this.logger.log(`[webhook] handleRevenueCatWebhook: findLinkedUserId(appUserId)=${linkedUserId ?? 'undefined'}`);
+      userId = linkedUserId;
     }
     if (userId === undefined) {
+      this.logger.log(`[webhook] handleRevenueCatWebhook: userId still undefined, checking pending link for appUserId=...`);
       const pending = await this.subscriptionPendingLinkService.getAndConsume(appUserId);
       if (pending?.userId != null) {
         userId = pending.userId;
         this.logger.log(
-          `[RevenueCat webhook] pending link used for app_user_id=${appUserId.substring(0, 30)}... → userId=${userId}`,
+          `[webhook] handleRevenueCatWebhook: pending link used → userId=${userId}`,
+        );
+      } else {
+        this.logger.log(
+          `[webhook] handleRevenueCatWebhook: no pending link, subscription will be created with userId=null`,
         );
       }
     }
     this.logger.log(
-      `[RevenueCat webhook] app_user_id=${appUserId.substring(0, 30)}..., eventType=${event.type}, resolved userId=${userId ?? 'null'}`,
+      `[webhook] handleRevenueCatWebhook: final resolved userId=${userId ?? 'null'}, eventType=${event.type}`,
     );
     const status = this.mapRevenueCatStatus(event.type);
     const planInterval = this.determinePlanInterval(event.product_id);
     const priceInfo = this.extractPriceInfo(event);
+    this.logger.log(`[webhook] handleRevenueCatWebhook: mapped status=${status}, planInterval=${planInterval}, product_id=${event.product_id ?? 'null'}`);
 
     if ([SubscriptionStatus.EXPIRED, SubscriptionStatus.CANCELLED, SubscriptionStatus.PAST_DUE].includes(status)) {
+      this.logger.log(`[webhook] handleRevenueCatWebhook: status is ${status}, updating existing subscription...`);
       await this.updateExistingSubscriptionStatus(appUserId, event.product_id, status, event, userId, planInterval, priceInfo);
 
       if (status === SubscriptionStatus.PAST_DUE) {
@@ -115,15 +129,19 @@ export class SubscriptionsService {
           );
       }
       if (typeof userId === 'number') {
+        this.logger.log(`[webhook] handleRevenueCatWebhook: calling refreshUserPaidStatus(userId=${userId})`);
         await this.refreshUserPaidStatus(userId);
       }
+      this.logger.log(`[webhook] handleRevenueCatWebhook: done (update existing path)`);
       return;
     }
 
     if (status === SubscriptionStatus.ACTIVE) {
+      this.logger.log(`[webhook] handleRevenueCatWebhook: status ACTIVE, closing other active subscriptions for appUserId, productId=${event.product_id ?? 'null'}`);
       await this.closeActiveSubscriptions(appUserId, event.product_id);
     }
 
+    this.logger.log(`[webhook] handleRevenueCatWebhook: creating new subscription row: userId=${userId ?? 'null'}, appUserId=${appUserId.substring(0, 35)}..., status=${status}, productId=${event.product_id ?? 'null'}`);
     const subscription = this.subscriptionRepository.create({
       userId,
       userEmail: event.subscriber_attributes?.email?.value || undefined,
@@ -143,10 +161,15 @@ export class SubscriptionsService {
     });
 
     await this.subscriptionRepository.save(subscription);
+    this.logger.log(
+      `[webhook] handleRevenueCatWebhook: subscription saved to DB: id=${subscription.id}, userId=${subscription.userId ?? 'null'}, appUserId=${(subscription.appUserId ?? '').substring(0, 35)}...`,
+    );
 
     if (typeof userId === 'number') {
+      this.logger.log(`[webhook] handleRevenueCatWebhook: calling refreshUserPaidStatus(userId=${userId})`);
       await this.refreshUserPaidStatus(userId);
     }
+    this.logger.log(`[webhook] handleRevenueCatWebhook: done (new subscription path)`);
   }
 
   async requestCancellation(dto: CancelSubscriptionDto): Promise<void> {
@@ -184,10 +207,11 @@ export class SubscriptionsService {
   }
 
   async getLatestSubscription(userId?: number): Promise<Subscription | null> {
+    this.logger.log(`[getLatest] getLatestSubscription called: userId=${userId ?? 'undefined'}`);
     if (!userId) {
+      this.logger.log(`[getLatest] getLatestSubscription: no userId, returning null`);
       return null;
     }
-
     // Prefer paid (REVENUECAT/STRIPE) over trial (NONE); then by createdAt DESC
     const qb = this.subscriptionRepository
       .createQueryBuilder('s')
@@ -195,14 +219,19 @@ export class SubscriptionsService {
       .orderBy("CASE WHEN s.provider = 'none' THEN 1 ELSE 0 END", 'ASC')
       .addOrderBy('s.createdAt', 'DESC');
     const list = await qb.take(1).getMany();
-    return list[0] ?? null;
+    const sub = list[0] ?? null;
+    this.logger.log(`[getLatest] getLatestSubscription(userId=${userId}): returning subscriptionId=${sub?.id ?? 'null'}, provider=${sub?.provider ?? 'null'}, isPaid=${sub ? sub.provider !== SubscriptionProvider.NONE : 'n/a'}`);
+    return sub;
   }
 
   async getLatestSubscriptionSummary(userId?: number, language?: string): Promise<SubscriptionSummaryDto | null> {
+    this.logger.log(`[getLatest] getLatestSubscriptionSummary called: userId=${userId ?? 'undefined'}, lang=${language ?? 'undefined'}`);
     const subscription = await this.getLatestSubscription(userId);
     if (!subscription) {
+      this.logger.log(`[getLatest] getLatestSubscriptionSummary(userId=${userId}): no subscription, returning null`);
       return null;
     }
+    this.logger.log(`[getLatest] getLatestSubscriptionSummary(userId=${userId}): building summary for subscriptionId=${subscription.id}, isPaid=${subscription.provider !== SubscriptionProvider.NONE}, productId=${subscription.productId ?? 'null'}`);
 
     const lang = this.normalizeLanguage(language);
     const planCopy = this.getPlanCopy(subscription.productId, subscription.planInterval, lang);
@@ -233,6 +262,7 @@ export class SubscriptionsService {
   }
 
   private async closeActiveSubscriptions(appUserId: string, productId?: string): Promise<void> {
+    this.logger.log(`[webhook] closeActiveSubscriptions: appUserId=${appUserId.substring(0, 35)}..., productId=${productId ?? 'null'}`);
     const qb = this.subscriptionRepository
       .createQueryBuilder()
       .update(Subscription)
@@ -244,7 +274,8 @@ export class SubscriptionsService {
       qb.andWhere('productId = :productId', { productId });
     }
 
-    await qb.execute();
+    const result = await qb.execute();
+    this.logger.log(`[webhook] closeActiveSubscriptions: UPDATE affected ${result.affected ?? 0} row(s)`);
   }
 
   private async updateExistingSubscriptionStatus(
@@ -256,6 +287,7 @@ export class SubscriptionsService {
     planInterval: SubscriptionPlanInterval,
     priceInfo: PriceInfo,
   ): Promise<void> {
+    this.logger.log(`[webhook] updateExistingSubscriptionStatus: appUserId=${appUserId.substring(0, 35)}..., productId=${productId ?? 'null'}, status=${status}, userId=${userId ?? 'null'}`);
     const updatePayload: Partial<Subscription> = {
       status,
       periodEnd: this.resolveDate(event.expiration_at_ms, event.expiration_at),
@@ -515,10 +547,12 @@ export class SubscriptionsService {
   }
 
   async linkSubscriptionsToUser(appUserId: string, userId: number, email?: string): Promise<number> {
+    this.logger.log(`[link] linkSubscriptionsToUser called: appUserId=${(appUserId ?? '').substring(0, 40)}, userId=${userId}`);
     if (!appUserId || !appUserId.trim()) {
+      this.logger.log(`[link] linkSubscriptionsToUser skipped: appUserId empty`);
       return 0;
     }
-
+    this.logger.log(`[link] linkSubscriptionsToUser: executing UPDATE subscriptions SET userId=${userId} WHERE appUserId=...`);
     const result = await this.subscriptionRepository
       .createQueryBuilder()
       .update(Subscription)
@@ -528,19 +562,22 @@ export class SubscriptionsService {
 
     const affected = result.affected ?? 0;
     this.logger.log(
-      `linkSubscriptionsToUser: appUserId=${appUserId.substring(0, 30)}... updated ${affected} row(s) for userId=${userId}`,
+      `[link] linkSubscriptionsToUser: UPDATE affected ${affected} row(s) for appUserId=${appUserId.substring(0, 30)}... → userId=${userId}`,
     );
+    this.logger.log(`[link] linkSubscriptionsToUser: calling refreshUserPaidStatus(userId=${userId})`);
     await this.refreshUserPaidStatus(userId);
     return affected;
   }
 
   private async refreshUserPaidStatus(userId: number): Promise<void> {
+    this.logger.log(`[refresh] refreshUserPaidStatus: userId=${userId}`);
     const latestSubscription = await this.getLatestSubscription(userId);
     const hasPaidSubscription = this.isPaidSubscriptionActive(latestSubscription);
-
+    this.logger.log(`[refresh] refreshUserPaidStatus: userId=${userId}, latestSubscriptionId=${latestSubscription?.id ?? 'null'}, hasPaidSubscription=${hasPaidSubscription}`);
     await this.userRepository.update(userId, {
       hasPaidSubscription,
     });
+    this.logger.log(`[refresh] refreshUserPaidStatus: user ${userId} updated hasPaidSubscription=${hasPaidSubscription}`);
   }
 
   private isPaidSubscriptionActive(subscription: Subscription | null): boolean {
@@ -570,9 +607,11 @@ export class SubscriptionsService {
     userId: number,
     email: string | undefined,
   ): Promise<Subscription> {
+    this.logger.log(`[trial] createTrialSubscription called: userId=${userId}`);
     const settings = this.settingsService.getSettings();
     const trialMode = settings.trialMode;
     const periodDays = trialMode.periodDays;
+    this.logger.log(`[trial] createTrialSubscription: periodDays=${periodDays}`);
 
     const now = new Date();
     const periodEnd = new Date(now);
@@ -599,7 +638,9 @@ export class SubscriptionsService {
       },
     });
 
-    return await this.subscriptionRepository.save(subscription);
+    const saved = await this.subscriptionRepository.save(subscription);
+    this.logger.log(`[trial] createTrialSubscription: saved subscriptionId=${saved.id} for userId=${userId}`);
+    return saved;
   }
 
   private async computeStats(filters: SubscriptionStatsFilters): Promise<SubscriptionStats> {
