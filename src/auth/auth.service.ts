@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -26,6 +26,8 @@ import { TemporaryItemsQueueService } from '../admin/settings/queue/temporary-it
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
@@ -59,6 +61,10 @@ export class AuthService {
       initHardnessLevel,
       appUserId,
     } = registerDto;
+
+    this.logger.log(
+      `[Auth] register: appUserId=${appUserId ? `${appUserId.substring(0, 30)}...` : 'null'}`,
+    );
 
     // Check if user already exists
     const existingUser = await this.usersRepository.findOne({ where: { email } });
@@ -116,8 +122,11 @@ export class AuthService {
     }
 
     if (appUserId) {
-      await this.subscriptionsService.linkSubscriptionsToUser(appUserId, user.id, email);
-      
+      const linkUpdated = await this.subscriptionsService.linkSubscriptionsToUser(appUserId, user.id, email);
+      this.logger.log(
+        `[Auth] register: linkSubscriptionsToUser updated ${linkUpdated} row(s) for userId=${user.id}`,
+      );
+
       // Check if any subscriptions exist for user
       const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
       
@@ -168,7 +177,10 @@ export class AuthService {
 
     // Link RevenueCat subscriptions (e.g. anonymous) to this user; create trial if none
     if (appUserId) {
-      await this.subscriptionsService.linkSubscriptionsToUser(appUserId, user.id, user.email);
+      const linkUpdated = await this.subscriptionsService.linkSubscriptionsToUser(appUserId, user.id, user.email);
+      this.logger.log(
+        `[Auth] login: linkSubscriptionsToUser updated ${linkUpdated} row(s) for userId=${user.id}`,
+      );
       const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
       if (!existingSubscription) {
         await this.subscriptionsService.createTrialSubscription(user.id, user.email);
@@ -450,12 +462,18 @@ export class AuthService {
       };
 
       if (firebaseAuthDto.appUserId && currentUser.id) {
-        await this.subscriptionsService.linkSubscriptionsToUser(
+        this.logger.log(
+          `[Auth] authenticateWithFirebase: appUserId=${firebaseAuthDto.appUserId.substring(0, 30)}...`,
+        );
+        const linkUpdated = await this.subscriptionsService.linkSubscriptionsToUser(
           firebaseAuthDto.appUserId,
           currentUser.id,
           firebaseUser.email || undefined,
         );
-        
+        this.logger.log(
+          `[Auth] authenticateWithFirebase: linkSubscriptionsToUser updated ${linkUpdated} row(s) for userId=${currentUser.id}`,
+        );
+
         // Check if any subscriptions exist for user
         const existingSubscription = await this.subscriptionsService.getLatestSubscription(currentUser.id);
         
