@@ -8,6 +8,7 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +18,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { TemporaryItemsQueueService } from '../admin/settings/queue/temporary-items-queue.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -30,7 +32,12 @@ import { BlacklistGuard } from './guards/blacklist.guard';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly logger = new Logger(AuthController.name);
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly temporaryItemsQueueService: TemporaryItemsQueueService,
+  ) {}
 
   @Post('register')
   @ApiOperation({
@@ -61,7 +68,16 @@ export class AuthController {
     description: 'Неверные данные или пользователь уже существует',
   })
   async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+    const result = await this.authService.register(registerDto);
+    // Queue temporary items after TX commit (no delay needed)
+    try {
+      await this.temporaryItemsQueueService.addGenerateTemporaryArticlesJob(result.userId, 0);
+      await this.temporaryItemsQueueService.addGenerateTemporarySurveysJob(result.userId, 0);
+      this.logger.log(`Queued temporary items for new user ${result.userId} (after register)`);
+    } catch (error) {
+      this.logger.warn(`Failed to queue temporary items for new user ${result.userId}: ${error?.message ?? error}`);
+    }
+    return result;
   }
 
   @Post('login')
@@ -121,7 +137,18 @@ export class AuthController {
     description: 'Недействительный Firebase токен',
   })
   async authenticateWithFirebase(@Body() firebaseAuthDto: FirebaseAuthDto) {
-    return this.authService.authenticateWithFirebase(firebaseAuthDto);
+    const result = await this.authService.authenticateWithFirebase(firebaseAuthDto);
+    // Queue temporary items for new user after TX commit (no delay needed)
+    if (result.isNewUser && result.user?.id) {
+      try {
+        await this.temporaryItemsQueueService.addGenerateTemporaryArticlesJob(result.user.id, 0);
+        await this.temporaryItemsQueueService.addGenerateTemporarySurveysJob(result.user.id, 0);
+        this.logger.log(`Queued temporary items for new Firebase user ${result.user.id} (after authenticateWithFirebase)`);
+      } catch (error) {
+        this.logger.warn(`Failed to queue temporary items for new Firebase user ${result.user.id}: ${error?.message ?? error}`);
+      }
+    }
+    return result;
   }
 
   @Post('forgot-password')
@@ -229,7 +256,7 @@ export class AuthController {
     },
   })
   async logout(@Req() req: any) {
-    const userId = req.user.sub;
+    const userId = req.user?.id ?? req.user?.sub;
     const token = req.headers.authorization?.replace('Bearer ', '');
     return this.authService.logout(userId, token);
   }

@@ -150,4 +150,11 @@ export class FirebaseAuthResponseDto {
     avatarUrl?: string;
     firebaseUid: string;
   };
+
+  @ApiProperty({
+    description: 'True if this request created a new user (registration)',
+    example: false,
+    required: false,
+  })
+  isNewUser?: boolean;
 }
