@@ -26,4 +26,10 @@ export class SubscriptionSummaryDto {
 
   @ApiProperty({ required: false, example: '2026-02-28T23:59:59.000Z' })
   periodEnd?: string;
+
+  @ApiProperty({
+    description: 'True if subscription is paid (RevenueCat/Store); false for backend-created trial',
+    example: true,
+  })
+  isPaid: boolean;
 }
