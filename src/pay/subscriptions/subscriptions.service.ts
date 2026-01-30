@@ -86,6 +86,9 @@ export class SubscriptionsService {
     if (userId === undefined) {
       userId = await this.findLinkedUserId(appUserId);
     }
+    this.logger.log(
+      `[RevenueCat webhook] app_user_id=${appUserId.substring(0, 30)}..., eventType=${event.type}, resolved userId=${userId ?? 'null'}`,
+    );
     const status = this.mapRevenueCatStatus(event.type);
     const planInterval = this.determinePlanInterval(event.product_id);
     const priceInfo = this.extractPriceInfo(event);
@@ -500,19 +503,24 @@ export class SubscriptionsService {
     }
   }
 
-  async linkSubscriptionsToUser(appUserId: string, userId: number, email?: string): Promise<void> {
+  async linkSubscriptionsToUser(appUserId: string, userId: number, email?: string): Promise<number> {
     if (!appUserId || !appUserId.trim()) {
-      return;
+      return 0;
     }
 
-    await this.subscriptionRepository
+    const result = await this.subscriptionRepository
       .createQueryBuilder()
       .update(Subscription)
       .set({ userId, userEmail: email || undefined })
       .where('appUserId = :appUserId', { appUserId })
       .execute();
 
+    const affected = result.affected ?? 0;
+    this.logger.log(
+      `linkSubscriptionsToUser: appUserId=${appUserId.substring(0, 30)}... updated ${affected} row(s) for userId=${userId}`,
+    );
     await this.refreshUserPaidStatus(userId);
+    return affected;
   }
 
   private async refreshUserPaidStatus(userId: number): Promise<void> {
