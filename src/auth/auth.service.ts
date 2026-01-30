@@ -44,7 +44,7 @@ export class AuthService {
   ) {}
 
   @Transactional()
-  async register(registerDto: RegisterDto): Promise<{ message: string }> {
+  async register(registerDto: RegisterDto): Promise<{ message: string; userId: number }> {
     const { 
       email, 
       password, 
@@ -145,7 +145,10 @@ export class AuthService {
       console.error('Failed to queue temporary items generation for new user:', error);
     }
 
-    return { message: 'Registration successful. You can now send verification email when needed.' };
+    return {
+      message: 'Registration successful. You can now send verification email when needed.',
+      userId: user.id,
+    };
   }
 
   async login(loginDto: LoginDto): Promise<{ accessToken: string; refreshToken: string; user: Partial<User> }> {

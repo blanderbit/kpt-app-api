@@ -174,10 +174,14 @@ export class SubscriptionsService {
       return null;
     }
 
-    return this.subscriptionRepository.findOne({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+    // Prefer paid (REVENUECAT/STRIPE) over trial (NONE); then by createdAt DESC
+    const qb = this.subscriptionRepository
+      .createQueryBuilder('s')
+      .where('s.userId = :userId', { userId })
+      .orderBy("CASE WHEN s.provider = 'none' THEN 1 ELSE 0 END", 'ASC')
+      .addOrderBy('s.createdAt', 'DESC');
+    const list = await qb.take(1).getMany();
+    return list[0] ?? null;
   }
 
   async getLatestSubscriptionSummary(userId?: number, language?: string): Promise<SubscriptionSummaryDto | null> {
@@ -191,6 +195,8 @@ export class SubscriptionsService {
     const planIntervalLabel = this.getPlanIntervalLabel(subscription.planInterval, lang);
     const statusLabel = this.getStatusLabel(subscription.status, lang);
 
+    const isPaid = subscription.provider !== SubscriptionProvider.NONE;
+
     return {
       productId: subscription.productId ?? undefined,
       planInterval: subscription.planInterval ?? SubscriptionPlanInterval.UNKNOWN,
@@ -200,6 +206,7 @@ export class SubscriptionsService {
       status: subscription.status ?? SubscriptionStatus.UNKNOWN,
       statusLabel,
       periodEnd: subscription.periodEnd ? subscription.periodEnd.toISOString() : undefined,
+      isPaid,
     };
   }
 
