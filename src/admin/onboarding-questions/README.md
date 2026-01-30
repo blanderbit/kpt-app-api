@@ -28,6 +28,9 @@ src/admin/onboarding-questions/
 #### GET `/onboarding-questions`
 Get all available onboarding questions and steps.
 
+**Query Parameters:**
+- `lang` (optional): Language code for localized texts (e.g. `en`, `ru`, `uk`). Fallback order: requested language → `en` → empty string. If omitted, defaults to `en`.
+
 **Response:**
 ```json
 [
@@ -53,6 +56,7 @@ Get a specific onboarding step by step name.
 
 **Query Parameters:**
 - `stepName` (required): Step name identifier
+- `lang` (optional): Language code for localized texts (same fallback as above)
 
 #### GET `/onboarding-questions/required`
 Get only the required onboarding steps.
@@ -71,7 +75,7 @@ Get only the required onboarding steps.
 ```
 
 #### GET `/onboarding-questions/optional`
-Get only the optional onboarding steps.
+Get only the optional onboarding steps. Supports optional `lang` query parameter for localization.
 
 #### GET `/onboarding-questions/stats`
 Get statistical information about onboarding questions.
@@ -87,22 +91,26 @@ Get statistical information about onboarding questions.
 }
 ```
 
+## 🌐 Localization
+
+All GET endpoints that return onboarding steps accept an optional query parameter **`lang`** (e.g. `?lang=ru`). The backend resolves translation keys from the onboarding file using the language cache (from `LANGUAGES_FOLDER_ID`). **Fallback:** requested language → `en` → empty string. The onboarding file in Drive stores keys (e.g. `onboarding_questions.improvement_goal.step_question`); actual strings come from the language JSON files (en, ru, uk, etc.).
+
 ## 📊 Data Structure
 
-Onboarding questions are stored as JSON in Google Drive with the following structure:
+Onboarding questions are stored as JSON in Google Drive. Text fields (`stepQuestion`, `text`, `subtitle`) contain **translation keys**; the structure is:
 
 ```json
 {
   "onboardingSteps": [
     {
       "stepName": "improvement_goal",
-      "stepQuestion": "What's the #1 thing you'd love to improve with KPT?",
+      "stepQuestion": "onboarding_questions.improvement_goal.step_question",
       "answers": [
         {
           "id": "more_energy",
-          "text": "More energy",
-          "subtitle": "Boost your daily vitality and feel more energized",
-          "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"#FFD700\"><path d=\"M7 2v11h3v9l7-12h-4l4-8z\"/></svg>"
+          "text": "onboarding_questions.improvement_goal.answers.more_energy.text",
+          "subtitle": "onboarding_questions.improvement_goal.answers.more_energy.subtitle",
+          "icon": "<svg>...</svg>"
         }
       ],
       "inputType": "single",
@@ -111,6 +119,7 @@ Onboarding questions are stored as JSON in Google Drive with the following struc
   ]
 }
 ```
+Translations for these keys live in the language JSON files (e.g. `en.json`, `ru.json`) under the `onboarding_questions` block.
 
 ## 🔧 Configuration
 
