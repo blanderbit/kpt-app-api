@@ -105,6 +105,7 @@ export class SuggestedActivityService {
       content: suggestedActivity.content,
       user: user,
       status: 'active',
+      fromSuggestedActivity: true,
     });
 
     const savedActivity = await this.activityRepository.save(newActivity);

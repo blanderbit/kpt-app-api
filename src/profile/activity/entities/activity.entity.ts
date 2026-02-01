@@ -44,6 +44,10 @@ export class Activity {
   })
   status: 'active' | 'closed';
 
+  @ApiProperty({ description: 'Whether this activity was created from a suggested activity' })
+  @Column({ type: 'boolean', default: false })
+  fromSuggestedActivity: boolean;
+
   @ApiProperty({ description: 'Activity closing date', required: false })
   @Column({ nullable: true })
   closedAt: Date;
