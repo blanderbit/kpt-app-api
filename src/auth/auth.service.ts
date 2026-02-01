@@ -132,30 +132,10 @@ export class AuthService {
       this.logger.log(`[Auth] register: saving pending link appUserId→userId=${user.id}`);
       await this.subscriptionPendingLinkService.save(appUserId, user.id, email);
 
-      this.logger.log(`[Auth] register: checking getLatestSubscription(userId=${user.id})`);
-      const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
-      this.logger.log(`[Auth] register: getLatestSubscription(userId=${user.id}) => ${existingSubscription ? `subscriptionId=${existingSubscription.id}, provider=${existingSubscription.provider}` : 'null'}`);
-
-      if (!existingSubscription) {
-        this.logger.log(`[Auth] register: no subscription found, creating trial for userId=${user.id}`);
-        await this.subscriptionsService.createTrialSubscription(
-          user.id,
-          email,
-        );
-      } else {
-        this.logger.log(`[Auth] register: subscription exists, skipping trial creation`);
-      }
-    } else if (user.id) {
-      this.logger.log(`[Auth] register: no appUserId, checking getLatestSubscription(userId=${user.id})`);
-      const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
-      if (!existingSubscription) {
-        this.logger.log(`[Auth] register: no subscription, creating trial for userId=${user.id}`);
-        await this.subscriptionsService.createTrialSubscription(
-          user.id,
-          email,
-        );
-      }
+      // Do not auto-create trial: subscription is only set when user chooses one (e.g. via RevenueCat).
+      this.logger.log(`[Auth] register: subscription from RevenueCat link only, no auto-trial for userId=${user.id}`);
     }
+    // When no appUserId: user has no subscription until they choose one (e.g. in app via RevenueCat).
 
     // Temporary items jobs are queued in the controller after this method returns (after TX commit)
 
@@ -180,28 +160,15 @@ export class AuthService {
       throw AppException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, 'Invalid email or password');
     }
 
-    // Link RevenueCat subscriptions (e.g. anonymous) to this user; create trial if none
+    // Link RevenueCat subscriptions (e.g. anonymous) to this user; do not auto-create trial
     if (appUserId) {
       this.logger.log(`[Auth] login: appUserId present, calling linkSubscriptionsToUser(appUserId=..., userId=${user.id})`);
       const linkUpdated = await this.subscriptionsService.linkSubscriptionsToUser(appUserId, user.id, user.email);
       this.logger.log(
         `[Auth] login: linkSubscriptionsToUser updated ${linkUpdated} row(s) for userId=${user.id}`,
       );
-      this.logger.log(`[Auth] login: checking getLatestSubscription(userId=${user.id})`);
-      const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
-      this.logger.log(`[Auth] login: getLatestSubscription => ${existingSubscription ? `subscriptionId=${existingSubscription.id}` : 'null'}`);
-      if (!existingSubscription) {
-        this.logger.log(`[Auth] login: no subscription, creating trial for userId=${user.id}`);
-        await this.subscriptionsService.createTrialSubscription(user.id, user.email);
-      }
-    } else {
-      this.logger.log(`[Auth] login: no appUserId, checking getLatestSubscription(userId=${user.id})`);
-      const existingSubscription = await this.subscriptionsService.getLatestSubscription(user.id);
-      if (!existingSubscription) {
-        this.logger.log(`[Auth] login: no subscription, creating trial for userId=${user.id}`);
-        await this.subscriptionsService.createTrialSubscription(user.id, user.email);
-      }
     }
+    // When no appUserId or no subscription after link: user has no subscription until they choose one (e.g. via RevenueCat).
 
     // Generate tokens
     const payload = { email: user.email, sub: user.id, roles: user.roles };
@@ -484,30 +451,10 @@ export class AuthService {
           firebaseUser.email || undefined,
         );
 
-        this.logger.log(`[Auth] authenticateWithFirebase: checking getLatestSubscription(userId=${currentUser.id})`);
-        const existingSubscription = await this.subscriptionsService.getLatestSubscription(currentUser.id);
-        this.logger.log(`[Auth] authenticateWithFirebase: getLatestSubscription => ${existingSubscription ? `subscriptionId=${existingSubscription.id}` : 'null'}`);
-
-        if (!existingSubscription) {
-          this.logger.log(`[Auth] authenticateWithFirebase: no subscription, creating trial for userId=${currentUser.id}`);
-          await this.subscriptionsService.createTrialSubscription(
-            currentUser.id,
-            firebaseUser.email || undefined,
-          );
-        } else {
-          this.logger.log(`[Auth] authenticateWithFirebase: subscription exists, skipping trial creation`);
-        }
-      } else if (currentUser.id) {
-        this.logger.log(`[Auth] authenticateWithFirebase: no appUserId, checking getLatestSubscription(userId=${currentUser.id})`);
-        const existingSubscription = await this.subscriptionsService.getLatestSubscription(currentUser.id);
-        if (!existingSubscription) {
-          this.logger.log(`[Auth] authenticateWithFirebase: no subscription, creating trial for userId=${currentUser.id}`);
-          await this.subscriptionsService.createTrialSubscription(
-            currentUser.id,
-            firebaseUser.email || undefined,
-          );
-        }
+        // Do not auto-create trial: subscription is only set when user chooses one (e.g. via RevenueCat).
+        this.logger.log(`[Auth] authenticateWithFirebase: subscription from RevenueCat link only, no auto-trial for userId=${currentUser.id}`);
       }
+      // When no appUserId: user has no subscription until they choose one (e.g. in app via RevenueCat).
 
       return response;
     } catch (error) {
