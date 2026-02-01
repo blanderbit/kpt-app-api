@@ -328,6 +328,7 @@ export class ClientManagementService {
       content: activity.content,
       position: activity.position,
       status: activity.status,
+      fromSuggestedActivity: activity.fromSuggestedActivity ?? false,
       closedAt: activity.closedAt,
       archivedAt: activity.archivedAt,
       createdAt: activity.createdAt,
