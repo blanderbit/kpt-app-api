@@ -112,6 +112,12 @@ export class ActivityResponseDto {
   status: 'active' | 'closed';
 
   @ApiProperty({
+    description: 'Whether this activity was created from a suggested activity',
+    example: false,
+  })
+  fromSuggestedActivity: boolean;
+
+  @ApiProperty({
     description: 'Activity closing date',
     example: '2024-01-01T00:00:00.000Z',
     nullable: true,
