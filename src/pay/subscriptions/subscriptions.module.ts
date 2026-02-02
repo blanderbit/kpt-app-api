@@ -9,12 +9,14 @@ import { SubscriptionsAdminController } from './subscriptions-admin.controller';
 import { RevenueCatService } from './revenuecat.service';
 import { SubscriptionPendingLinkService } from './subscription-pending-link.service';
 import { SettingsModule } from '../../admin/settings/settings.module';
+import { LanguageModule } from '../../admin/languages/language.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Subscription, User]),
     BullModule.registerQueue({ name: 'suggested-activity' }),
     forwardRef(() => SettingsModule),
+    LanguageModule,
   ],
   controllers: [SubscriptionsController, SubscriptionsAdminController],
   providers: [SubscriptionsService, RevenueCatService, SubscriptionPendingLinkService],

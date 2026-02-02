@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Param,
   Post,
   Query,
 } from '@nestjs/common';
@@ -23,13 +24,14 @@ export class SocialNetworksController {
     summary: 'Get all social networks',
     description: 'Returns all available social networks',
   })
+  @ApiQuery({ name: 'lang', required: false, description: 'Language code (e.g. en, ru, uk)' })
   @ApiResponse({
     status: 200,
     description: 'List of all social networks',
     type: [SocialNetworkDto],
   })
-  async getAllSocialNetworks(): Promise<SocialNetworkDto[]> {
-    return this.socialNetworksService.getAllSocialNetworks();
+  async getAllSocialNetworks(@Query('lang') lang?: string): Promise<SocialNetworkDto[]> {
+    return this.socialNetworksService.getAllSocialNetworks(lang);
   }
 
   @Get('by-category')
@@ -43,6 +45,7 @@ export class SocialNetworksController {
     example: 'social',
     required: true,
   })
+  @ApiQuery({ name: 'lang', required: false, description: 'Language code (e.g. en, ru, uk)' })
   @ApiResponse({
     status: 200,
     description: 'Social networks by category',
@@ -50,8 +53,9 @@ export class SocialNetworksController {
   })
   async getSocialNetworksByCategory(
     @Query('category') category: string,
+    @Query('lang') lang?: string,
   ): Promise<SocialNetworkDto[]> {
-    return this.socialNetworksService.getSocialNetworksByCategory(category);
+    return this.socialNetworksService.getSocialNetworksByCategory(category, lang);
   }
 
   @Get('categories')
@@ -74,8 +78,9 @@ export class SocialNetworksController {
       }
     },
   })
-  async getSocialNetworkCategories(): Promise<Record<string, string>> {
-    return this.socialNetworksService.getSocialNetworkCategories();
+  @ApiQuery({ name: 'lang', required: false, description: 'Language code (e.g. en, ru, uk)' })
+  async getSocialNetworkCategories(@Query('lang') lang?: string): Promise<Record<string, string>> {
+    return this.socialNetworksService.getSocialNetworkCategories(lang);
   }
 
   @Get('stats')
@@ -106,8 +111,12 @@ export class SocialNetworksController {
     status: 404,
     description: 'Social network not found',
   })
-  async getSocialNetworkById(@Query('id') id: string): Promise<SocialNetworkDto | undefined> {
-    return this.socialNetworksService.getSocialNetworkById(id);
+  @ApiQuery({ name: 'lang', required: false, description: 'Language code (e.g. en, ru, uk)' })
+  async getSocialNetworkById(
+    @Param('id') id: string,
+    @Query('lang') lang?: string,
+  ): Promise<SocialNetworkDto | undefined> {
+    return this.socialNetworksService.getSocialNetworkById(id, lang);
   }
 
   @Post('sync-with-drive')

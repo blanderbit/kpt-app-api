@@ -61,7 +61,14 @@ export class ActivityTypesAdminController {
   @Get()
   @ApiOperation({
     summary: 'Получить все типы активности',
-    description: 'Возвращает все доступные типы активности для администратора',
+    description: 'Возвращает все доступные типы активности для администратора. Параметр lang — код языка для подстановки переводов (en, ru, uk).',
+  })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Код языка для локализованных названий и описаний (любой код из синхронизированных в админке языков, напр. en, ru, uk, fr). Без параметра — подставляется en; при пустом кэше языков вернутся ключи.',
+    required: false,
+    example: 'en',
+    schema: { type: 'string' },
   })
   @ApiResponse({
     status: 200,
@@ -76,19 +83,27 @@ export class ActivityTypesAdminController {
     status: 403,
     description: 'Недостаточно прав (требуются права администратора)',
   })
-  async getAllActivityTypes(): Promise<ActivityTypeDto[]> {
-    return this.activityTypesAdminService.getAllActivityTypes();
+  async getAllActivityTypes(
+    @Query('lang') language?: string,
+  ): Promise<ActivityTypeDto[]> {
+    return this.activityTypesAdminService.getAllActivityTypes(language);
   }
 
   @Get('by-category')
   @ApiOperation({
     summary: 'Получить типы активности по категории',
-    description: 'Возвращает типы активности, отфильтрованные по категории',
+    description: 'Возвращает типы активности, отфильтрованные по категории. Параметр lang — код языка для подстановки переводов.',
   })
   @ApiQuery({
     name: 'category',
     description: 'Категория активности',
     required: true,
+  })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Код языка для локализованных названий и описаний',
+    required: false,
+    example: 'en',
   })
   @ApiResponse({
     status: 200,
@@ -105,14 +120,21 @@ export class ActivityTypesAdminController {
   })
   async getActivityTypesByCategory(
     @Query('category') category: string,
+    @Query('lang') language?: string,
   ): Promise<ActivityTypeDto[]> {
-    return this.activityTypesAdminService.getActivityTypesByCategory(category);
+    return this.activityTypesAdminService.getActivityTypesByCategory(category, language);
   }
 
   @Get('categories')
   @ApiOperation({
     summary: 'Получить категории активности',
-    description: 'Возвращает все доступные категории активности',
+    description: 'Возвращает все доступные категории активности. Параметр lang — код языка для подстановки переводов.',
+  })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Код языка для локализованных названий категорий',
+    required: false,
+    example: 'en',
   })
   @ApiResponse({
     status: 200,
@@ -132,8 +154,10 @@ export class ActivityTypesAdminController {
     status: 403,
     description: 'Недостаточно прав (требуются права администратора)',
   })
-  async getActivityCategories() {
-    return this.activityTypesAdminService.getActivityCategories();
+  async getActivityCategories(
+    @Query('lang') language?: string,
+  ) {
+    return this.activityTypesAdminService.getActivityCategories(language);
   }
 
   @Get('stats')
