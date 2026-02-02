@@ -14,6 +14,32 @@ import { subscriptionsPaginationConfig } from './subscription.config';
 import { SubscriptionPlanInterval } from './enums/subscription-plan-interval.enum';
 import { SettingsService } from '../../admin/settings/settings.service';
 import { SubscriptionPendingLinkService } from './subscription-pending-link.service';
+import { LanguageService } from '../../admin/languages/services/language.service';
+
+/** Get nested value by dot path, e.g. "subscription_summary.plan_interval.monthly" */
+function getValueByPath(obj: Record<string, any>, pathKey: string): string | undefined {
+  if (!obj || typeof pathKey !== 'string') return undefined;
+  const parts = pathKey.split('.');
+  let current: any = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') return undefined;
+    current = current[part];
+  }
+  return typeof current === 'string' ? current : undefined;
+}
+
+/** Resolve a string that may be a translation key into the translated text */
+function resolveText(
+  value: string,
+  translations: Record<string, any> | null,
+): string {
+  if (!value || typeof value !== 'string') return value || '';
+  if (!translations) return value;
+  const key = value.trim();
+  if (!key.includes('.')) return value;
+  const resolved = getValueByPath(translations, key);
+  return resolved !== undefined ? resolved : value;
+}
 
 export interface SubscriptionStatsFilters {
   planInterval?: SubscriptionPlanInterval;
@@ -50,12 +76,6 @@ interface PriceInfo {
   priceInUsd?: string;
 }
 
-interface SubscriptionPlanCopy {
-  name: string;
-  description: string;
-}
-
-
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
@@ -69,6 +89,7 @@ export class SubscriptionsService {
     @Inject(forwardRef(() => SettingsService))
     private readonly settingsService: SettingsService,
     private readonly subscriptionPendingLinkService: SubscriptionPendingLinkService,
+    private readonly languageService: LanguageService,
   ) {}
 
   async handleRevenueCatWebhook(payload: RevenueCatWebhookPayload): Promise<void> {
@@ -233,20 +254,32 @@ export class SubscriptionsService {
     }
     this.logger.log(`[getLatest] getLatestSubscriptionSummary(userId=${userId}): building summary for subscriptionId=${subscription.id}, isPaid=${subscription.provider !== SubscriptionProvider.NONE}, productId=${subscription.productId ?? 'null'}`);
 
-    const lang = this.normalizeLanguage(language);
-    const planCopy = this.getPlanCopy(subscription.productId, subscription.planInterval, lang);
-    const planIntervalLabel = this.getPlanIntervalLabel(subscription.planInterval, lang);
-    const statusLabel = this.getStatusLabel(subscription.status, lang);
+    const lang = language?.trim().toLowerCase() || 'en';
+    const translations = this.languageService.getTranslationsByCode(lang);
+
+    const planInterval = subscription.planInterval ?? SubscriptionPlanInterval.UNKNOWN;
+    const status = subscription.status ?? SubscriptionStatus.UNKNOWN;
+    const planKey = this.getPlanKey(subscription.productId, subscription.planInterval);
+
+    const planIntervalLabelKey = `subscription_summary.plan_interval.${planInterval}`;
+    const statusLabelKey = `subscription_summary.status.${status}`;
+    const nameKey = planKey ? `subscription_summary.plans.${planKey}.name` : undefined;
+    const descriptionKey = planKey ? `subscription_summary.plans.${planKey}.description` : undefined;
+
+    const planIntervalLabel = resolveText(planIntervalLabelKey, translations);
+    const statusLabel = resolveText(statusLabelKey, translations);
+    const name = nameKey ? resolveText(nameKey, translations) : (subscription.productId ?? undefined);
+    const description = descriptionKey ? resolveText(descriptionKey, translations) : undefined;
 
     const isPaid = subscription.provider !== SubscriptionProvider.NONE;
 
     return {
       productId: subscription.productId ?? undefined,
-      planInterval: subscription.planInterval ?? SubscriptionPlanInterval.UNKNOWN,
+      planInterval,
       planIntervalLabel,
-      name: planCopy?.name ?? subscription.productId ?? undefined,
-      description: planCopy?.description,
-      status: subscription.status ?? SubscriptionStatus.UNKNOWN,
+      name: (name || subscription.productId) ?? undefined,
+      description,
+      status,
       statusLabel,
       periodEnd: subscription.periodEnd ? subscription.periodEnd.toISOString() : undefined,
       isPaid,
@@ -342,64 +375,6 @@ export class SubscriptionsService {
     return SubscriptionPlanInterval.UNKNOWN;
   }
 
-  private normalizeLanguage(language?: string): 'en' | 'ru' | 'uk' {
-    if (!language) {
-      return 'en';
-    }
-    const normalized = language.toLowerCase().trim();
-    const primary = normalized.split(',')[0]?.split('-')[0]?.split('_')[0];
-    if (primary === 'ru' || primary === 'uk' || primary === 'en') {
-      return primary;
-    }
-    return 'en';
-  }
-
-  private getPlanCopy(
-    productId: string | null | undefined,
-    planInterval: SubscriptionPlanInterval | null | undefined,
-    language: 'en' | 'ru' | 'uk',
-  ): SubscriptionPlanCopy | undefined {
-    const planKey = this.getPlanKey(productId, planInterval);
-    if (!planKey) {
-      return undefined;
-    }
-
-    const copy: Record<'en' | 'ru' | 'uk', Record<'monthly' | 'yearly', SubscriptionPlanCopy>> = {
-      en: {
-        monthly: {
-          name: 'Monthly Premium',
-          description: 'Full access to premium features with a monthly renewal.',
-        },
-        yearly: {
-          name: 'Yearly Premium',
-          description: 'Full access to premium features with the best annual value.',
-        },
-      },
-      ru: {
-        monthly: {
-          name: 'Премиум на месяц',
-          description: 'Полный доступ к премиум‑функциям с ежемесячным продлением.',
-        },
-        yearly: {
-          name: 'Премиум на год',
-          description: 'Полный доступ к премиум‑функциям с лучшей годовой ценой.',
-        },
-      },
-      uk: {
-        monthly: {
-          name: 'Преміум на місяць',
-          description: 'Повний доступ до преміум‑функцій із щомісячним поновленням.',
-        },
-        yearly: {
-          name: 'Преміум на рік',
-          description: 'Повний доступ до преміум‑функцій з найкращою річною ціною.',
-        },
-      },
-    };
-
-    return copy[language][planKey];
-  }
-
   private getPlanKey(
     productId?: string | null,
     planInterval?: SubscriptionPlanInterval | null,
@@ -422,59 +397,6 @@ export class SubscriptionsService {
     }
 
     return undefined;
-  }
-
-  private getPlanIntervalLabel(interval: SubscriptionPlanInterval, language: 'en' | 'ru' | 'uk'): string {
-    const labels: Record<'en' | 'ru' | 'uk', Record<SubscriptionPlanInterval, string>> = {
-      en: {
-        [SubscriptionPlanInterval.MONTHLY]: 'Monthly',
-        [SubscriptionPlanInterval.YEARLY]: 'Yearly',
-        [SubscriptionPlanInterval.UNKNOWN]: 'Unknown',
-      },
-      ru: {
-        [SubscriptionPlanInterval.MONTHLY]: 'Ежемесячный',
-        [SubscriptionPlanInterval.YEARLY]: 'Ежегодный',
-        [SubscriptionPlanInterval.UNKNOWN]: 'Неизвестно',
-      },
-      uk: {
-        [SubscriptionPlanInterval.MONTHLY]: 'Щомісячний',
-        [SubscriptionPlanInterval.YEARLY]: 'Щорічний',
-        [SubscriptionPlanInterval.UNKNOWN]: 'Невідомо',
-      },
-    };
-
-    return labels[language][interval] ?? labels[language][SubscriptionPlanInterval.UNKNOWN];
-  }
-
-  private getStatusLabel(status: SubscriptionStatus, language: 'en' | 'ru' | 'uk'): string {
-    const labels: Record<'en' | 'ru' | 'uk', Record<SubscriptionStatus, string>> = {
-      en: {
-        [SubscriptionStatus.ACTIVE]: 'Active',
-        [SubscriptionStatus.CANCELLED]: 'Cancelled',
-        [SubscriptionStatus.EXPIRED]: 'Expired',
-        [SubscriptionStatus.PAST_DUE]: 'Past due',
-        [SubscriptionStatus.PENDING]: 'Pending',
-        [SubscriptionStatus.UNKNOWN]: 'Unknown',
-      },
-      ru: {
-        [SubscriptionStatus.ACTIVE]: 'Активна',
-        [SubscriptionStatus.CANCELLED]: 'Отменена',
-        [SubscriptionStatus.EXPIRED]: 'Истекла',
-        [SubscriptionStatus.PAST_DUE]: 'Просрочена',
-        [SubscriptionStatus.PENDING]: 'В ожидании',
-        [SubscriptionStatus.UNKNOWN]: 'Неизвестно',
-      },
-      uk: {
-        [SubscriptionStatus.ACTIVE]: 'Активна',
-        [SubscriptionStatus.CANCELLED]: 'Скасована',
-        [SubscriptionStatus.EXPIRED]: 'Минув термін',
-        [SubscriptionStatus.PAST_DUE]: 'Прострочена',
-        [SubscriptionStatus.PENDING]: 'В очікуванні',
-        [SubscriptionStatus.UNKNOWN]: 'Невідомо',
-      },
-    };
-
-    return labels[language][status] ?? labels[language][SubscriptionStatus.UNKNOWN];
   }
 
   private extractPriceInfo(event: RevenueCatWebhookPayload['event']): PriceInfo {

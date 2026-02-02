@@ -1,5 +1,32 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ActivityTypesService } from '../../core/activity-types';
+import type { ActivityType } from '../../core/activity-types/activity-types.service';
+import { LanguageService } from '../languages/services/language.service';
+
+/** Get nested value by dot path, e.g. "activity_types.fitness.name" */
+function getValueByPath(obj: Record<string, any>, pathKey: string): string | undefined {
+  if (!obj || typeof pathKey !== 'string') return undefined;
+  const parts = pathKey.split('.');
+  let current: any = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') return undefined;
+    current = current[part];
+  }
+  return typeof current === 'string' ? current : undefined;
+}
+
+/** Resolve a string that may be a translation key into the translated text */
+function resolveText(
+  value: string,
+  translations: Record<string, any> | null,
+): string {
+  if (!value || typeof value !== 'string') return value || '';
+  if (!translations) return value;
+  const key = value.trim();
+  if (!key.includes('.')) return value;
+  const resolved = getValueByPath(translations, key);
+  return resolved !== undefined ? resolved : value;
+}
 
 @Injectable()
 export class ActivityTypesAdminService {
@@ -7,6 +34,7 @@ export class ActivityTypesAdminService {
 
   constructor(
     private readonly activityTypesService: ActivityTypesService,
+    private readonly languageService: LanguageService,
   ) {}
 
   /**
@@ -37,24 +65,27 @@ export class ActivityTypesAdminService {
   }
 
   /**
-   * Получить все типы активности
+   * Получить все типы активности с подстановкой переводов по ключам для языка lang
    */
-  async getAllActivityTypes() {
-    return this.activityTypesService.getAllActivityTypes();
+  async getAllActivityTypes(language?: string): Promise<ActivityType[]> {
+    const types = this.activityTypesService.getAllActivityTypes();
+    return this.resolveActivityTypesWithTranslations(types, language);
   }
 
   /**
-   * Получить типы активности по категории
+   * Получить типы активности по категории с подстановкой переводов
    */
-  async getActivityTypesByCategory(category: string) {
-    return this.activityTypesService.getActivityTypesByCategory(category);
+  async getActivityTypesByCategory(category: string, language?: string): Promise<ActivityType[]> {
+    const types = this.activityTypesService.getActivityTypesByCategory(category);
+    return this.resolveActivityTypesWithTranslations(types, language);
   }
 
   /**
-   * Получить категории активности
+   * Получить категории активности с подстановкой переводов (значения — ключи activity_types.categories.*)
    */
-  async getActivityCategories() {
-    return this.activityTypesService.getAllCategories();
+  async getActivityCategories(language?: string): Promise<Record<string, string>> {
+    const categories = this.activityTypesService.getAllCategories();
+    return this.resolveCategoriesWithTranslations(categories, language);
   }
 
   /**
@@ -62,5 +93,44 @@ export class ActivityTypesAdminService {
    */
   async getActivityTypesStats() {
     return this.activityTypesService.getActivityTypesStats();
+  }
+
+  /**
+   * Разрешить ключи переводов в полях name, description, keywords у типов активности
+   */
+  private resolveActivityTypesWithTranslations(
+    types: ActivityType[],
+    language?: string,
+  ): ActivityType[] {
+    const lang = language || 'en';
+    const translations = this.languageService.getTranslationsByCode(lang);
+    if (!translations || typeof translations !== 'object') {
+      return types;
+    }
+    return types.map((type) => ({
+      ...type,
+      name: resolveText(type.name, translations),
+      description: resolveText(type.description, translations),
+      keywords: type.keywords.map((kw) => resolveText(kw, translations)),
+    }));
+  }
+
+  /**
+   * Разрешить ключи переводов в значениях категорий (activity_types.categories.*)
+   */
+  private resolveCategoriesWithTranslations(
+    categories: Record<string, string>,
+    language?: string,
+  ): Record<string, string> {
+    const lang = language || 'en';
+    const translations = this.languageService.getTranslationsByCode(lang);
+    if (!translations || typeof translations !== 'object') {
+      return categories;
+    }
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(categories)) {
+      result[key] = resolveText(value, translations);
+    }
+    return result;
   }
 }

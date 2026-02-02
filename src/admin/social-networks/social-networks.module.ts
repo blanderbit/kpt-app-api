@@ -4,9 +4,10 @@ import { SocialNetworksPublicController } from './social-networks.public.control
 import { SocialNetworksAdminService } from './social-networks-admin.service';
 import { SocialNetworksModule } from '../../core/social-networks';
 import { SettingsModule } from '../settings/settings.module';
+import { LanguageModule } from '../languages/language.module';
 
 @Module({
-  imports: [SocialNetworksModule, forwardRef(() => SettingsModule)],
+  imports: [SocialNetworksModule, forwardRef(() => SettingsModule), LanguageModule],
   controllers: [SocialNetworksController, SocialNetworksPublicController],
   providers: [SocialNetworksAdminService],
   exports: [SocialNetworksAdminService],

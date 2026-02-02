@@ -61,7 +61,13 @@ export class MoodTypesAdminController {
   @Get()
   @ApiOperation({
     summary: 'Получить все типы настроения',
-    description: 'Возвращает все доступные типы настроения для администратора',
+    description: 'Возвращает все доступные типы настроения для администратора. Параметр lang — код языка для подстановки переводов (en, ru, uk).',
+  })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Код языка для локализованных названий и описаний',
+    required: false,
+    example: 'en',
   })
   @ApiResponse({
     status: 200,
@@ -76,20 +82,28 @@ export class MoodTypesAdminController {
     status: 403,
     description: 'Недостаточно прав (требуются права администратора)',
   })
-  async getAllMoodTypes(): Promise<MoodTypeDto[]> {
-    return this.moodTypesAdminService.getAllMoodTypes();
+  async getAllMoodTypes(
+    @Query('lang') language?: string,
+  ): Promise<MoodTypeDto[]> {
+    return this.moodTypesAdminService.getAllMoodTypes(language);
   }
 
   @Get('by-category')
   @ApiOperation({
     summary: 'Получить типы настроения по категории',
-    description: 'Возвращает типы настроения, отфильтрованные по категории',
+    description: 'Возвращает типы настроения, отфильтрованные по категории. Параметр lang — код языка для подстановки переводов.',
   })
   @ApiQuery({
     name: 'category',
     description: 'Категория настроения',
     enum: ['positive', 'neutral', 'negative'],
     required: true,
+  })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Код языка для локализованных названий и описаний',
+    required: false,
+    example: 'en',
   })
   @ApiResponse({
     status: 200,
@@ -106,8 +120,9 @@ export class MoodTypesAdminController {
   })
   async getMoodTypesByCategory(
     @Query('category') category: string,
+    @Query('lang') language?: string,
   ): Promise<MoodTypeDto[]> {
-    return this.moodTypesAdminService.getMoodTypesByCategory(category);
+    return this.moodTypesAdminService.getMoodTypesByCategory(category, language);
   }
 
   @Get('stats')
