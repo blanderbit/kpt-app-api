@@ -102,23 +102,29 @@ export class SubscriptionsService {
     this.logger.log(`[webhook] handleRevenueCatWebhook: event.type=${event.type}, app_user_id present=${!!event.app_user_id}`);
 
     const appUserId = event.app_user_id;
-    if (!appUserId) {
+    if (!appUserId && event.type !== 'TRANSFER') {
       this.logger.warn('[webhook] handleRevenueCatWebhook: missing app_user_id, exiting');
       return;
     }
-    this.logger.log(`[webhook] handleRevenueCatWebhook: app_user_id=${appUserId.substring(0, 40)}`);
 
-    const resolvedNumeric = this.resolveUserId(appUserId);
+    if (event.type === 'TRANSFER') {
+      await this.handleTransferEvent(event);
+      return;
+    }
+
+    this.logger.log(`[webhook] handleRevenueCatWebhook: app_user_id=${appUserId!.substring(0, 40)}`);
+
+    const resolvedNumeric = this.resolveUserId(appUserId!);
     this.logger.log(`[webhook] handleRevenueCatWebhook: resolveUserId(appUserId)=${resolvedNumeric ?? 'undefined'}`);
-    let userId = resolvedNumeric;
+    let userId: number | undefined = resolvedNumeric;
     if (userId === undefined) {
-      const linkedUserId = await this.findLinkedUserId(appUserId);
+      const linkedUserId = await this.findLinkedUserId(appUserId!);
       this.logger.log(`[webhook] handleRevenueCatWebhook: findLinkedUserId(appUserId)=${linkedUserId ?? 'undefined'}`);
       userId = linkedUserId;
     }
     if (userId === undefined) {
       this.logger.log(`[webhook] handleRevenueCatWebhook: userId still undefined, checking pending link for appUserId=...`);
-      const pending = await this.subscriptionPendingLinkService.getAndConsume(appUserId);
+      const pending = await this.subscriptionPendingLinkService.getAndConsume(appUserId!);
       if (pending?.userId != null) {
         userId = pending.userId;
         this.logger.log(
@@ -133,43 +139,117 @@ export class SubscriptionsService {
     this.logger.log(
       `[webhook] handleRevenueCatWebhook: final resolved userId=${userId ?? 'null'}, eventType=${event.type}`,
     );
-    const status = this.mapRevenueCatStatus(event.type);
-    const planInterval = this.determinePlanInterval(event.product_id);
-    const priceInfo = this.extractPriceInfo(event);
-    this.logger.log(`[webhook] handleRevenueCatWebhook: mapped status=${status}, planInterval=${planInterval}, product_id=${event.product_id ?? 'null'}`);
 
-    if ([SubscriptionStatus.EXPIRED, SubscriptionStatus.CANCELLED, SubscriptionStatus.PAST_DUE].includes(status)) {
-      this.logger.log(`[webhook] handleRevenueCatWebhook: status is ${status}, updating existing subscription...`);
-      await this.updateExistingSubscriptionStatus(appUserId, event.product_id, status, event, userId, planInterval, priceInfo);
+    await this.upsertSubscriptionFromWebhook(event, userId);
 
-      if (status === SubscriptionStatus.PAST_DUE) {
-        await this.revenueCatService
-          .cancelSubscription(appUserId, event.product_id || '')
-          .catch((error) =>
-            this.logger.warn(`Failed to cancel subscription after billing issue: ${error?.message || error}`),
-          );
-      }
-      if (typeof userId === 'number') {
-        this.logger.log(`[webhook] handleRevenueCatWebhook: calling refreshUserPaidStatus(userId=${userId})`);
-        await this.refreshUserPaidStatus(userId);
-      }
-      this.logger.log(`[webhook] handleRevenueCatWebhook: done (update existing path)`);
+    const status = this.computeStatusFromPayload(event);
+    if (status === SubscriptionStatus.PAST_DUE) {
+      await this.revenueCatService
+        .cancelSubscription(appUserId!, event.product_id || event.new_product_id || '')
+        .catch((error) =>
+          this.logger.warn(`Failed to cancel subscription after billing issue: ${error?.message || error}`),
+        );
+    }
+    if (typeof userId === 'number') {
+      this.logger.log(`[webhook] handleRevenueCatWebhook: calling refreshUserPaidStatus(userId=${userId})`);
+      await this.refreshUserPaidStatus(userId);
+    }
+    this.logger.log(`[webhook] handleRevenueCatWebhook: done`);
+  }
+
+  /**
+   * TRANSFER: update appUserId from transferred_from to transferred_to so link at registration finds rows.
+   */
+  private async handleTransferEvent(event: RevenueCatWebhookPayload['event']): Promise<void> {
+    const fromIds = event.transferred_from;
+    const toIds = event.transferred_to;
+    if (!fromIds?.length || !toIds?.length) {
+      this.logger.warn('[webhook] handleTransferEvent: missing transferred_from or transferred_to, skipping');
+      return;
+    }
+    const toId = toIds[0];
+    for (const fromId of fromIds) {
+      const result = await this.subscriptionRepository
+        .createQueryBuilder()
+        .update(Subscription)
+        .set({ appUserId: toId })
+        .where('appUserId = :fromId', { fromId })
+        .execute();
+      this.logger.log(
+        `[webhook] handleTransferEvent: updated appUserId ${fromId} -> ${toId}, affected ${result.affected ?? 0} row(s)`,
+      );
+    }
+  }
+
+  /**
+   * Upsert subscription by original_transaction_id (or fallback key). Creates row if missing; updates only if event_timestamp_ms >= lastEventTimestampMs. Does not overwrite existing non-null userId with null.
+   */
+  private async upsertSubscriptionFromWebhook(
+    event: RevenueCatWebhookPayload['event'],
+    resolvedUserId: number | undefined,
+  ): Promise<void> {
+    const upsertKey = this.getUpsertKey(event);
+    if (!upsertKey) {
+      this.logger.warn('[webhook] upsertSubscriptionFromWebhook: no upsert key (original_transaction_id or app_user_id), skipping');
       return;
     }
 
-    if (status === SubscriptionStatus.ACTIVE) {
-      this.logger.log(`[webhook] handleRevenueCatWebhook: status ACTIVE, closing other active subscriptions for appUserId, productId=${event.product_id ?? 'null'}`);
-      await this.closeActiveSubscriptions(appUserId, event.product_id);
+    const appUserId = event.app_user_id!;
+    const productId = event.new_product_id ?? event.product_id;
+    const status = this.computeStatusFromPayload(event);
+    const planInterval = this.determinePlanInterval(productId);
+    const priceInfo = this.extractPriceInfo(event);
+    const eventTs = event.event_timestamp_ms ?? (event.expiration_at_ms ? event.expiration_at_ms + 1 : Date.now());
+
+    const existing = await this.subscriptionRepository.findOne({
+      where: { originalTransactionId: upsertKey },
+    });
+
+    if (existing) {
+      const lastTs = existing.lastEventTimestampMs ? parseInt(existing.lastEventTimestampMs, 10) : 0;
+      if (eventTs < lastTs) {
+        this.logger.log(`[webhook] upsertSubscriptionFromWebhook: ignoring out-of-order event (event_timestamp_ms=${eventTs} < lastEventTimestampMs=${lastTs})`);
+        return;
+      }
+      const updatePayload: Partial<Subscription> = {
+        appUserId,
+        productId,
+        environment: event.environment,
+        status,
+        planInterval,
+        periodStart: this.resolveDate(event.purchased_at_ms, event.purchased_at),
+        periodEnd: this.resolveDate(event.expiration_at_ms, event.expiration_at),
+        lastEventTimestampMs: String(eventTs),
+        userEmail: event.subscriber_attributes?.email?.value || undefined,
+        metadata: event,
+        price: priceInfo.price,
+        currency: priceInfo.currency,
+        priceInUsd: priceInfo.priceInUsd,
+        externalSubscriptionId: event.transaction_id || event.original_transaction_id || event.entitlement_id,
+      };
+      if (status !== SubscriptionStatus.ACTIVE) {
+        updatePayload.cancelledAt = new Date();
+      }
+      if (typeof resolvedUserId === 'number') {
+        updatePayload.userId = resolvedUserId;
+      }
+      await this.subscriptionRepository.update(existing.id, updatePayload);
+      this.logger.log(
+        `[webhook] upsertSubscriptionFromWebhook: updated subscription id=${existing.id}, status=${status}, productId=${productId}`,
+      );
+      return;
     }
 
-    this.logger.log(`[webhook] handleRevenueCatWebhook: creating new subscription row: userId=${userId ?? 'null'}, appUserId=${appUserId.substring(0, 35)}..., status=${status}, productId=${event.product_id ?? 'null'}`);
+    const userIdToSet = typeof resolvedUserId === 'number' ? resolvedUserId : undefined;
     const subscription = this.subscriptionRepository.create({
-      userId,
+      userId: userIdToSet,
       userEmail: event.subscriber_attributes?.email?.value || undefined,
       appUserId,
       provider: SubscriptionProvider.REVENUECAT,
       externalSubscriptionId: event.transaction_id || event.original_transaction_id || event.entitlement_id,
-      productId: event.product_id,
+      originalTransactionId: upsertKey,
+      lastEventTimestampMs: String(eventTs),
+      productId,
       environment: event.environment,
       planInterval,
       status,
@@ -178,19 +258,49 @@ export class SubscriptionsService {
       priceInUsd: priceInfo.priceInUsd,
       periodStart: this.resolveDate(event.purchased_at_ms, event.purchased_at),
       periodEnd: this.resolveDate(event.expiration_at_ms, event.expiration_at),
+      cancelledAt: status !== SubscriptionStatus.ACTIVE ? new Date() : undefined,
       metadata: event,
     });
-
     await this.subscriptionRepository.save(subscription);
     this.logger.log(
-      `[webhook] handleRevenueCatWebhook: subscription saved to DB: id=${subscription.id}, userId=${subscription.userId ?? 'null'}, appUserId=${(subscription.appUserId ?? '').substring(0, 35)}...`,
+      `[webhook] upsertSubscriptionFromWebhook: created subscription id=${subscription.id}, originalTransactionId=${upsertKey}, status=${status}, productId=${productId}`,
     );
+  }
 
-    if (typeof userId === 'number') {
-      this.logger.log(`[webhook] handleRevenueCatWebhook: calling refreshUserPaidStatus(userId=${userId})`);
-      await this.refreshUserPaidStatus(userId);
+  /** Key for upsert: original_transaction_id (preferred) or fallback app_user_id:transaction_id/product_id for legacy events. */
+  private getUpsertKey(event: RevenueCatWebhookPayload['event']): string | null {
+    if (event.original_transaction_id) {
+      return event.original_transaction_id;
     }
-    this.logger.log(`[webhook] handleRevenueCatWebhook: done (new subscription path)`);
+    const appUserId = event.app_user_id;
+    if (!appUserId) return null;
+    const suffix = event.transaction_id || event.product_id || event.new_product_id || 'unknown';
+    return `${appUserId}:${suffix}`;
+  }
+
+  /**
+   * Compute subscription status from payload. PRODUCT_CHANGE is not mapped to cancelled; status is derived from expiration_at_ms and event type.
+   */
+  private computeStatusFromPayload(event: RevenueCatWebhookPayload['event']): SubscriptionStatus {
+    switch (event.type) {
+      case 'CANCELLATION':
+        return SubscriptionStatus.CANCELLED;
+      case 'EXPIRATION':
+        return SubscriptionStatus.EXPIRED;
+      case 'BILLING_ISSUE':
+      case 'SUBSCRIPTION_PAUSED':
+        return SubscriptionStatus.PAST_DUE;
+      default:
+        break;
+    }
+    const expMs = event.expiration_at_ms;
+    if (expMs != null && expMs < Date.now()) {
+      return SubscriptionStatus.EXPIRED;
+    }
+    if (['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'NON_RENEWING_PURCHASE', 'UNCANCELLATION', 'SUBSCRIPTION_RESUMED'].includes(event.type)) {
+      return SubscriptionStatus.ACTIVE;
+    }
+    return SubscriptionStatus.UNKNOWN;
   }
 
   async requestCancellation(dto: CancelSubscriptionDto): Promise<void> {
@@ -447,6 +557,9 @@ export class SubscriptionsService {
     return linked?.userId;
   }
 
+  /**
+   * Legacy mapping; webhook flow uses computeStatusFromPayload instead. PRODUCT_CHANGE is not mapped to CANCELLED.
+   */
   private mapRevenueCatStatus(eventType: string): SubscriptionStatus {
     switch (eventType) {
       case 'INITIAL_PURCHASE':
@@ -454,9 +567,9 @@ export class SubscriptionsService {
       case 'RENEWAL':
       case 'UNCANCELLATION':
       case 'SUBSCRIPTION_RESUMED':
+      case 'PRODUCT_CHANGE':
         return SubscriptionStatus.ACTIVE;
       case 'CANCELLATION':
-      case 'PRODUCT_CHANGE':
         return SubscriptionStatus.CANCELLED;
       case 'EXPIRATION':
         return SubscriptionStatus.EXPIRED;

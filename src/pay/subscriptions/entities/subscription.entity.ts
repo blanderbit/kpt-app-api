@@ -5,6 +5,7 @@ import { SubscriptionPlanInterval } from '../enums/subscription-plan-interval.en
 
 @Entity('subscriptions')
 @Index(['userEmail', 'productId', 'status'])
+@Index('IDX_subscriptions_original_transaction_id', ['originalTransactionId'], { unique: true })
 export class Subscription {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -23,6 +24,14 @@ export class Subscription {
 
   @Column({ length: 255, nullable: true })
   externalSubscriptionId?: string;
+
+  /** iOS original_transaction_id; stable key for upsert across product changes */
+  @Column({ length: 255, nullable: true })
+  originalTransactionId?: string;
+
+  /** Last webhook event_timestamp_ms; used to ignore out-of-order events */
+  @Column({ type: 'bigint', nullable: true })
+  lastEventTimestampMs?: string;
 
   @Column({ length: 255, nullable: true })
   productId?: string;
