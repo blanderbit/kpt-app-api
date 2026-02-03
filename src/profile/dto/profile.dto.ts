@@ -147,4 +147,20 @@ export class ProfileResponseDto {
     example: '2024-01-01T00:00:00.000Z',
   })
   updatedAt: Date;
+
+  @ApiProperty({
+    description: 'Initial satisfaction level from onboarding (0-100)',
+    example: 70,
+    required: false,
+    nullable: true,
+  })
+  initSatisfactionLevel: number | null;
+
+  @ApiProperty({
+    description: 'Initial hardness level from onboarding (0-100)',
+    example: 30,
+    required: false,
+    nullable: true,
+  })
+  initHardnessLevel: number | null;
 }
