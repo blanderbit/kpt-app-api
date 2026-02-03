@@ -4,6 +4,7 @@ import {
   Body,
   Get,
   Param,
+  Query,
   UseGuards,
   Req,
   HttpCode,
@@ -13,6 +14,7 @@ import {
 import {
   ApiTags,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiBearerAuth,
   ApiBody,
@@ -265,7 +267,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Generate personalized activity recommendations using ChatGPT',
-    description: 'Generates personalized activity recommendations with categories, confidence scores, and reasoning based on user data',
+    description: 'Generates personalized activity recommendations. Add query parameter lang (e.g. ?lang=ru) so that activityName and content are in that language; activityTypeLabel from translations. Example URL: POST .../generate-activity-recommendations?lang=ru',
+  })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Language code: en, ru, uk, fr, de, es, etc. Response text in this language.',
+    required: false,
+    example: 'en',
+    schema: { type: 'string', example: 'ru' },
   })
   @ApiBody({ type: GenerateActivityRecommendationsDto })
   @ApiResponse({
@@ -281,7 +290,10 @@ export class AuthController {
     status: 500,
     description: 'Error generating recommendations with ChatGPT',
   })
-  async generateActivityRecommendations(@Body() generateRecommendationsDto: GenerateActivityRecommendationsDto): Promise<ActivityRecommendationsResponseDto> {
-    return this.authService.generateActivityRecommendations(generateRecommendationsDto);
+  async generateActivityRecommendations(
+    @Body() generateRecommendationsDto: GenerateActivityRecommendationsDto,
+    @Query('lang') lang?: string,
+  ): Promise<ActivityRecommendationsResponseDto> {
+    return this.authService.generateActivityRecommendations(generateRecommendationsDto, lang);
   }
 }
