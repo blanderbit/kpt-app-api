@@ -210,6 +210,8 @@ export class ProfileService {
       language: user.language,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      initSatisfactionLevel: user.initSatisfactionLevel ?? null,
+      initHardnessLevel: user.initHardnessLevel ?? null,
     };
   }
 }
