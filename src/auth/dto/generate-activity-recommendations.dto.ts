@@ -79,6 +79,14 @@ export class ActivityRecommendationDto {
   })
   @IsOptional()
   activityType?: string;
+
+  @ApiProperty({
+    description: 'Localized label of the activity type (when lang query param was provided)',
+    example: 'Meditation',
+    required: false,
+  })
+  @IsOptional()
+  activityTypeLabel?: string;
 }
 
 export class ActivityRecommendationsResponseDto {

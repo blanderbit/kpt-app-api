@@ -65,9 +65,15 @@ export class ChatGPTService {
   }
 
   /**
-   * Generates multiple recommendations in a single ChatGPT call
+   * Generates multiple recommendations in a single ChatGPT call.
+   * @param language Optional language code (en, ru, uk, etc.) — response will be in that language.
    */
-  async generateActivityBatch(patterns: any, count: number, activityTypeNames: string[] = []): Promise<ActivityBatchItem[]> {
+  async generateActivityBatch(
+    patterns: any,
+    count: number,
+    activityTypeNames: string[] = [],
+    language?: string,
+  ): Promise<ActivityBatchItem[]> {
     try {
       this.assertApiKey();
 
@@ -75,6 +81,7 @@ export class ChatGPTService {
       const response = await this.callChatGPT(prompt, {
         temperature: 0.75,
         maxTokens: Math.min(600 + count * 150, 2000),
+        language,
       });
 
       const rawContent = response?.choices?.[0]?.message?.content;
@@ -130,9 +137,12 @@ export class ChatGPTService {
 
   /**
    * Call ChatGPT API
+   * @param options.language If set, system message instructs to respond in that language (en, ru, uk, fr, etc.)
    */
-  private async callChatGPT(prompt: string, options: ChatGPTRequestOptions = {}): Promise<any> {
-    const { temperature = 0.7, maxTokens = 500 } = options;
+  private async callChatGPT(prompt: string, options: ChatGPTRequestOptions & { language?: string } = {}): Promise<any> {
+    const { temperature = 0.7, maxTokens = 500, language } = options;
+
+    const systemContent = this.getLanguageInstruction(language);
 
     try {
       const response = await this.openai.chat.completions.create({
@@ -140,7 +150,7 @@ export class ChatGPTService {
         messages: [
           {
             role: 'system',
-            content: 'You are an assistant for generating personalized activity recommendations. Respond in English.',
+            content: systemContent,
           },
           {
             role: 'user',
@@ -166,6 +176,37 @@ export class ChatGPTService {
       this.logger.warn('OpenAI API key not configured');
       throw AppException.internal(ErrorCode.SUGGESTED_ACTIVITY_CHATGPT_API_ERROR, 'OpenAI API key not configured');
     }
+  }
+
+  /**
+   * Returns system instruction for ChatGPT to respond in the given language.
+   * Used so that activity names and descriptions are in the user's language.
+   */
+  private getLanguageInstruction(language?: string): string {
+    const base = 'You are an assistant for generating personalized activity recommendations.';
+    if (!language || !language.trim()) {
+      return `${base} Respond in English.`;
+    }
+    const normalized = language.trim().toLowerCase().split(/[-_,]/)[0];
+    const languageNames: Record<string, string> = {
+      en: 'English',
+      ru: 'Russian',
+      uk: 'Ukrainian',
+      fr: 'French',
+      de: 'German',
+      es: 'Spanish',
+      it: 'Italian',
+      pl: 'Polish',
+      pt: 'Portuguese',
+      tr: 'Turkish',
+      zh: 'Chinese',
+      ja: 'Japanese',
+      ko: 'Korean',
+      ar: 'Arabic',
+      hi: 'Hindi',
+    };
+    const name = languageNames[normalized] || 'English';
+    return `${base} Respond in ${name}.`;
   }
 
   /**

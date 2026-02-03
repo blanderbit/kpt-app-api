@@ -24,6 +24,7 @@ import { GenerateActivityRecommendationsDto, ActivityRecommendationsResponseDto,
 import { SubscriptionsService } from '../pay/subscriptions/subscriptions.service';
 import { SubscriptionPendingLinkService } from '../pay/subscriptions/subscription-pending-link.service';
 import { TemporaryItemsQueueService } from '../admin/settings/queue/temporary-items-queue.service';
+import { LanguageService } from '../admin/languages/services/language.service';
 
 @Injectable()
 export class AuthService {
@@ -45,6 +46,7 @@ export class AuthService {
     private readonly onboardingQuestionsService: OnboardingQuestionsService,
     private readonly activityTypesService: ActivityTypesService,
     private readonly temporaryItemsQueueService: TemporaryItemsQueueService,
+    private readonly languageService: LanguageService,
   ) {}
 
   @Transactional()
@@ -548,10 +550,12 @@ export class AuthService {
   }
 
   /**
-   * Generate personalized activity recommendations using ChatGPT
+   * Generate personalized activity recommendations using ChatGPT.
+   * @param language Optional language code (en, ru, uk, etc.) — activityName and content will be in that language; activityTypeLabel resolved from translations.
    */
   async generateActivityRecommendations(
-    generateRecommendationsDto: GenerateActivityRecommendationsDto
+    generateRecommendationsDto: GenerateActivityRecommendationsDto,
+    language?: string,
   ): Promise<ActivityRecommendationsResponseDto> {
     try {
       const {
@@ -579,8 +583,26 @@ export class AuthService {
         hardnessLevel,
         timestamp: new Date().toISOString(),
       };
-      
-      const recommendations = await this.chatGPTService.generateActivityBatch(patterns, activityCount, activityTypeNames);
+
+      const rawRecommendations = await this.chatGPTService.generateActivityBatch(
+        patterns,
+        activityCount,
+        activityTypeNames,
+        language,
+      );
+
+      const lang = language?.trim().toLowerCase() || 'en';
+      const translations = this.languageService.getTranslationsByCode(lang);
+
+      const recommendations: ActivityRecommendationDto[] = rawRecommendations.map((item) => {
+        const activityTypeLabel = this.resolveActivityTypeLabel(item.activityType, translations);
+        return {
+          activityName: item.activityName ?? '',
+          content: item.content ?? '',
+          activityType: item.activityType,
+          ...(activityTypeLabel !== undefined && { activityTypeLabel }),
+        };
+      });
 
       return {
         recommendations,
@@ -593,6 +615,26 @@ export class AuthService {
         'Failed to generate activity recommendations',
       );
     }
+  }
+
+  /**
+   * Resolve activity type id to localized name from translations (activity_types.{id}.name).
+   */
+  private resolveActivityTypeLabel(
+    activityTypeId: string | undefined,
+    translations: Record<string, any> | null,
+  ): string | undefined {
+    if (!activityTypeId || !translations || typeof translations !== 'object') {
+      return undefined;
+    }
+    const key = `activity_types.${activityTypeId}.name`;
+    const parts = key.split('.');
+    let current: any = translations;
+    for (const part of parts) {
+      if (current == null || typeof current !== 'object') return undefined;
+      current = current[part];
+    }
+    return typeof current === 'string' ? current : undefined;
   }
 
   private formatOnboardingAnswers(onboardingAnswers: object | undefined): Record<string, string> | undefined {
