@@ -125,13 +125,13 @@ export class ChatGPTService {
 
       const parsed = this.parseActivityType(rawContent);
       if (!parsed || !parsed.activityType) {
-        return { activityType: 'unknown' };
+        return { activityType: 'general' };
       }
 
       return parsed;
     } catch (error) {
       this.logger.error(`Error determining activity type via ChatGPT: ${error.message}`);
-      return { activityType: 'unknown' };
+      return { activityType: 'general' };
     }
   }
 
@@ -306,13 +306,13 @@ Available activity types: ${formattedTypes}
 Helpful keywords per activity type (if available):
 ${keywordHints || 'No additional keywords provided.'}
 
-Given the activity title below, choose the single best matching type from the list. If you cannot determine a good match, respond with "unknown".
+Given the activity title below, choose the single best matching type from the list. If you cannot determine a good match, respond with "general".
 
 Activity title: "${activityTitle}"
 
 Respond strictly in JSON:
 {
-  "activityType": "one of the provided types or 'unknown'",
+  "activityType": "one of the provided types or 'general'",
   "confidence": number between 0 and 1
 }`;
   }

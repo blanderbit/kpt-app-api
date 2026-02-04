@@ -319,7 +319,7 @@ export class ActivityController {
       id: activity.id,
       userId: activity.user?.id,
       activityName: activity.activityName,
-      activityType: activity.activityType,
+      activityType: activity.activityType === 'unknown' ? 'general' : activity.activityType,
       content: activity.content,
       position: activity.position,
       status: activity.status,

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transactional } from 'typeorm-transactional';
 import { Repository, MoreThan, MoreThanOrEqual, LessThanOrEqual, Between, IsNull } from 'typeorm';
@@ -14,6 +15,9 @@ import { AppException } from '../../common/exceptions/app.exception';
 import { User } from 'src/users/entities/user.entity';
 import { ChatGPTService } from '../../core/chatgpt/chatgpt.service';
 
+/** Fallback when CREATE_ACTIVITY_CLASSIFY_TIMEOUT_MS is missing or invalid (max wait for ChatGPT classification on create, ms) */
+const DEFAULT_CREATE_ACTIVITY_CLASSIFY_TIMEOUT_MS = 3000;
+
 @Injectable()
 export class ActivityService {
   private readonly logger = new Logger(ActivityService.name);
@@ -25,7 +29,16 @@ export class ActivityService {
     private readonly rateActivityRepository: Repository<RateActivity>,
     private readonly activityTypesService: ActivityTypesService,
     private readonly chatGPTService: ChatGPTService,
+    private readonly configService: ConfigService,
   ) { }
+
+  private getCreateActivityClassifyTimeoutMs(): number {
+    const raw = this.configService.get<string>('CREATE_ACTIVITY_CLASSIFY_TIMEOUT_MS');
+    if (raw == null || raw === '') return DEFAULT_CREATE_ACTIVITY_CLASSIFY_TIMEOUT_MS;
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 1) return DEFAULT_CREATE_ACTIVITY_CLASSIFY_TIMEOUT_MS;
+    return n;
+  }
 
   /**
    * Get user activities list with filtering and pagination
@@ -48,60 +61,117 @@ export class ActivityService {
       archivedAt: `$null:true` // Only non-archived activities (archivedAt IS NULL)
     };
 
-    return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+    const result = await paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+    result.data = result.data.map((a) => this.normalizeActivityType(a)) as Activity[];
+    return result;
   }
 
   /**
-   * Create new activity
+   * Create new activity.
+   * Waits up to CREATE_ACTIVITY_CLASSIFY_TIMEOUT_MS for ChatGPT to classify the type so the response
+   * returns the final activityType; on timeout or error falls back to keyword-based type.
    */
-  @Transactional()
   async createActivity(user: User, createActivityDto: CreateActivityDto): Promise<ActivityResponseDto> {
-    // Determine activity type through ActivityTypesService
-    const activityType = this.activityTypesService.determineActivityType(
+    const initialType = this.activityTypesService.determineActivityType(
       createActivityDto.activityName,
-      createActivityDto.content
+      createActivityDto.content,
+    );
+    const savedActivity = await this.saveNewActivityInTransaction(user, createActivityDto, initialType);
+
+    const finalType = await this.classifyAndUpdateActivityTypeWithTimeout(
+      savedActivity,
+      this.getCreateActivityClassifyTimeoutMs(),
     );
 
-    // Calculate today's date range (start and end of day)
+    this.logger.log(`Activity ${savedActivity.id} created with type ${finalType}`);
+    return this.mapToResponseDto({ ...savedActivity, activityType: finalType });
+  }
+
+  /**
+   * Saves a new activity (position calc + insert) in a single transaction.
+   */
+  @Transactional()
+  private async saveNewActivityInTransaction(
+    user: User,
+    createActivityDto: CreateActivityDto,
+    activityType: string,
+  ): Promise<Activity> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    // Get the count of existing activities for this user created today (excluding archived)
     const allActivities = await this.activityRepository.find({
       where: {
         user: { id: user.id },
         createdAt: MoreThanOrEqual(today),
-        archivedAt: IsNull(), // Only non-archived activities
+        archivedAt: IsNull(),
       },
     });
-
-    // Filter to only include activities created today (in case of timezone issues)
-    const todayActivities = allActivities.filter(act => {
+    const todayActivities = allActivities.filter((act) => {
       const actDate = new Date(act.createdAt);
       return actDate >= today && actDate <= todayEnd;
     });
-
-    // Calculate next position (position starts from 0, so next position = count of today's activities)
     const nextPosition = todayActivities.length;
 
-    // Create new activity with the calculated position (at the end)
     const activity = this.activityRepository.create({
       ...createActivityDto,
       user,
       activityType,
-      status: 'active', // Activity is active by default
-      position: nextPosition, // Place new activity at the end
+      status: 'active',
+      position: nextPosition,
     });
+    return this.activityRepository.save(activity);
+  }
 
-    // Save the new activity
-    const savedActivity = await this.activityRepository.save(activity);
+  /**
+   * Runs ChatGPT classification with a timeout. Updates DB if a new type is resolved.
+   * Returns the activityType to use in the response (classified type or original on timeout/error).
+   */
+  private async classifyAndUpdateActivityTypeWithTimeout(
+    activity: Activity,
+    timeoutMs: number,
+  ): Promise<string> {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Classification timeout')), timeoutMs),
+    );
+    try {
+      const resolvedType = await Promise.race([
+        this.getClassifiedActivityType(activity),
+        timeoutPromise,
+      ]);
+      if (resolvedType !== activity.activityType) {
+        await this.activityRepository.update(activity.id, { activityType: resolvedType });
+      }
+      return resolvedType;
+    } catch (error) {
+      this.logger.warn(
+        `Classification timeout or error for activity ${activity.id}, using initial type: ${error?.message ?? error}`,
+      );
+      return activity.activityType;
+    }
+  }
 
-    this.classifyAndUpdateActivityType(savedActivity)
-
-    this.logger.log(`New activity created at position ${nextPosition} (user has ${todayActivities.length} existing activities today)`);
-    return this.mapToResponseDto(savedActivity);
+  /**
+   * Calls ChatGPT to classify activity and returns the resolved activityType string.
+   */
+  private async getClassifiedActivityType(activity: Activity): Promise<string> {
+    const allTypes = this.activityTypesService.getAllActivityTypes();
+    if (allTypes.length === 0) {
+      return activity.activityType;
+    }
+    const availableTypeIds = allTypes.map((t) => t.id);
+    const keywordsMap = allTypes.reduce<Record<string, string[]>>((acc, type) => {
+      acc[type.id] = type.keywords ?? [];
+      return acc;
+    }, {});
+    const classification = await this.chatGPTService.getActivityType(
+      activity.activityName,
+      availableTypeIds,
+      keywordsMap,
+    );
+    const rawType = classification?.activityType ?? 'general';
+    return rawType === 'unknown' ? 'general' : rawType;
   }
 
   /**
@@ -353,7 +423,9 @@ export class ActivityService {
       archivedAt: `$btw:${todayStart},${todayEndStr}` // Only activities archived today
     };
 
-    return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+    const result = await paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+    result.data = result.data.map((a) => this.normalizeActivityType(a)) as Activity[];
+    return result;
   }
 
   /**
@@ -456,12 +528,19 @@ export class ActivityService {
   /**
    * Transform Activity to ResponseDto
    */
+  private normalizeActivityType<T extends { activityType?: string }>(item: T): T {
+    if (item.activityType === 'unknown') {
+      return { ...item, activityType: 'general' };
+    }
+    return item;
+  }
+
   private mapToResponseDto(activity: Activity): ActivityResponseDto {
     return {
       id: activity.id,
       userId: activity.user?.id,
       activityName: activity.activityName,
-      activityType: activity.activityType,
+      activityType: activity.activityType === 'unknown' ? 'general' : activity.activityType,
       content: activity.content,
       position: activity.position,
       status: activity.status,
@@ -494,7 +573,8 @@ export class ActivityService {
         keywordsMap,
       );
 
-      const resolvedType = classification?.activityType ?? 'unknown';
+      const rawType = classification?.activityType ?? 'general';
+      const resolvedType = rawType === 'unknown' ? 'general' : rawType;
 
       if (resolvedType !== activity.activityType) {
         await this.activityRepository.update(activity.id, { activityType: resolvedType });
