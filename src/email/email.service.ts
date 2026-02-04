@@ -83,6 +83,13 @@ export class EmailService {
 
   @Transactional()
   async generateAndSendVerificationCode(userId: number, email: string, type: 'email_verification' | 'password_reset' | 'email_change' = 'email_verification', tempEmail?: string): Promise<void> {
+    // Remove previous codes for this user + type (and email for verification/reset) so only the latest code is valid
+    const deleteWhere: { userId: number; type: typeof type; email?: string } = { userId, type };
+    if (type !== 'email_change') {
+      deleteWhere.email = email;
+    }
+    await this.verificationCodesRepository.delete(deleteWhere);
+
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     
