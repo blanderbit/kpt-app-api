@@ -324,7 +324,7 @@ export class ClientManagementService {
     return {
       id: activity.id,
       activityName: activity.activityName,
-      activityType: activity.activityType,
+      activityType: activity.activityType === 'unknown' ? 'general' : activity.activityType,
       content: activity.content,
       position: activity.position,
       status: activity.status,
@@ -343,7 +343,7 @@ export class ClientManagementService {
       id: suggestedActivity.id,
       userId: suggestedActivity.userId,
       activityName: suggestedActivity.activityName,
-      activityType: suggestedActivity.activityType,
+      activityType: suggestedActivity.activityType === 'unknown' ? 'general' : suggestedActivity.activityType,
       content: suggestedActivity.content,
       reasoning: suggestedActivity.reasoning,
       confidenceScore: Number(suggestedActivity.confidenceScore),

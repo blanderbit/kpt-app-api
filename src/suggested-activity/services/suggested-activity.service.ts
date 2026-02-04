@@ -98,10 +98,11 @@ export class SuggestedActivityService {
       });
     }
 
-    // Create new activity
+    // Create new activity (treat unknown as general so we never write unknown)
+    const activityType = suggestedActivity.activityType === 'unknown' ? 'general' : suggestedActivity.activityType;
     const newActivity = this.activityRepository.create({
       activityName: suggestedActivity.activityName,
-      activityType: suggestedActivity.activityType,
+      activityType,
       content: suggestedActivity.content,
       user: user,
       status: 'active',
@@ -259,7 +260,8 @@ export class SuggestedActivityService {
       }, {});
 
       const classification = await this.chatGPTService.getActivityType(activityName, availableTypeIds, keywordsMap);
-      const resolvedType = classification?.activityType ?? 'unknown';
+      const rawType = classification?.activityType ?? 'general';
+      const resolvedType = rawType === 'unknown' ? 'general' : rawType;
 
       if (resolvedType !== suggestion.activityType) {
         suggestion.activityType = resolvedType;
@@ -429,7 +431,7 @@ export class SuggestedActivityService {
       id: entity.id,
       userId: entity.userId,
       activityName: entity.activityName,
-      activityType: entity.activityType,
+      activityType: entity.activityType === 'unknown' ? 'general' : entity.activityType,
       content: entity.content,
       reasoning: entity.reasoning,
       confidenceScore: entity.confidenceScore,

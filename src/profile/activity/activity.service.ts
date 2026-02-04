@@ -48,7 +48,9 @@ export class ActivityService {
       archivedAt: `$null:true` // Only non-archived activities (archivedAt IS NULL)
     };
 
-    return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+    const result = await paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+    result.data = result.data.map((a) => this.normalizeActivityType(a)) as Activity[];
+    return result;
   }
 
   /**
@@ -353,7 +355,9 @@ export class ActivityService {
       archivedAt: `$btw:${todayStart},${todayEndStr}` // Only activities archived today
     };
 
-    return paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+    const result = await paginate(query, this.activityRepository, ACTIVITY_PAGINATION_CONFIG);
+    result.data = result.data.map((a) => this.normalizeActivityType(a)) as Activity[];
+    return result;
   }
 
   /**
@@ -456,12 +460,19 @@ export class ActivityService {
   /**
    * Transform Activity to ResponseDto
    */
+  private normalizeActivityType<T extends { activityType?: string }>(item: T): T {
+    if (item.activityType === 'unknown') {
+      return { ...item, activityType: 'general' };
+    }
+    return item;
+  }
+
   private mapToResponseDto(activity: Activity): ActivityResponseDto {
     return {
       id: activity.id,
       userId: activity.user?.id,
       activityName: activity.activityName,
-      activityType: activity.activityType,
+      activityType: activity.activityType === 'unknown' ? 'general' : activity.activityType,
       content: activity.content,
       position: activity.position,
       status: activity.status,
@@ -494,7 +505,8 @@ export class ActivityService {
         keywordsMap,
       );
 
-      const resolvedType = classification?.activityType ?? 'unknown';
+      const rawType = classification?.activityType ?? 'general';
+      const resolvedType = rawType === 'unknown' ? 'general' : rawType;
 
       if (resolvedType !== activity.activityType) {
         await this.activityRepository.update(activity.id, { activityType: resolvedType });
