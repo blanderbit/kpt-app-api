@@ -21,6 +21,8 @@ import { MoodTrackerService } from './mood-tracker.service';
 import { MoodTypesService, MoodTypeDto } from '../../core/mood-types';
 import { CreateMoodTrackerDto, UpdateMoodTrackerDto, MoodTrackerResponseDto } from './dto/mood-tracker.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { User } from '../../users/entities/user.entity';
 
 @ApiTags('mood-tracker')
 @Controller('profile/mood-tracker')
@@ -103,9 +105,10 @@ export class MoodTrackerController {
     description: 'Неавторизованный доступ',
   })
   async getMoodForLast7Days(
+    @CurrentUser() user: User,
     @Query('lang') lang?: string,
   ): Promise<MoodTrackerResponseDto[]> {
-    return this.moodTrackerService.getMoodForLast7Days(lang);
+    return this.moodTrackerService.getMoodForLast7Days(user.id, lang);
   }
 
   @Get('date/:date')
