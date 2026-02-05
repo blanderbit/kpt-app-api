@@ -167,9 +167,9 @@ export class MoodTrackerService {
   }
 
   /**
-   * Get mood for the last 7 days. Optional lang resolves mood_types.* keys via LanguageService.
+   * Get mood for the last 7 days for the given user. Optional lang resolves mood_types.* keys via LanguageService.
    */
-  async getMoodForLast7Days(lang?: string): Promise<MoodTrackerResponseDto[]> {
+  async getMoodForLast7Days(userId: number, lang?: string): Promise<MoodTrackerResponseDto[]> {
     const endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
     
@@ -180,7 +180,8 @@ export class MoodTrackerService {
     const moodTrackers = await this.moodTrackerRepository
       .createQueryBuilder('moodTracker')
       .leftJoinAndSelect('moodTracker.moodSurveys', 'moodSurveys')
-      .where('moodTracker.moodDate >= :startDate', { startDate })
+      .where('moodTracker.userId = :userId', { userId })
+      .andWhere('moodTracker.moodDate >= :startDate', { startDate })
       .andWhere('moodTracker.moodDate <= :endDate', { endDate })
       .orderBy('moodTracker.moodDate', 'ASC')
       .getMany();
