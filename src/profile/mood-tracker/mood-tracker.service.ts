@@ -8,6 +8,29 @@ import { CreateMoodTrackerDto, UpdateMoodTrackerDto, MoodTrackerResponseDto } fr
 import { MoodTypesService } from '../../core/mood-types';
 import { AppException } from '../../common/exceptions/app.exception';
 import { ErrorCode } from '../../common/error-codes';
+import { LanguageService } from '../../admin/languages/services/language.service';
+
+/** Get nested value by dot path, e.g. "mood_types.good.name" */
+function getValueByPath(obj: Record<string, any>, pathKey: string): string | undefined {
+  if (!obj || typeof pathKey !== 'string') return undefined;
+  const parts = pathKey.split('.');
+  let current: any = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') return undefined;
+    current = current[part];
+  }
+  return typeof current === 'string' ? current : undefined;
+}
+
+/** Resolve a string that may be a translation key into the translated text */
+function resolveMoodText(value: string, translations: Record<string, any> | null): string {
+  if (!value || typeof value !== 'string') return value || '';
+  if (!translations) return value;
+  const key = value.trim();
+  if (!key.includes('.')) return value;
+  const resolved = getValueByPath(translations, key);
+  return resolved !== undefined ? resolved : value;
+}
 
 @Injectable()
 export class MoodTrackerService {
@@ -17,6 +40,7 @@ export class MoodTrackerService {
     @InjectRepository(MoodSurvey)
     private readonly moodSurveyRepository: Repository<MoodSurvey>,
     private readonly moodTypesService: MoodTypesService,
+    private readonly languageService: LanguageService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -143,9 +167,9 @@ export class MoodTrackerService {
   }
 
   /**
-   * Get mood for the last 7 days
+   * Get mood for the last 7 days. Optional lang resolves mood_types.* keys via LanguageService.
    */
-  async getMoodForLast7Days(): Promise<MoodTrackerResponseDto[]> {
+  async getMoodForLast7Days(lang?: string): Promise<MoodTrackerResponseDto[]> {
     const endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
     
@@ -161,7 +185,10 @@ export class MoodTrackerService {
       .orderBy('moodTracker.moodDate', 'ASC')
       .getMany();
 
-    return moodTrackers.map(moodTracker => this.mapToResponseDto(moodTracker));
+    const code = (lang?.trim() || 'en').toLowerCase().replace('_', '-');
+    const translations = this.languageService.getTranslationsByCode(code)
+      ?? this.languageService.getTranslationsByCode('en');
+    return moodTrackers.map(moodTracker => this.mapToResponseDto(moodTracker, translations));
   }
 
   /**
@@ -291,15 +318,36 @@ export class MoodTrackerService {
   }
 
   /**
-   * Convert MoodTracker to ResponseDto
+   * Convert MoodTracker to ResponseDto. If translations are provided, mood_types.* keys in
+   * moodTypeDetails (name, description, category) are resolved to localized strings.
    */
-  private mapToResponseDto(moodTracker: MoodTracker): MoodTrackerResponseDto {
+  private mapToResponseDto(
+    moodTracker: MoodTracker,
+    translations?: Record<string, any> | null,
+  ): MoodTrackerResponseDto {
     const moodType = this.moodTypesService.getMoodTypeById(moodTracker.moodType);
-    
+    let moodTypeDetails: MoodTrackerResponseDto['moodTypeDetails'] = moodType
+      ? { ...moodType }
+      : null;
+
+    if (moodTypeDetails && translations) {
+      const categoryKey = moodType!.category
+        ? `mood_types.categories.${moodType!.category}`
+        : null;
+      moodTypeDetails = {
+        ...moodTypeDetails,
+        name: resolveMoodText(moodType!.name, translations),
+        description: resolveMoodText(moodType!.description, translations),
+        ...(categoryKey && {
+          categoryLabel: resolveMoodText(categoryKey, translations),
+        }),
+      };
+    }
+
     return {
       id: moodTracker.id,
       moodType: moodTracker.moodType,
-      moodTypeDetails: moodType || null,
+      moodTypeDetails,
       notes: moodTracker.notes,
       moodDate: moodTracker.moodDate,
       moodSurveys: moodTracker.moodSurveys || [],

@@ -85,7 +85,13 @@ export class MoodTrackerController {
   @Get('last-7-days')
   @ApiOperation({
     summary: 'Получить настроение за последние 7 дней',
-    description: 'Возвращает настроение за последние 7 дней',
+    description: 'Возвращает настроение за последние 7 дней. Параметр lang задаёт язык для полей moodTypeDetails (name, description, categoryLabel) — ключи mood_types.* из файла типов настроения разрешаются через переводы админки.',
+  })
+  @ApiQuery({
+    name: 'lang',
+    description: 'Код языка для локализации moodTypeDetails (например en, ru, uk)',
+    required: false,
+    example: 'ru',
   })
   @ApiResponse({
     status: 200,
@@ -96,8 +102,10 @@ export class MoodTrackerController {
     status: 401,
     description: 'Неавторизованный доступ',
   })
-  async getMoodForLast7Days(): Promise<MoodTrackerResponseDto[]> {
-    return this.moodTrackerService.getMoodForLast7Days();
+  async getMoodForLast7Days(
+    @Query('lang') lang?: string,
+  ): Promise<MoodTrackerResponseDto[]> {
+    return this.moodTrackerService.getMoodForLast7Days(lang);
   }
 
   @Get('date/:date')
