@@ -20,7 +20,10 @@ export class EmailService {
 
   async sendVerificationEmail(email: string, code: string): Promise<void> {
     // Render HTML template
+    const baseUrl = emailServiceConfig.publicBaseUrl;
     const htmlContent = await this.templateService.renderTemplate('email-verification', {
+      appName: emailServiceConfig.appName,
+      logoUrl: baseUrl ? `${baseUrl}/static/email/logo.png` : '/static/email/logo.png',
       code,
       email,
     });
@@ -41,7 +44,11 @@ export class EmailService {
 
   async sendPasswordResetEmail(email: string, code: string): Promise<void> {
     // Render HTML template
+    const baseUrl = emailServiceConfig.publicBaseUrl;
     const htmlContent = await this.templateService.renderTemplate('password-reset', {
+      appName: emailServiceConfig.appName,
+      logoUrl: baseUrl ? `${baseUrl}/static/email/logo.png` : '/static/email/logo.png',
+      iconUrl: baseUrl ? `${baseUrl}/static/email/union.png` : '/static/email/union.png',
       code,
       email,
     });
@@ -62,7 +69,10 @@ export class EmailService {
 
   async sendEmailChangeConfirmation(email: string, code: string): Promise<void> {
     // Render HTML template
+    const baseUrl = emailServiceConfig.publicBaseUrl;
     const htmlContent = await this.templateService.renderTemplate('email-change-confirmation', {
+      appName: emailServiceConfig.appName,
+      logoUrl: baseUrl ? `${baseUrl}/static/email/logo.png` : '/static/email/logo.png',
       code,
       email,
     });
