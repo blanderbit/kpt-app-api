@@ -1,127 +1,190 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Подтверждение смены Email - KPT App</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .logo {
-            font-size: 28px;
-            font-weight: bold;
-            color: #28a745;
-            margin-bottom: 10px;
-        }
-        .title {
-            color: #28a745;
-            font-size: 24px;
-            margin-bottom: 20px;
-        }
-        .content {
-            margin-bottom: 30px;
-        }
-        .button {
-            display: inline-block;
-            background-color: #28a745;
-            color: #ffffff;
-            padding: 15px 30px;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-        .button:hover {
-            background-color: #218838;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            color: #666;
-            font-size: 14px;
-        }
-        .warning {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .info {
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .email-highlight {
-            background-color: #e9ecef;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            font-weight: bold;
-            color: #495057;
-            text-align: center;
-            margin: 15px 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Подтверждение смены Email - {{appName}}</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #111111;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #111111;
+      padding: 24px 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .top-bar {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      padding: 24px 24px 16px;
+      text-align: center;
+    }
+    .logo {
+      margin-bottom: 12px;
+    }
+    .logo img {
+      max-width: 120px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 16px 0 8px;
+      color: #111111;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      margin: 0;
+    }
+    .content {
+      padding: 32px 32px 28px;
+      background-color: #f9fafb;
+    }
+    .card {
+      background: linear-gradient(135deg, #dcfce7 0%, #ecfdf5 100%);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 12px;
+      color: #111111;
+    }
+    .card-text {
+      font-size: 14px;
+      color: #4b5563;
+      margin: 0 0 4px;
+    }
+    .email-highlight {
+      background-color: #f9fafb;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-family: 'Courier New', monospace;
+      font-weight: 600;
+      color: #111827;
+      text-align: center;
+      margin: 16px 0 12px;
+      border: 1px solid #e5e7eb;
+    }
+    .code-wrapper {
+      text-align: center;
+      margin: 24px 0 8px;
+    }
+    .code-box {
+      display: inline-block;
+      padding: 16px 24px;
+      border-radius: 999px;
+      background-color: #111111;
+      color: #ffffff;
+      font-size: 22px;
+      letter-spacing: 8px;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+    }
+    .hint {
+      font-size: 13px;
+      color: #6b7280;
+      margin: 0 0 4px;
+      text-align: center;
+    }
+    .notice {
+      font-size: 13px;
+      color: #6b7280;
+      margin: 16px 0 0;
+    }
+    .notice strong {
+      color: #111111;
+    }
+    .footer {
+      padding: 20px 32px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+      line-height: 1.5;
+    }
+    .footer a {
+      color: #4b5563;
+      text-decoration: underline;
+    }
+    @media (max-width: 600px) {
+      .wrapper {
+        padding: 16px 0;
+      }
+      .container {
+        border-radius: 0;
+      }
+      .content {
+        padding: 24px 20px 20px;
+      }
+      .card {
+        padding: 20px 16px;
+      }
+      .code-box {
+        width: 100%;
+        box-sizing: border-box;
+        letter-spacing: 6px;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div class="wrapper">
     <div class="container">
-        <div class="header">
-            <div class="logo">KPT App</div>
-            <h1 class="title">Подтверждение смены Email</h1>
+      <div class="top-bar">
+        <div class="logo">
+          <img src="{{logoUrl}}" alt="{{appName}}">
         </div>
-        
-        <div class="content">
-            <p>Здравствуйте!</p>
-            
-            <p>Вы получили это письмо для подтверждения смены email адреса в вашем аккаунте KPT App.</p>
-            
-            <div class="email-highlight">
-                Новый email: <strong>{{email}}</strong>
-            </div>
-            
-            <p>Для завершения смены email введите следующий код в приложении:</p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-                <div style="display: inline-block; background-color: #f8f9fa; border: 2px solid #28a745; border-radius: 8px; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #28a745; font-family: 'Courier New', monospace;">{{code}}</div>
-            </div>
-            
-            <div class="info">
-                <strong>Важно:</strong> Этот код действителен в течение 10 минут. После подтверждения ваш email адрес будет изменен на новый.
-            </div>
-            
-            <div class="warning">
-                <strong>Внимание:</strong> Если вы не запрашивали смену email, немедленно свяжитесь с поддержкой KPT App.
-            </div>
+        <h1 class="title">Подтверждение смены email</h1>
+        <p class="subtitle">Проверьте новый адрес перед окончательным изменением.</p>
+      </div>
+
+      <div class="content">
+        <div class="card">
+          <p class="card-text">Здравствуйте!</p>
+          <p class="card-text">
+            Вы запросили смену email‑адреса для аккаунта в {{appName}}.
+          </p>
+
+          <div class="email-highlight">
+            Новый email: <strong>{{email}}</strong>
+          </div>
+
+          <p class="card-text">
+            Чтобы подтвердить смену email, введите следующий код в приложении:
+          </p>
+
+          <div class="code-wrapper">
+            <div class="code-box">{{code}}</div>
+          </div>
+
+          <p class="hint">Код действует в течение 10 минут.</p>
         </div>
-        
-        <div class="footer">
-            <p>Это письмо было отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
-            <p>&copy; 2024 KPT App. Все права защищены.</p>
-        </div>
+
+        <p class="notice">
+          <strong>Если вы не запрашивали смену email</strong>, немедленно свяжитесь с нашей службой поддержки — возможно, кто‑то пытается получить доступ к вашему аккаунту.
+        </p>
+      </div>
+
+      <div class="footer">
+        <p>Это письмо было отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
+        <p>&copy; 2024 {{appName}}. Все права защищены.</p>
+      </div>
     </div>
+  </div>
 </body>
 </html>
