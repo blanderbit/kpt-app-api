@@ -48,15 +48,17 @@ export class MoodTrackerService {
    * Set mood for the day (only once per day)
    */
   @Transactional()
-  async setMoodForDay(createMoodTrackerDto: CreateMoodTrackerDto): Promise<MoodTrackerResponseDto> {
+  async setMoodForDay(userId: number, createMoodTrackerDto: CreateMoodTrackerDto): Promise<MoodTrackerResponseDto> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     // Check if mood is already set for today
     const existingMood = await this.moodTrackerRepository.findOne({
       where: {
+        user: { id: userId },
         moodDate: today,
       },
+      relations: ['user'],
     });
 
     if (existingMood) {
@@ -80,6 +82,7 @@ export class MoodTrackerService {
       moodType: createMoodTrackerDto.moodType,
       notes: createMoodTrackerDto.notes,
       moodDate: today,
+      user: { id: userId } as any,
     });
 
     // Load surveys if they are specified
@@ -99,6 +102,7 @@ export class MoodTrackerService {
    */
   @Transactional()
   async updateMoodForDay(
+    userId: number,
     moodDate: Date,
     updateMoodTrackerDto: UpdateMoodTrackerDto,
   ): Promise<MoodTrackerResponseDto> {
@@ -106,7 +110,11 @@ export class MoodTrackerService {
     date.setHours(0, 0, 0, 0);
 
     const moodTracker = await this.moodTrackerRepository.findOne({
-      where: { moodDate: date },
+      where: {
+        user: { id: userId },
+        moodDate: date,
+      },
+      relations: ['user'],
     });
 
     if (!moodTracker) {
@@ -154,13 +162,16 @@ export class MoodTrackerService {
   /**
    * Get mood for a specific date
    */
-  async getMoodForDate(moodDate: Date): Promise<MoodTrackerResponseDto | null> {
+  async getMoodForDate(userId: number, moodDate: Date): Promise<MoodTrackerResponseDto | null> {
     const date = new Date(moodDate);
     date.setHours(0, 0, 0, 0);
 
     const moodTracker = await this.moodTrackerRepository.findOne({
-      where: { moodDate: date },
-      relations: ['moodSurveys'],
+      where: {
+        user: { id: userId },
+        moodDate: date,
+      },
+      relations: ['moodSurveys', 'user'],
     });
 
     return moodTracker ? this.mapToResponseDto(moodTracker) : null;
@@ -195,7 +206,7 @@ export class MoodTrackerService {
   /**
    * Get mood for a period
    */
-  async getMoodForPeriod(startDate: Date, endDate: Date): Promise<MoodTrackerResponseDto[]> {
+  async getMoodForPeriod(userId: number, startDate: Date, endDate: Date): Promise<MoodTrackerResponseDto[]> {
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
     
@@ -205,7 +216,8 @@ export class MoodTrackerService {
     const moodTrackers = await this.moodTrackerRepository
       .createQueryBuilder('moodTracker')
       .leftJoinAndSelect('moodTracker.moodSurveys', 'moodSurveys')
-      .where('moodTracker.moodDate >= :startDate', { startDate: start })
+      .where('moodTracker.userId = :userId', { userId })
+      .andWhere('moodTracker.moodDate >= :startDate', { startDate: start })
       .andWhere('moodTracker.moodDate <= :endDate', { endDate: end })
       .orderBy('moodTracker.moodDate', 'ASC')
       .getMany();
@@ -216,7 +228,7 @@ export class MoodTrackerService {
   /**
    * Get mood statistics for a period
    */
-  async getMoodStatsForPeriod(startDate: Date, endDate: Date): Promise<{
+  async getMoodStatsForPeriod(userId: number, startDate: Date, endDate: Date): Promise<{
     totalDays: number;
     trackedDays: number;
     averageScore: number;
@@ -232,7 +244,8 @@ export class MoodTrackerService {
     const moodTrackers = await this.moodTrackerRepository
       .createQueryBuilder('moodTracker')
       .leftJoinAndSelect('moodTracker.moodSurveys', 'moodSurveys')
-      .where('moodTracker.moodDate >= :startDate', { startDate: start })
+      .where('moodTracker.userId = :userId', { userId })
+      .andWhere('moodTracker.moodDate >= :startDate', { startDate: start })
       .andWhere('moodTracker.moodDate <= :endDate', { endDate: end })
       .getMany();
 
@@ -270,10 +283,11 @@ export class MoodTrackerService {
   /**
    * Get all mood records
    */
-  async getAllMoodTrackers(): Promise<MoodTrackerResponseDto[]> {
+  async getAllMoodTrackers(userId: number): Promise<MoodTrackerResponseDto[]> {
     const moodTrackers = await this.moodTrackerRepository
       .createQueryBuilder('moodTracker')
       .leftJoinAndSelect('moodTracker.moodSurveys', 'moodSurveys')
+      .where('moodTracker.userId = :userId', { userId })
       .orderBy('moodTracker.moodDate', 'DESC')
       .getMany();
 
@@ -284,12 +298,16 @@ export class MoodTrackerService {
    * Delete mood for a specific date
    */
   @Transactional()
-  async deleteMoodForDate(moodDate: Date): Promise<void> {
+  async deleteMoodForDate(userId: number, moodDate: Date): Promise<void> {
     const date = new Date(moodDate);
     date.setHours(0, 0, 0, 0);
 
     const moodTracker = await this.moodTrackerRepository.findOne({
-      where: { moodDate: date },
+      where: {
+        user: { id: userId },
+        moodDate: date,
+      },
+      relations: ['user'],
     });
 
     if (!moodTracker) {
@@ -306,13 +324,16 @@ export class MoodTrackerService {
   /**
    * Get current mood (for today)
    */
-  async getCurrentMood(): Promise<MoodTrackerResponseDto | null> {
+  async getCurrentMood(userId: number): Promise<MoodTrackerResponseDto | null> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const moodTracker = await this.moodTrackerRepository.findOne({
-      where: { moodDate: today },
-      relations: ['moodSurveys'],
+      where: {
+        user: { id: userId },
+        moodDate: today,
+      },
+      relations: ['moodSurveys', 'user'],
     });
 
     return moodTracker ? this.mapToResponseDto(moodTracker) : null;

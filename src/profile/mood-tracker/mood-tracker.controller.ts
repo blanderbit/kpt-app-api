@@ -57,9 +57,10 @@ export class MoodTrackerController {
     description: 'Неавторизованный доступ',
   })
   async setMoodForDay(
+    @CurrentUser() user: User,
     @Body() createMoodTrackerDto: CreateMoodTrackerDto,
   ): Promise<MoodTrackerResponseDto> {
-    return this.moodTrackerService.setMoodForDay(createMoodTrackerDto);
+    return this.moodTrackerService.setMoodForDay(user.id, createMoodTrackerDto);
   }
 
   @Get('current')
@@ -80,8 +81,10 @@ export class MoodTrackerController {
     status: 401,
     description: 'Неавторизованный доступ',
   })
-  async getCurrentMood(): Promise<MoodTrackerResponseDto | null> {
-    return this.moodTrackerService.getCurrentMood();
+  async getCurrentMood(
+    @CurrentUser('id') userId: number,
+  ): Promise<MoodTrackerResponseDto | null> {
+    return this.moodTrackerService.getCurrentMood(userId);
   }
 
   @Get('last-7-days')
@@ -136,13 +139,14 @@ export class MoodTrackerController {
     description: 'Неавторизованный доступ',
   })
   async getMoodForDate(
+    @CurrentUser('id') userId: number,
     @Param('date') dateStr: string,
   ): Promise<MoodTrackerResponseDto | null> {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
       throw new Error('Неверный формат даты. Используйте YYYY-MM-DD');
     }
-    return this.moodTrackerService.getMoodForDate(date);
+    return this.moodTrackerService.getMoodForDate(userId, date);
   }
 
   @Get('period')
@@ -178,6 +182,7 @@ export class MoodTrackerController {
     description: 'Неавторизованный доступ',
   })
   async getMoodForPeriod(
+    @CurrentUser('id') userId: number,
     @Query('startDate') startDateStr: string,
     @Query('endDate') endDateStr: string,
   ): Promise<MoodTrackerResponseDto[]> {
@@ -192,7 +197,7 @@ export class MoodTrackerController {
       throw new Error('Начальная дата не может быть позже конечной');
     }
     
-    return this.moodTrackerService.getMoodForPeriod(startDate, endDate);
+    return this.moodTrackerService.getMoodForPeriod(userId, startDate, endDate);
   }
 
   @Get('stats/period')
@@ -227,6 +232,7 @@ export class MoodTrackerController {
     description: 'Неавторизованный доступ',
   })
   async getMoodStatsForPeriod(
+    @CurrentUser('id') userId: number,
     @Query('startDate') startDateStr: string,
     @Query('endDate') endDateStr: string,
   ) {
@@ -241,7 +247,7 @@ export class MoodTrackerController {
       throw new Error('Начальная дата не может быть позже конечной');
     }
     
-    return this.moodTrackerService.getMoodStatsForPeriod(startDate, endDate);
+    return this.moodTrackerService.getMoodStatsForPeriod(userId, startDate, endDate);
   }
 
   @Put('date/:date')
@@ -273,6 +279,7 @@ export class MoodTrackerController {
     description: 'Неавторизованный доступ',
   })
   async updateMoodForDate(
+    @CurrentUser('id') userId: number,
     @Param('date') dateStr: string,
     @Body() updateMoodTrackerDto: UpdateMoodTrackerDto,
   ): Promise<MoodTrackerResponseDto> {
@@ -280,7 +287,7 @@ export class MoodTrackerController {
     if (isNaN(date.getTime())) {
       throw new Error('Неверный формат даты. Используйте YYYY-MM-DD');
     }
-    return this.moodTrackerService.updateMoodForDay(date, updateMoodTrackerDto);
+    return this.moodTrackerService.updateMoodForDay(userId, date, updateMoodTrackerDto);
   }
 
   @Delete('date/:date')
@@ -307,13 +314,14 @@ export class MoodTrackerController {
     description: 'Неавторизованный доступ',
   })
   async deleteMoodForDate(
+    @CurrentUser('id') userId: number,
     @Param('date') dateStr: string,
   ): Promise<void> {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
       throw new Error('Неверный формат даты. Используйте YYYY-MM-DD');
     }
-    return this.moodTrackerService.deleteMoodForDate(date);
+    return this.moodTrackerService.deleteMoodForDate(userId, date);
   }
 
   @Get('all')
@@ -330,8 +338,10 @@ export class MoodTrackerController {
     status: 401,
     description: 'Неавторизованный доступ',
   })
-  async getAllMoodTrackers(): Promise<MoodTrackerResponseDto[]> {
-    return this.moodTrackerService.getAllMoodTrackers();
+  async getAllMoodTrackers(
+    @CurrentUser('id') userId: number,
+  ): Promise<MoodTrackerResponseDto[]> {
+    return this.moodTrackerService.getAllMoodTrackers(userId);
   }
 
   @Get('mood-types')
