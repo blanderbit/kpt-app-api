@@ -5,11 +5,11 @@ export const emailServiceConfig = {
    * https://api.plesury.com
    */
   publicBaseUrl: process.env.PUBLIC_URL || process.env.BACKEND_URL || process.env.FRONTEND_URL || '',
-  appName: process.env.APP_NAME || 'KPT App',
+  appName: process.env.APP_NAME || 'Plesury: Discover your balance',
 };
 
 export enum EmailSubject {
-  VERIFICATION = 'Email Verification - KPT App',
-  PASSWORD_RESET = 'Password Reset - KPT App',
-  EMAIL_CHANGE_CONFIRMATION = 'Email Change Confirmation - KPT App',
+  VERIFICATION = 'Email Verification - Plesury: Discover your balance',
+  PASSWORD_RESET = 'Password Reset - Plesury: Discover your balance',
+  EMAIL_CHANGE_CONFIRMATION = 'Email Change Confirmation - Plesury: Discover your balance',
 }
