@@ -24,6 +24,7 @@ export class EmailService {
     const htmlContent = await this.templateService.renderTemplate('email-verification', {
       appName: emailServiceConfig.appName,
       logoUrl: baseUrl ? `${baseUrl}/static/email/logo.png` : '/static/email/logo.png',
+      iconUrl: baseUrl ? `${baseUrl}/static/email/union.png` : '/static/email/union.png',
       code,
       email,
     });
@@ -73,6 +74,7 @@ export class EmailService {
     const htmlContent = await this.templateService.renderTemplate('email-change-confirmation', {
       appName: emailServiceConfig.appName,
       logoUrl: baseUrl ? `${baseUrl}/static/email/logo.png` : '/static/email/logo.png',
+      iconUrl: baseUrl ? `${baseUrl}/static/email/union.png` : '/static/email/union.png',
       code,
       email,
     });

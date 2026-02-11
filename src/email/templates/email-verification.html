@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Подтверждение Email - {{appName}}</title>
+  <title>Email verification - {{appName}}</title>
   <style>
     body {
       margin: 0;
@@ -14,101 +14,108 @@
     }
     .wrapper {
       width: 100%;
-      background-color: #111111;
       padding: 24px 0;
+      background-color: #111111;
     }
     .container {
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto;
       background-color: #ffffff;
       border-radius: 16px;
       overflow: hidden;
     }
-    .top-bar {
-      background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
-      padding: 24px 24px 16px;
+    .header {
       text-align: center;
+      padding: 20px 24px 0;
+      background: linear-gradient(180deg, #ffe3f1 0%, #ffffff 55%);
     }
     .logo {
-      margin-bottom: 12px;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      color: #6b7280;
+      margin-bottom: 16px;
     }
     .logo img {
-      max-width: 120px;
-      height: auto;
+      width: 50px;
+      height: 50px;
       display: block;
-      margin: 0 auto;
+      margin: 0 auto 8px;
+    }
+    .icon-wrapper {
+      margin: 0 auto 16px;
     }
     .title {
-      font-size: 24px;
+      font-family: 'Times New Roman', Georgia, serif;
+      font-size: 28px;
       font-weight: 700;
-      margin: 16px 0 8px;
-      color: #111111;
+      margin: 8px 0 24px;
+      color: #111827;
     }
-    .subtitle {
-      font-size: 14px;
-      color: #6b7280;
-      margin: 0;
-    }
-    .content {
-      padding: 32px 32px 28px;
-      background-color: #f9fafb;
+    .body {
+      padding: 0 32px 32px;
+      background-color: #ffffff;
     }
     .card {
-      background: linear-gradient(135deg, #e0f2fe 0%, #eef2ff 100%);
-      border-radius: 16px;
-      padding: 24px;
+      background-color: #fde7f1;
+      border-radius: 18px;
+      padding: 24px 24px 20px;
       margin-bottom: 24px;
     }
     .card-title {
       font-size: 18px;
       font-weight: 600;
-      margin: 0 0 12px;
-      color: #111111;
+      margin: 0 0 8px;
+      color: #111827;
     }
     .card-text {
       font-size: 14px;
       color: #4b5563;
       margin: 0 0 4px;
     }
-    .code-wrapper {
+    .button-wrapper {
+      margin: 24px 0 4px;
       text-align: center;
-      margin: 24px 0 8px;
     }
-    .code-box {
+    .button {
       display: inline-block;
-      padding: 16px 24px;
-      border-radius: 999px;
-      background-color: #111111;
+      background-color: #000000;
       color: #ffffff;
-      font-size: 22px;
-      letter-spacing: 8px;
-      font-weight: 700;
-      font-family: 'Courier New', monospace;
+      padding: 14px 32px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid #000000;
     }
-    .hint {
+    .button span {
+      vertical-align: middle;
+    }
+    .button-code {
+      display: block;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 4px;
+      margin-top: 4px;
+    }
+    .small-text {
       font-size: 13px;
       color: #6b7280;
       margin: 0 0 4px;
-      text-align: center;
+      text-align: left;
     }
-    .notice {
-      font-size: 13px;
-      color: #6b7280;
-      margin: 16px 0 0;
-    }
-    .notice strong {
-      color: #111111;
+    .small-text a {
+      color: #4b5563;
+      text-decoration: underline;
     }
     .footer {
-      padding: 20px 32px 24px;
+      border-top: 1px solid #e5e7eb;
+      padding: 16px 32px 20px;
       text-align: center;
       font-size: 12px;
       color: #9ca3af;
       line-height: 1.5;
     }
-    .footer a {
-      color: #4b5563;
-      text-decoration: underline;
+    .footer p {
+      margin: 0;
     }
     @media (max-width: 600px) {
       .wrapper {
@@ -117,16 +124,11 @@
       .container {
         border-radius: 0;
       }
-      .content {
-        padding: 24px 20px 20px;
+      .body {
+        padding: 0 20px 24px;
       }
       .card {
-        padding: 20px 16px;
-      }
-      .code-box {
-        width: 100%;
-        box-sizing: border-box;
-        letter-spacing: 6px;
+        padding: 20px 18px;
       }
     }
   </style>
@@ -134,39 +136,47 @@
 <body>
   <div class="wrapper">
     <div class="container">
-      <div class="top-bar">
+      <div class="header">
         <div class="logo">
           <img src="{{logoUrl}}" alt="{{appName}}">
         </div>
-        <h1 class="title">Подтверждение email</h1>
-        <p class="subtitle">Остался один шаг, чтобы завершить регистрацию.</p>
+        <div class="icon-wrapper">
+          <img src="{{iconUrl}}" alt="" style="display:block;width:100px;height:110px;margin:0 auto;">
+        </div>
+        <h1 class="title">Verify Your Email</h1>
       </div>
 
-      <div class="content">
+      <div class="body">
         <div class="card">
-          <p class="card-text">Здравствуйте!</p>
+          <p class="card-title">Hi there,</p>
           <p class="card-text">
-            Спасибо за регистрацию в {{appName}}. Чтобы активировать аккаунт, подтвердите ваш email‑адрес.
+            Thank you for signing up for {{appName}}. To activate your account, please verify your email address.
           </p>
           <p class="card-text">
-            Введите следующий код подтверждения в приложении:
+            Use the code below in the app to confirm your email:
           </p>
 
-          <div class="code-wrapper">
-            <div class="code-box">{{code}}</div>
+          <div class="button-wrapper">
+            <a class="button">
+              <span>Verify email</span>
+              <span class="button-code">{{code}}</span>
+            </a>
           </div>
 
-          <p class="hint">Код действует в течение 10 минут.</p>
+          <p class="small-text">
+            This code will expire in 10 minutes. If it expires, please request a new one in the app.
+          </p>
         </div>
 
-        <p class="notice">
-          <strong>Если вы не регистрировались в {{appName}}</strong>, просто проигнорируйте это письмо.
+        <p class="small-text">
+          If you didn’t sign up for {{appName}}, you can safely ignore this email — your address will not be confirmed.
         </p>
       </div>
 
       <div class="footer">
-        <p>Это письмо было отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
-        <p>&copy; 2024 {{appName}}. Все права защищены.</p>
+        <p>Smplfy OÜ, Estonia, Harju maakond, Tallinn, Kesklinna linnaosa, Kaupmehe tn 7-120, 10114</p>
+        <p>This email was sent automatically. Please do not reply to it.</p>
+        <p>&copy; 2024 {{appName}}. All rights reserved.</p>
       </div>
     </div>
   </div>
