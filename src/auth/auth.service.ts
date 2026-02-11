@@ -357,57 +357,71 @@ export class AuthService {
       }
       
       if (!user) {
-        // If user doesn't exist, create new one
-        const userData: any = {
-          email: firebaseUser.email,
-          firebaseUid: decodedToken.uid,
-          firstName: firebaseUser.displayName?.split(' ')[0] || undefined,
-          avatarUrl: firebaseUser.photoURL || undefined,
-          emailVerified: firebaseUser.emailVerified,
-          roles: this.roleService.stringifyRoles(['user']),
-        };
-
-        // If this is a registration, add additional fields
-        if (firebaseAuthDto.authType === AuthType.REGISTER) {
-          userData.age = firebaseAuthDto.age || '';
-          userData.initialFeeling = firebaseAuthDto.feelingToday || null;
-          userData.initSatisfactionLevel = firebaseAuthDto.initSatisfactionLevel ?? null;
-          userData.initHardnessLevel = firebaseAuthDto.initHardnessLevel ?? null;
-          userData.socialNetworks = firebaseAuthDto.socialNetworks?.join(',') || null;
-          userData.taskTrackingMethod = firebaseAuthDto.taskTrackingMethod || null;
-          
-          // Add onboarding data to meta
-          if (firebaseAuthDto.onboardingQuestionAndAnswers) {
-            userData.meta = {
-              onboardingQuestionAndAnswers: firebaseAuthDto.onboardingQuestionAndAnswers
-            };
-          } else {
-            userData.meta = {};
-          }
-        }
-
-        const newUser = this.usersRepository.create(userData);
-        const savedUser = await this.usersRepository.save(newUser);
-        user = Array.isArray(savedUser) ? (savedUser[0] as User) : (savedUser as User);
-
-        // If this is registration and activities are provided, create them
-        if (firebaseAuthDto.authType === AuthType.REGISTER && firebaseAuthDto.activities && firebaseAuthDto.activities.length > 0) {
-          const activityRepository = this.usersRepository.manager.getRepository('Activity');
-          
-          // Create all activities at once
-          const activitiesToCreate = firebaseAuthDto.activities.map((activityDto, index) => 
-            activityRepository.create({
-              ...activityDto,
-              user,
-              activityType: 'general', // Default activity type
-              status: 'active',
-              position: index, // Set position based on array index
-            })
+        // If this is a login attempt and the user is not found in our DB,
+        // explicitly ask the client to go through registration first.
+        if (firebaseAuthDto.authType === AuthType.LOGIN) {
+          throw AppException.validation(
+            ErrorCode.AUTH_USER_NOT_FOUND,
+            'User not found in the database. Please complete registration first.',
           );
-          
-          // Save all activities in one operation
-          await activityRepository.save(activitiesToCreate);
         }
+
+        // Previous behaviour (auto-creating a user even for login) is intentionally disabled.
+        // We keep the code below commented for reference in case we ever want to restore
+        // automatic user creation for non-login flows.
+        //
+        // // If user doesn't exist, create new one
+        // const userData: any = {
+        //   email: firebaseUser.email,
+        //   firebaseUid: decodedToken.uid,
+        //   firstName: firebaseUser.displayName?.split(' ')[0] || undefined,
+        //   avatarUrl: firebaseUser.photoURL || undefined,
+        //   emailVerified: firebaseUser.emailVerified,
+        //   roles: this.roleService.stringifyRoles(['user']),
+        // };
+        //
+        // // If this is a registration, add additional fields
+        // if (firebaseAuthDto.authType === AuthType.REGISTER) {
+        //   userData.age = firebaseAuthDto.age || '';
+        //   userData.initialFeeling = firebaseAuthDto.feelingToday || null;
+        //   userData.initSatisfactionLevel = firebaseAuthDto.initSatisfactionLevel ?? null;
+        //   userData.initHardnessLevel = firebaseAuthDto.initHardnessLevel ?? null;
+        //   userData.socialNetworks = firebaseAuthDto.socialNetworks?.join(',') || null;
+        //   userData.taskTrackingMethod = firebaseAuthDto.taskTrackingMethod || null;
+        //
+        //   // Add onboarding data to meta
+        //   if (firebaseAuthDto.onboardingQuestionAndAnswers) {
+        //     userData.meta = {
+        //       onboardingQuestionAndAnswers: firebaseAuthDto.onboardingQuestionAndAnswers
+        //     };
+        //   } else {
+        //     userData.meta = {};
+        //   }
+        // }
+        //
+        // const newUser = this.usersRepository.create(userData);
+        // const savedUser = await this.usersRepository.save(newUser);
+        // user = Array.isArray(savedUser) ? (savedUser[0] as User) : (savedUser as User);
+        // isNewUser = true;
+        //
+        // // If this is registration and activities are provided, create them
+        // if (firebaseAuthDto.authType === AuthType.REGISTER && firebaseAuthDto.activities && firebaseAuthDto.activities.length > 0) {
+        //   const activityRepository = this.usersRepository.manager.getRepository('Activity');
+        //
+        //   // Create all activities at once
+        //   const activitiesToCreate = firebaseAuthDto.activities.map((activityDto, index) =>
+        //     activityRepository.create({
+        //       ...activityDto,
+        //       user,
+        //       activityType: 'general', // Default activity type
+        //       status: 'active',
+        //       position: index, // Set position based on array index
+        //     })
+        //   );
+        //
+        //   // Save all activities in one operation
+        //   await activityRepository.save(activitiesToCreate);
+        // }
 
         // Temporary items jobs are queued in the controller after this method returns (after TX commit) when isNewUser
       }
