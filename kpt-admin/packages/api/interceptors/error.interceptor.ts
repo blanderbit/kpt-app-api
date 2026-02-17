@@ -34,6 +34,13 @@ export const errorInterceptor = (
           window.location.href = '/login';
         }
       }
+    } else {
+      // 401 с POST /admin/login: показываем сообщение от бэкенда (разные причины — неверные данные, email не верифицирован и т.д.)
+      const loginMessage =
+        errorInfo.message && errorInfo.message !== 'Unknown error occurred'
+          ? errorInfo.message
+          : 'Неверный email или пароль.';
+      showWarningToast(loginMessage);
     }
 
     return Promise.reject(errorInfo);
