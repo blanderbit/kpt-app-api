@@ -33,6 +33,40 @@ const router = createRouter({
   routes: enhancedRoutes,
 })
 
+const PUBLIC_PATHS = ['/login', '/404']
+const isPublicPath = (path: string) =>
+  PUBLIC_PATHS.includes(path) || path.startsWith('/login')
+
+router.beforeEach((to, _from, next) => {
+  if (isPublicPath(to.path)) {
+    next()
+    return
+  }
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
+  if (!token) {
+    next({ path: '/login', query: { redirect: to.fullPath } })
+    return
+  }
+  next()
+})
+
+// Одна попытка перезагрузки при сбое чанка — без цикла (цикл ломал dev и вёл к ERR_CONNECTION_RESET).
+let chunkErrorReloadDone = false
+router.onError((error, to) => {
+  const msg = error?.message ?? ''
+  if (
+    !chunkErrorReloadDone &&
+    (msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      msg.includes('error loading dynamically imported module'))
+  ) {
+    chunkErrorReloadDone = true
+    window.location.assign(to.fullPath)
+    return
+  }
+  throw error
+})
+
 if (typeof window !== 'undefined') {
   (window as any).router = router
 }

@@ -17,23 +17,25 @@ export const errorInterceptor = (
   const readableMessage = getErrorMessage(error) || errorInfo.message;
 
   if (isStatus(error, HttpStatus.UNAUTHORIZED)) {
-    console.log('401 Unauthorized - clearing token');
-    showWarningToast('Сессия истекла. Пожалуйста, войдите снова.');
-    // Clear token
-    localStorage.removeItem('auth_token');
-    
-    // Only redirect if we're not already on the login page
-    const currentPath = window.location.pathname;
-    if (currentPath !== '/login') {
-      console.log('Redirecting to login');
-      // Use Vue Router if available, otherwise fallback to window.location
-      if (window.router) {
-        window.router.push('/login');
-      } else {
-        window.location.href = '/login';
+    const requestUrl = error.config?.url ?? '';
+    const isLoginRequest = typeof requestUrl === 'string' && (requestUrl === '/admin/login' || requestUrl.endsWith('/admin/login'));
+
+    if (!isLoginRequest) {
+      console.log('401 Unauthorized - clearing token');
+      showWarningToast('Сессия истекла. Пожалуйста, войдите снова.');
+      localStorage.removeItem('auth_token');
+
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login') {
+        console.log('Redirecting to login');
+        if (window.router) {
+          window.router.push('/login');
+        } else {
+          window.location.href = '/login';
+        }
       }
     }
-    
+
     return Promise.reject(errorInfo);
   }
 

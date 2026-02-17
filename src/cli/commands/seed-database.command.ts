@@ -851,6 +851,7 @@ export class SeedDatabaseCommand extends CommandRunner {
       return {
         user,
         survey,
+        language: 'en',
         expiresAt: faker.helpers.maybe(() => faker.date.soon({ days: 45 }), { probability: 0.6 }) ?? undefined,
       } as UserTemporarySurvey;
     });
@@ -866,6 +867,7 @@ export class SeedDatabaseCommand extends CommandRunner {
       return {
         user,
         article,
+        language: 'en',
         expiresAt: faker.helpers.maybe(() => faker.date.soon({ days: 30 }), { probability: 0.5 }) ?? undefined,
       } as UserTemporaryArticle;
     });

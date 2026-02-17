@@ -55,7 +55,15 @@ export default defineConfig({
   },
   server: {
     port: 8085,
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    watch: {
+      usePolling: true
+    },
+    hmr: {
+      host: 'localhost',
+      port: 8085,
+      clientPort: 8085
+    }
   },
   build: {
     outDir: 'dist',
