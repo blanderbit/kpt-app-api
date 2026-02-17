@@ -32,6 +32,7 @@ import {
   ChangePositionDto,
   CloseActivityDto,
   ActivityStatisticsResponseDto,
+  BulkReorderActivitiesDto,
 } from './dto/activity.dto';
 import { CreateRateActivityDto } from './dto/rate-activity.dto';
 import { Activity } from './entities/activity.entity';
@@ -251,6 +252,29 @@ export class ActivityController {
     @CurrentUser() user: User,
   ): Promise<ActivityResponseDto> {
     return this.activityService.changePosition(id, changePositionDto.position, user);
+  }
+
+  @Put('positions/bulk')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Bulk reorder activities positions',
+    description:
+      'Reorders today\'s non-archived activities for the current user based on the provided ordered list of IDs. ' +
+      'Invalid or foreign IDs are silently ignored, and activities not listed keep their relative order after the provided ones.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Activities positions updated successfully',
+    type: ActivityResponseDto,
+    isArray: true,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized access' })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  async bulkReorderPositions(
+    @Body() bulkReorderActivitiesDto: BulkReorderActivitiesDto,
+    @CurrentUser() user: User,
+  ): Promise<ActivityResponseDto[]> {
+    return this.activityService.reorderPositionsBulk(user, bulkReorderActivitiesDto.ids);
   }
 
   @Post(':id/close')
