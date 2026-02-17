@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, Min, Max, Validate } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, Min, Max, Validate, IsArray } from 'class-validator';
 import { TotalEqualsHundredConstraint } from './rate-activity.dto';
 
 export class CreateActivityDto {
@@ -222,4 +222,16 @@ export class ActivityStatisticsResponseDto {
     example: 34.5,
   })
   hardnessPercentage: number;
+}
+
+export class BulkReorderActivitiesDto {
+  @ApiProperty({
+    description:
+      "Ordered list of activity IDs to set new positions for today's non-archived activities",
+    type: [Number],
+    example: [11, 14, 7],
+  })
+  @IsArray()
+  @IsInt({ each: true })
+  ids: number[];
 }

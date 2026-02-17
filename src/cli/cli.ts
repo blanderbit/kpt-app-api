@@ -1,4 +1,8 @@
 import 'tsconfig-paths/register';
+// Load .env before any config that reads process.env (e.g. database.config)
+import { config } from 'dotenv';
+config();
+
 import { NestFactory } from '@nestjs/core';
 import { CommandFactory } from 'nest-commander';
 import { initializeTransactionalContext, addTransactionalDataSource } from 'typeorm-transactional';

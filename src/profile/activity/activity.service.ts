@@ -699,4 +699,98 @@ export class ActivityService {
       });
     }
   }
+
+  /**
+   * Bulk reorder today's non-archived activities for the current user.
+   * The order of valid IDs defines the new positions (0-based), remaining activities keep their
+   * relative order and are appended after the provided IDs.
+   */
+  @Transactional()
+  async reorderPositionsBulk(user: User, ids: number[]): Promise<ActivityResponseDto[]> {
+    try {
+      // Calculate today's date range (start and end of day)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      // Get all activities for this user created today, ordered by position (excluding archived)
+      const allActivities = await this.activityRepository.find({
+        where: {
+          user: { id: user.id },
+          createdAt: MoreThanOrEqual(today),
+          archivedAt: IsNull(), // Only non-archived activities
+        },
+        order: { position: 'ASC', createdAt: 'DESC' },
+        relations: ['rateActivities', 'user'],
+      });
+
+      // Filter to only include activities created today (in case of timezone issues)
+      const todayActivities = allActivities.filter((act) => {
+        const actDate = new Date(act.createdAt);
+        return actDate >= today && actDate <= todayEnd;
+      });
+
+      if (todayActivities.length === 0) {
+        return [];
+      }
+
+      // Build map for quick lookup
+      const activityById = new Map<number, Activity>();
+      todayActivities.forEach((activity) => {
+        activityById.set(activity.id, activity);
+      });
+
+      // Remove duplicates from incoming ids, preserving first occurrence
+      const seen = new Set<number>();
+      const uniqueIds: number[] = [];
+      for (const id of ids ?? []) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          uniqueIds.push(id);
+        }
+      }
+
+      // Filter only existing, today's, non-archived and non-closed activities
+      const validIds = uniqueIds.filter((id) => {
+        const activity = activityById.get(id);
+        if (!activity) return false;
+        if (activity.status === 'closed') return false;
+        return true;
+      });
+
+      // If no valid IDs, keep current order and return as-is
+      if (validIds.length === 0) {
+        return todayActivities.map((a) => this.mapToResponseDto(a));
+      }
+
+      const validActivities = validIds.map((id) => activityById.get(id)!);
+      const validIdSet = new Set(validIds);
+
+      // Other activities (including closed or those not present in ids) keep their relative order
+      const otherActivities = todayActivities.filter((activity) => !validIdSet.has(activity.id));
+
+      const reordered = [...validActivities, ...otherActivities];
+
+      // Reassign positions sequentially from 0 to n-1
+      reordered.forEach((activity, index) => {
+        activity.position = index;
+      });
+
+      await this.activityRepository.save(reordered);
+
+      return reordered.map((activity) => this.mapToResponseDto(activity));
+    } catch (error) {
+      if (error instanceof AppException) {
+        throw error;
+      }
+
+      this.logger.error('Failed to reorder activity positions in bulk:', error);
+      throw AppException.internal(ErrorCode.PROFILE_ACTIVITY_UPDATE_FAILED, undefined, {
+        error: error.message,
+        operation: 'reorderPositionsBulk',
+        userId: user.id,
+      });
+    }
+  }
 }

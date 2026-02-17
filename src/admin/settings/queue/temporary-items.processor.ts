@@ -147,25 +147,56 @@ export class TemporaryItemsProcessor {
       };
     }
 
-    // Get user language or default language
-    const userLanguage = this.getUserLanguage(user);
+    // Get all active languages from cache
+    const cachedLanguages = this.languageService.getLanguagesFromCache();
+    this.logger.log(
+      `Generating temporary articles for user ${userId}: cached languages=${cachedLanguages
+        .map((l) => `${l.code}:${l.isActive ? 'active' : 'inactive'}`)
+        .join(', ')}`,
+    );
 
-    const queryBuilder = articleRepository
-      .createQueryBuilder('article')
-      .where('article.status = :status', { status: ArticleStatus.ACTIVE });
+    const activeLanguages = cachedLanguages.filter((lang) => lang.isActive && !!lang.code).map((lang) => lang.code);
 
-    // Filter by language if available
-    if (userLanguage) {
-      queryBuilder.andWhere('article.language = :language', { language: userLanguage });
+    if (activeLanguages.length === 0) {
+      this.logger.warn(
+        `No active languages found while generating temporary articles for user ${userId}, skipping generation`,
+      );
+      return {
+        userId,
+        success: true,
+        articlesCount: 0,
+      };
     }
 
-    const activeArticles = await queryBuilder
-      .orderBy('RAND()')
-      .limit(count)
-      .getMany();
+    const uniqueArticleIds = new Set<number>();
+    const selectedArticles: Article[] = [];
 
-    if (activeArticles.length === 0) {
-      this.logger.warn(`No active articles found for user ${userId}`);
+    for (const languageCode of activeLanguages) {
+      const articlesForLanguage = await articleRepository
+        .createQueryBuilder('article')
+        .where('article.status = :status', { status: ArticleStatus.ACTIVE })
+        .andWhere('article.language = :language', { language: languageCode })
+        .orderBy('RAND()')
+        .limit(count)
+        .getMany();
+
+      if (articlesForLanguage.length === 0) {
+        this.logger.log(
+          `No active articles found for language "${languageCode}" while generating temporary articles for user ${userId}`,
+        );
+        continue;
+      }
+
+      for (const article of articlesForLanguage) {
+        if (!uniqueArticleIds.has(article.id)) {
+          uniqueArticleIds.add(article.id);
+          selectedArticles.push(article);
+        }
+      }
+    }
+
+    if (selectedArticles.length === 0) {
+      this.logger.warn(`No active articles found for any active language for user ${userId}`);
       return {
         userId,
         success: true,
@@ -183,7 +214,7 @@ export class TemporaryItemsProcessor {
       .where('userId = :userId', { userId })
       .execute();
 
-    const temporaryArticles = activeArticles.map((article) =>
+    const temporaryArticles = selectedArticles.map((article) =>
       userTemporaryArticleRepository.create({
         user,
         article,
@@ -231,25 +262,56 @@ export class TemporaryItemsProcessor {
       };
     }
 
-    // Get user language or default language
-    const userLanguage = this.getUserLanguage(user);
+    // Get all active languages from cache
+    const cachedLanguages = this.languageService.getLanguagesFromCache();
+    this.logger.log(
+      `Generating temporary surveys for user ${userId}: cached languages=${cachedLanguages
+        .map((l) => `${l.code}:${l.isActive ? 'active' : 'inactive'}`)
+        .join(', ')}`,
+    );
 
-    const queryBuilder = surveyRepository
-      .createQueryBuilder('survey')
-      .where('survey.status = :status', { status: SurveyStatus.ACTIVE });
+    const activeLanguages = cachedLanguages.filter((lang) => lang.isActive && !!lang.code).map((lang) => lang.code);
 
-    // Filter by language if available
-    if (userLanguage) {
-      queryBuilder.andWhere('survey.language = :language', { language: userLanguage });
+    if (activeLanguages.length === 0) {
+      this.logger.warn(
+        `No active languages found while generating temporary surveys for user ${userId}, skipping generation`,
+      );
+      return {
+        userId,
+        success: true,
+        surveysCount: 0,
+      };
     }
 
-    const activeSurveys = await queryBuilder
-      .orderBy('RAND()')
-      .limit(count)
-      .getMany();
+    const uniqueSurveyIds = new Set<number>();
+    const selectedSurveys: Survey[] = [];
 
-    if (activeSurveys.length === 0) {
-      this.logger.warn(`No active surveys found for user ${userId}`);
+    for (const languageCode of activeLanguages) {
+      const surveysForLanguage = await surveyRepository
+        .createQueryBuilder('survey')
+        .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
+        .andWhere('survey.language = :language', { language: languageCode })
+        .orderBy('RAND()')
+        .limit(count)
+        .getMany();
+
+      if (surveysForLanguage.length === 0) {
+        this.logger.log(
+          `No active surveys found for language "${languageCode}" while generating temporary surveys for user ${userId}`,
+        );
+        continue;
+      }
+
+      for (const survey of surveysForLanguage) {
+        if (!uniqueSurveyIds.has(survey.id)) {
+          uniqueSurveyIds.add(survey.id);
+          selectedSurveys.push(survey);
+        }
+      }
+    }
+
+    if (selectedSurveys.length === 0) {
+      this.logger.warn(`No active surveys found for any active language for user ${userId}`);
       return {
         userId,
         success: true,
@@ -264,10 +326,10 @@ export class TemporaryItemsProcessor {
     await userTemporarySurveyRepository
       .createQueryBuilder()
       .delete()
-      .where('user_id = :userId', { userId })
+      .where('userId = :userId', { userId })
       .execute();
 
-    const temporarySurveys = activeSurveys.map((survey) =>
+    const temporarySurveys = selectedSurveys.map((survey) =>
       userTemporarySurveyRepository.create({
         user,
         survey,
