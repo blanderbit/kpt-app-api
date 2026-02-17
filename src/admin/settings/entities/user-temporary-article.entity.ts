@@ -25,6 +25,10 @@ export class UserTemporaryArticle {
   @ApiProperty({ description: 'Creation timestamp' })
   createdAt: Date;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  @ApiProperty({ description: 'Language code this temporary item is for (e.g. en, ru)' })
+  language: string | null;
+
   // Relations
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })

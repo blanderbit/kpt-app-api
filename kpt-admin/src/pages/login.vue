@@ -7,6 +7,9 @@
             <v-toolbar-title>KPT Admin Login</v-toolbar-title>
           </v-toolbar>
           <v-card-text>
+            <v-alert v-if="errorMessage" type="error" density="compact" class="mb-3" closable>
+              {{ errorMessage }}
+            </v-alert>
             <v-form ref="formRef" @submit.prevent>
               <v-text-field
                 v-model="email"
@@ -44,14 +47,16 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { authService } from '@api'
 
 const router = useRouter()
+const route = useRoute()
 
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
+const errorMessage = ref('')
 
 const emailRules = [
   (v: string) => !!v || 'Email is required',
@@ -65,23 +70,40 @@ const passwordRules = [
 
 const login = async () => {
   if (!email.value || !password.value) return
-  
+
+  errorMessage.value = ''
   loading.value = true
   try {
-    
     const response = await authService.login({
       email: email.value,
       password: password.value
     })
 
-    // Сохраняем токен в localStorage
-    localStorage.setItem('auth_token', response.accessToken)
-    
-    // Redirect to dashboard after successful login
-    router.push('/profile')
-  } catch (error) {
+    const token = response?.accessToken ?? (response as any)?.data?.accessToken
+    if (!token) {
+      console.error('Login response missing accessToken', response)
+      errorMessage.value = 'Неверный ответ сервера. Попробуйте снова.'
+      return
+    }
+
+    localStorage.setItem('auth_token', token)
+
+    const fromQuery =
+      typeof route.query?.redirect === 'string' &&
+      route.query.redirect.startsWith('/') &&
+      route.query.redirect !== '/login'
+        ? route.query.redirect
+        : null
+    const redirectPath = fromQuery ?? (route.meta?.redirectPath as string) ?? '/profile'
+    try {
+      await router.replace(redirectPath)
+    } catch (_) {
+      window.location.assign(redirectPath)
+    }
+  } catch (error: any) {
     console.error('Login error:', error)
-    // TODO: Show error message
+    const msg = error?.message || error?.data?.message
+    errorMessage.value = msg || 'Ошибка входа. Проверьте email и пароль.'
   } finally {
     loading.value = false
   }

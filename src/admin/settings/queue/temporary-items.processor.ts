@@ -125,9 +125,10 @@ export class TemporaryItemsProcessor {
     const articleRepository = manager.getRepository(Article);
     const userTemporaryArticleRepository = manager.getRepository(UserTemporaryArticle);
 
+    // Count per user from Settings (Articles)
     const count = this.settingsService.getArticlesCount();
     if (count <= 0) {
-      this.logger.warn(`Articles count is ${count} for user ${userId}, skipping generation`);
+      this.logger.warn(`Articles count per user is ${count} for user ${userId}, skipping generation`);
       return {
         userId,
         success: true,
@@ -147,15 +148,13 @@ export class TemporaryItemsProcessor {
       };
     }
 
-    // Get all active languages from cache
+    // Active languages: we create one temporary item per (article, language) for each
     const cachedLanguages = this.languageService.getLanguagesFromCache();
-    this.logger.log(
-      `Generating temporary articles for user ${userId}: cached languages=${cachedLanguages
-        .map((l) => `${l.code}:${l.isActive ? 'active' : 'inactive'}`)
-        .join(', ')}`,
-    );
-
     const activeLanguages = cachedLanguages.filter((lang) => lang.isActive && !!lang.code).map((lang) => lang.code);
+
+    this.logger.log(
+      `Generating temporary articles for user ${userId}: languages=${activeLanguages.join(', ')}`,
+    );
 
     if (activeLanguages.length === 0) {
       this.logger.warn(
@@ -168,35 +167,16 @@ export class TemporaryItemsProcessor {
       };
     }
 
-    const uniqueArticleIds = new Set<number>();
-    const selectedArticles: Article[] = [];
-
-    for (const languageCode of activeLanguages) {
-      const articlesForLanguage = await articleRepository
-        .createQueryBuilder('article')
-        .where('article.status = :status', { status: ArticleStatus.ACTIVE })
-        .andWhere('article.language = :language', { language: languageCode })
-        .orderBy('RAND()')
-        .limit(count)
-        .getMany();
-
-      if (articlesForLanguage.length === 0) {
-        this.logger.log(
-          `No active articles found for language "${languageCode}" while generating temporary articles for user ${userId}`,
-        );
-        continue;
-      }
-
-      for (const article of articlesForLanguage) {
-        if (!uniqueArticleIds.has(article.id)) {
-          uniqueArticleIds.add(article.id);
-          selectedArticles.push(article);
-        }
-      }
-    }
+    // Select up to (count per user) active articles — no filter by language
+    const selectedArticles = await articleRepository
+      .createQueryBuilder('article')
+      .where('article.status = :status', { status: ArticleStatus.ACTIVE })
+      .orderBy('RAND()')
+      .limit(count)
+      .getMany();
 
     if (selectedArticles.length === 0) {
-      this.logger.warn(`No active articles found for any active language for user ${userId}`);
+      this.logger.warn(`No active articles found for user ${userId}`);
       return {
         userId,
         success: true,
@@ -214,13 +194,20 @@ export class TemporaryItemsProcessor {
       .where('userId = :userId', { userId })
       .execute();
 
-    const temporaryArticles = selectedArticles.map((article) =>
-      userTemporaryArticleRepository.create({
-        user,
-        article,
-        expiresAt,
-      }),
-    );
+    // For each selected article, create one temporary record per active language
+    const temporaryArticles: ReturnType<typeof userTemporaryArticleRepository.create>[] = [];
+    for (const article of selectedArticles) {
+      for (const languageCode of activeLanguages) {
+        temporaryArticles.push(
+          userTemporaryArticleRepository.create({
+            user,
+            article,
+            language: languageCode,
+            expiresAt,
+          }),
+        );
+      }
+    }
 
     if (temporaryArticles.length > 0) {
       await userTemporaryArticleRepository.save(temporaryArticles);
@@ -240,9 +227,10 @@ export class TemporaryItemsProcessor {
     const surveyRepository = manager.getRepository(Survey);
     const userTemporarySurveyRepository = manager.getRepository(UserTemporarySurvey);
 
+    // Count per user from Settings (Surveys)
     const count = this.settingsService.getSurveysCount();
     if (count <= 0) {
-      this.logger.warn(`Surveys count is ${count} for user ${userId}, skipping generation`);
+      this.logger.warn(`Surveys count per user is ${count} for user ${userId}, skipping generation`);
       return {
         userId,
         success: true,
@@ -262,15 +250,13 @@ export class TemporaryItemsProcessor {
       };
     }
 
-    // Get all active languages from cache
+    // Active languages: we create one temporary item per (survey, language) for each
     const cachedLanguages = this.languageService.getLanguagesFromCache();
-    this.logger.log(
-      `Generating temporary surveys for user ${userId}: cached languages=${cachedLanguages
-        .map((l) => `${l.code}:${l.isActive ? 'active' : 'inactive'}`)
-        .join(', ')}`,
-    );
-
     const activeLanguages = cachedLanguages.filter((lang) => lang.isActive && !!lang.code).map((lang) => lang.code);
+
+    this.logger.log(
+      `Generating temporary surveys for user ${userId}: languages=${activeLanguages.join(', ')}`,
+    );
 
     if (activeLanguages.length === 0) {
       this.logger.warn(
@@ -283,35 +269,16 @@ export class TemporaryItemsProcessor {
       };
     }
 
-    const uniqueSurveyIds = new Set<number>();
-    const selectedSurveys: Survey[] = [];
-
-    for (const languageCode of activeLanguages) {
-      const surveysForLanguage = await surveyRepository
-        .createQueryBuilder('survey')
-        .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
-        .andWhere('survey.language = :language', { language: languageCode })
-        .orderBy('RAND()')
-        .limit(count)
-        .getMany();
-
-      if (surveysForLanguage.length === 0) {
-        this.logger.log(
-          `No active surveys found for language "${languageCode}" while generating temporary surveys for user ${userId}`,
-        );
-        continue;
-      }
-
-      for (const survey of surveysForLanguage) {
-        if (!uniqueSurveyIds.has(survey.id)) {
-          uniqueSurveyIds.add(survey.id);
-          selectedSurveys.push(survey);
-        }
-      }
-    }
+    // Select up to (count per user) active surveys — no filter by language
+    const selectedSurveys = await surveyRepository
+      .createQueryBuilder('survey')
+      .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
+      .orderBy('RAND()')
+      .limit(count)
+      .getMany();
 
     if (selectedSurveys.length === 0) {
-      this.logger.warn(`No active surveys found for any active language for user ${userId}`);
+      this.logger.warn(`No active surveys found for user ${userId}`);
       return {
         userId,
         success: true,
@@ -329,13 +296,20 @@ export class TemporaryItemsProcessor {
       .where('userId = :userId', { userId })
       .execute();
 
-    const temporarySurveys = selectedSurveys.map((survey) =>
-      userTemporarySurveyRepository.create({
-        user,
-        survey,
-        expiresAt,
-      }),
-    );
+    // For each selected survey, create one temporary record per active language
+    const temporarySurveys: ReturnType<typeof userTemporarySurveyRepository.create>[] = [];
+    for (const survey of selectedSurveys) {
+      for (const languageCode of activeLanguages) {
+        temporarySurveys.push(
+          userTemporarySurveyRepository.create({
+            user,
+            survey,
+            language: languageCode,
+            expiresAt,
+          }),
+        );
+      }
+    }
 
     if (temporarySurveys.length > 0) {
       await userTemporarySurveyRepository.save(temporarySurveys);
