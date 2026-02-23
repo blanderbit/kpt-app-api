@@ -18,7 +18,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { SuggestedActivityService } from '../services/suggested-activity.service';
-import { AddSuggestedActivityToActivitiesDto, RefreshSuggestedActivitiesDto } from '../dto/suggested-activity.dto';
+import { AddSuggestedActivityToActivitiesDto, RefreshSuggestedActivitiesDto, GenerateFromQuizDto } from '../dto/suggested-activity.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from 'src/users/entities/user.entity';
@@ -86,6 +86,24 @@ export class SuggestedActivityController {
     );
   }
 
+  @Post('add-all-to-activities')
+  @ApiOperation({
+    summary: 'Transfer all suggested activities to regular activities',
+    description: 'Creates a regular activity for each suggested activity linked to the current user, then removes the suggestions. User is determined by JWT.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'All suggested activities transferred',
+    schema: { type: 'object', properties: { message: { type: 'string' }, activities: { type: 'array', items: { type: 'object' } } } },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized access',
+  })
+  async addAllSuggestedToActivities(@CurrentUser() user: User) {
+    return this.suggestedActivityService.addAllSuggestedToActivities(user);
+  }
+
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete suggested activity',
@@ -143,5 +161,30 @@ export class SuggestedActivityController {
       userId,
       date,
     );
+  }
+
+  @Post('generate-from-quiz')
+  @ApiOperation({
+    summary: 'Generate suggested activities from quiz and program',
+    description: 'Generates suggested activities using user quizSnapshot, selected program, optional summary, and provided hardness/satisfaction. Requires quiz data and program; summary is optional.',
+  })
+  @ApiBody({ type: GenerateFromQuizDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Suggested activities generated and saved',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid hardness/satisfaction/count or missing quiz/program data',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized access',
+  })
+  async generateFromQuiz(
+    @CurrentUser() user: User,
+    @Body() dto: GenerateFromQuizDto,
+  ) {
+    return this.suggestedActivityService.generateFromQuiz(user, dto);
   }
 }

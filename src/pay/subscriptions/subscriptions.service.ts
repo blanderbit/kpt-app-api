@@ -1,9 +1,12 @@
 import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, Not, IsNull } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { Subscription } from './entities/subscription.entity';
 import { SubscriptionSummaryDto } from './dto/subscription-summary.dto';
 import { User } from '../../users/entities/user.entity';
+import { ExternalSignup, ExternalSignupStatus } from '../../external-signup/entities/external-signup.entity';
 import { SubscriptionStatus } from './enums/subscription-status.enum';
 import { SubscriptionProvider } from './enums/subscription-provider.enum';
 import { RevenueCatWebhookPayload } from './dto/revenuecat-webhook.dto';
@@ -15,6 +18,8 @@ import { SubscriptionPlanInterval } from './enums/subscription-plan-interval.enu
 import { SettingsService } from '../../admin/settings/settings.service';
 import { SubscriptionPendingLinkService } from './subscription-pending-link.service';
 import { LanguageService } from '../../admin/languages/services/language.service';
+import { ChatGPTService } from '../../core/chatgpt/chatgpt.service';
+import { EmailService } from '../../email/email.service';
 
 /** Get nested value by dot path, e.g. "subscription_summary.plan_interval.monthly" */
 function getValueByPath(obj: Record<string, any>, pathKey: string): string | undefined {
@@ -85,11 +90,15 @@ export class SubscriptionsService {
     private readonly subscriptionRepository: Repository<Subscription>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(ExternalSignup)
+    private readonly externalSignupRepository: Repository<ExternalSignup>,
     private readonly revenueCatService: RevenueCatService,
     @Inject(forwardRef(() => SettingsService))
     private readonly settingsService: SettingsService,
     private readonly subscriptionPendingLinkService: SubscriptionPendingLinkService,
+    private readonly emailService: EmailService,
     private readonly languageService: LanguageService,
+    private readonly chatGPTService: ChatGPTService,
   ) {}
 
   async handleRevenueCatWebhook(payload: RevenueCatWebhookPayload): Promise<void> {
@@ -113,6 +122,8 @@ export class SubscriptionsService {
     }
 
     this.logger.log(`[webhook] handleRevenueCatWebhook: app_user_id=${appUserId!.substring(0, 40)}`);
+
+    await this.tryProcessExternalSignupPayment(appUserId!, event);
 
     const resolvedNumeric = this.resolveUserId(appUserId!);
     this.logger.log(`[webhook] handleRevenueCatWebhook: resolveUserId(appUserId)=${resolvedNumeric ?? 'undefined'}`);
@@ -182,6 +193,63 @@ export class SubscriptionsService {
   }
 
   /**
+   * If app_user_id is from external signup (pending_payment), create user, update signup, save pending link, link subscriptions.
+   */
+  private async tryProcessExternalSignupPayment(
+    appUserId: string,
+    event: RevenueCatWebhookPayload['event'],
+  ): Promise<void> {
+    const signup = await this.externalSignupRepository.findOne({
+      where: { appUserId, status: ExternalSignupStatus.PENDING_PAYMENT },
+    });
+    if (!signup) return;
+
+    this.logger.log(`[webhook] external signup found id=${signup.id}, creating user and linking`);
+
+    const meta = signup.meta;
+    const programName = meta?.programName ?? '';
+    const selectedProgram =
+      meta?.programId != null && programName
+        ? { id: meta.programId, name: programName }
+        : null;
+    const quizSnapshot = meta?.quizSnapshot ?? undefined;
+
+    // Temporary password: same rules as registration (min 6 chars), 12 alphanumeric
+    const ALPHANUM = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const tempPasswordLength = 12;
+    let temporaryPassword = '';
+    const bytes = randomBytes(tempPasswordLength);
+    for (let i = 0; i < tempPasswordLength; i++) {
+      temporaryPassword += ALPHANUM[bytes[i]! % ALPHANUM.length];
+    }
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+
+    const user = this.userRepository.create({
+      email: signup.email,
+      roles: 'user',
+      selectedProgram,
+      quizSnapshot,
+      needsOnboarding: true,
+      passwordHash,
+    });
+    await this.userRepository.save(user);
+
+    await this.emailService.sendExternalSignupPasswordEmail(signup.email, temporaryPassword);
+
+    signup.status = ExternalSignupStatus.PAID;
+    signup.userId = user.id;
+    signup.paddleTransactionId = event.transaction_id || event.original_transaction_id || null;
+    signup.paddleSubscriptionId = event.original_transaction_id || null;
+    signup.meta = null;
+    await this.externalSignupRepository.save(signup);
+
+    await this.subscriptionPendingLinkService.save(appUserId, user.id, user.email);
+    await this.linkSubscriptionsToUser(appUserId, user.id, user.email);
+
+    this.logger.log(`[webhook] external signup: user id=${user.id} created, signup updated, link saved`);
+  }
+
+  /**
    * Upsert subscription by original_transaction_id (or fallback key). Creates row if missing; updates only if event_timestamp_ms >= lastEventTimestampMs. Does not overwrite existing non-null userId with null.
    */
   private async upsertSubscriptionFromWebhook(
@@ -241,11 +309,13 @@ export class SubscriptionsService {
     }
 
     const userIdToSet = typeof resolvedUserId === 'number' ? resolvedUserId : undefined;
+    const provider =
+      appUserId.startsWith('web_signup_') ? SubscriptionProvider.PADDLE : SubscriptionProvider.REVENUECAT;
     const subscription = this.subscriptionRepository.create({
       userId: userIdToSet,
       userEmail: event.subscriber_attributes?.email?.value || undefined,
       appUserId,
-      provider: SubscriptionProvider.REVENUECAT,
+      provider,
       externalSubscriptionId: event.transaction_id || event.original_transaction_id || event.entitlement_id,
       originalTransactionId: upsertKey,
       lastEventTimestampMs: String(eventTs),

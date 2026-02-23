@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, IsDateString, Min, Max } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt, IsBoolean, IsDateString, Min, Max } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateSuggestedActivityDto {
@@ -87,4 +87,24 @@ export class RefreshSuggestedActivitiesDto {
   @IsDateString()
   @IsOptional()
   date?: string;
+}
+
+export class GenerateFromQuizDto {
+  @ApiProperty({ description: 'Hardness/difficulty level (0-100)', example: 50, minimum: 0, maximum: 100 })
+  @IsInt({ message: 'hardness must be an integer between 0 and 100' })
+  @Min(0, { message: 'hardness must be between 0 and 100' })
+  @Max(100, { message: 'hardness must be between 0 and 100' })
+  hardness: number;
+
+  @ApiProperty({ description: 'Satisfaction level (0-100)', example: 70, minimum: 0, maximum: 100 })
+  @IsInt({ message: 'satisfaction must be an integer between 0 and 100' })
+  @Min(0, { message: 'satisfaction must be between 0 and 100' })
+  @Max(100, { message: 'satisfaction must be between 0 and 100' })
+  satisfaction: number;
+
+  @ApiProperty({ description: 'Number of suggested activities to generate (1-20)', example: 5, minimum: 1, maximum: 20 })
+  @IsInt({ message: 'suggestedActivityCount must be an integer between 1 and 20' })
+  @Min(1, { message: 'suggestedActivityCount must be between 1 and 20' })
+  @Max(20, { message: 'suggestedActivityCount must be between 1 and 20' })
+  suggestedActivityCount: number;
 }

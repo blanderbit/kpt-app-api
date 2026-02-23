@@ -53,6 +53,11 @@ export class GoogleDriveSyncDto {
   @IsOptional()
   @IsDateString()
   moodTypes?: string;
+
+  @ApiProperty({ description: 'Last sync timestamp for programs', required: false })
+  @IsOptional()
+  @IsDateString()
+  programs?: string;
 }
 
 export class SuggestedActivitiesCronDto {
@@ -195,6 +200,7 @@ export class SettingsResponseDto {
     activityTypes: string | null;
     socialNetworks: string | null;
     moodTypes: string | null;
+    programs: string | null;
   };
 
   @ApiProperty({ description: 'Suggested activities configuration' })

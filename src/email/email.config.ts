@@ -12,4 +12,5 @@ export enum EmailSubject {
   VERIFICATION = 'Email Verification - Plesury: Discover your balance',
   PASSWORD_RESET = 'Password Reset - Plesury: Discover your balance',
   EMAIL_CHANGE_CONFIRMATION = 'Email Change Confirmation - Plesury: Discover your balance',
+  EXTERNAL_SIGNUP_PASSWORD = 'Your account and temporary password - Plesury: Discover your balance',
 }

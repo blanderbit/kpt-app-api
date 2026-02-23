@@ -164,3 +164,12 @@ export class ProfileResponseDto {
   })
   initHardnessLevel: number | null;
 }
+
+export class UpdateNeedsOnboardingDto {
+  @ApiProperty({
+    description: 'Whether the user still needs to complete onboarding',
+    example: false,
+  })
+  @IsBoolean()
+  needsOnboarding: boolean;
+}

@@ -11,9 +11,11 @@ import { FirebaseModule } from './firebase/firebase.module';
 import { ProfileModule } from './profile/profile.module';
 import { SuggestedActivityModule } from './suggested-activity/suggested-activity.module';
 import { AdminModule } from './admin/admin.module';
+import { ProgramSelectionModule } from './program-selection/program-selection.module';
 import { CommonModule } from './common/common.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PayModule } from './pay';
+import { ExternalSignupModule } from './external-signup/external-signup.module';
 import { databaseConfig } from './config/database.config';
 import bullConfig from './config/bull.config';
 
@@ -44,8 +46,10 @@ import bullConfig from './config/bull.config';
     AuthModule,
     ProfileModule,
     AdminModule,
+    ProgramSelectionModule,
     CommonModule,
     PayModule,
+    ExternalSignupModule,
   ],
 })
 export class AppModule {}

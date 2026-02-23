@@ -9,6 +9,7 @@ import { UpdateProfileDto, ChangeEmailDto, ChangePasswordDto, DeleteAccountDto, 
 import { EmailService } from '../email/email.service';
 import { AuthService } from '../auth/auth.service';
 import { RedisBlacklistService } from '../auth/redis-blacklist.service';
+import { ChatGPTService } from '../core/chatgpt/chatgpt.service';
 import { ErrorCode } from '../common/error-codes';
 import { AppException } from '../common/exceptions/app.exception';
 import { Transactional } from 'typeorm-transactional';
@@ -24,6 +25,7 @@ export class ProfileService {
     private authService: AuthService,
     private jwtService: JwtService,
     private redisBlacklistService: RedisBlacklistService,
+    private chatGPTService: ChatGPTService,
   ) {}
 
   async sendVerificationEmail(email: string): Promise<{ message: string }> {
@@ -198,6 +200,30 @@ export class ProfileService {
     });
 
     return { message: 'Email successfully verified' };
+  }
+
+  /**
+   * Generate summary from user's quizSnapshot (ChatGPT) and save to user.summary.
+   * Requires user to have non-empty quizSnapshot (e.g. from external signup).
+   */
+  @Transactional()
+  async generateSummary(user: User): Promise<{ summary: string }> {
+    if (!user.quizSnapshot || user.quizSnapshot.length === 0) {
+      throw AppException.validation(
+        ErrorCode.PROFILE_SUMMARY_NO_QUIZ_DATA,
+        'No quiz data to generate summary',
+      );
+    }
+    const programName = user.selectedProgram?.name || '';
+    const summary = await this.chatGPTService.generateQuizSummary(user.quizSnapshot, programName);
+    await this.usersRepository.update(user.id, { summary: summary || null });
+    return { summary };
+  }
+
+  @Transactional()
+  async updateNeedsOnboarding(user: User, needsOnboarding: boolean): Promise<{ needsOnboarding: boolean }> {
+    await this.usersRepository.update(user.id, { needsOnboarding });
+    return { needsOnboarding };
   }
 
   private mapUserToProfileResponse(user: User): ProfileResponseDto {

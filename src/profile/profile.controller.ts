@@ -26,6 +26,7 @@ import {
   ChangePasswordDto,
   DeleteAccountDto,
   ProfileResponseDto,
+  UpdateNeedsOnboardingDto,
 } from './dto/profile.dto';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { VerifyEmailDto } from '../auth/dto/verify-email.dto';
@@ -61,6 +62,34 @@ export class ProfileController {
   })
   async getProfile(@CurrentUser() user: User): Promise<ProfileResponseDto> {
     return this.profileService.getProfile(user);
+  }
+
+  @Post('generate-summary')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Generate summary from quiz data',
+    description: 'Generates a summary via ChatGPT from the user\'s quizSnapshot and saves it to the user. Requires non-empty quizSnapshot (e.g. from external signup).',
+  })
+  @ApiResponse({ status: 200, description: 'Summary generated and saved', schema: { type: 'object', properties: { summary: { type: 'string' } } } })
+  @ApiResponse({ status: 400, description: 'No quiz data to generate summary' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async generateSummary(@CurrentUser() user: User): Promise<{ summary: string }> {
+    return this.profileService.generateSummary(user);
+  }
+
+  @Put('needs-onboarding')
+  @ApiOperation({
+    summary: 'Update needsOnboarding flag',
+    description: 'Sets user.needsOnboarding to the value from the request body. User is determined by JWT.',
+  })
+  @ApiBody({ type: UpdateNeedsOnboardingDto })
+  @ApiResponse({ status: 200, description: 'Flag updated', schema: { type: 'object', properties: { needsOnboarding: { type: 'boolean' } } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateNeedsOnboarding(
+    @CurrentUser() user: User,
+    @Body() dto: UpdateNeedsOnboardingDto,
+  ): Promise<{ needsOnboarding: boolean }> {
+    return this.profileService.updateNeedsOnboarding(user, dto.needsOnboarding);
   }
 
   @Post('email-verification/send-code')

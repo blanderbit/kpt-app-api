@@ -87,6 +87,32 @@ export class User {
   @Column({ type: 'text', nullable: true })
   taskTrackingMethod: string;
 
+  /** Selected program (e.g. from external quiz flow): { id: number | string, name: string }. JSON column. */
+  @ApiProperty({
+    description: 'Selected program id and name (from quiz/checkout flow)',
+    example: { id: 1, name: 'Stress and Anxiety Management' },
+    nullable: true,
+  })
+  @Column({ type: 'json', nullable: true })
+  selectedProgram: { id: number | string; name: string } | null;
+
+  /** Quiz Q&A snapshot from external signup (used to generate summary via POST /profile/generate-summary). */
+  @ApiProperty({
+    description: 'Quiz questions and answers from external signup',
+    example: [{ questionText: 'How do you feel?', answerText: 'Stressed' }],
+    nullable: true,
+  })
+  @Column({ type: 'json', nullable: true })
+  quizSnapshot: { questionText: string; answerText: string }[] | null;
+
+  @ApiProperty({ description: 'Summary from external quiz (ChatGPT), generated via generate-summary endpoint', nullable: true })
+  @Column({ type: 'text', nullable: true })
+  summary: string | null;
+
+  @ApiProperty({ description: 'User came from external signup and needs onboarding', default: false })
+  @Column({ default: false })
+  needsOnboarding: boolean;
+
   @ApiProperty({ description: 'Creation date' })
   @CreateDateColumn()
   createdAt: Date;

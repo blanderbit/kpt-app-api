@@ -5,7 +5,7 @@ import { Repository, Between } from 'typeorm';
 import { SuggestedActivity } from '../entities/suggested-activity.entity';
 import { Activity } from '../../profile/activity/entities/activity.entity';
 import { ActivityTypesService } from '../../core/activity-types';
-import { CreateSuggestedActivityDto, SuggestedActivityResponseDto } from '../dto/suggested-activity.dto';
+import { CreateSuggestedActivityDto, SuggestedActivityResponseDto, GenerateFromQuizDto } from '../dto/suggested-activity.dto';
 import { ChatGPTService } from '../../core/chatgpt/chatgpt.service';
 import { ErrorCode } from '../../common/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
@@ -121,6 +121,47 @@ export class SuggestedActivityService {
   }
 
   /**
+   * Transfer all suggested activities for the user into regular user activities.
+   * Creates an Activity for each suggested activity, then removes the suggestions.
+   */
+  @Transactional()
+  async addAllSuggestedToActivities(user: User): Promise<{ message: string; activities: Activity[] }> {
+    const suggested = await this.suggestedActivityRepository.find({
+      where: { user: { id: user.id } },
+      relations: ['user'],
+      order: { createdAt: 'ASC' },
+    });
+
+    if (suggested.length === 0) {
+      return {
+        message: 'No suggested activities to transfer',
+        activities: [],
+      };
+    }
+
+    const activities: Activity[] = [];
+    for (const s of suggested) {
+      const activityType = s.activityType === 'unknown' ? 'general' : s.activityType;
+      const activity = this.activityRepository.create({
+        activityName: s.activityName,
+        activityType,
+        content: s.content,
+        user,
+        status: 'active',
+        fromSuggestedActivity: true,
+      });
+      activities.push(await this.activityRepository.save(activity));
+    }
+
+    await this.suggestedActivityRepository.remove(suggested);
+
+    return {
+      message: `${activities.length} suggested activities transferred to your activities`,
+      activities,
+    };
+  }
+
+  /**
    * Delete suggested activity
    */
   @Transactional()
@@ -142,6 +183,58 @@ export class SuggestedActivityService {
     return {
       message: 'Suggested activity successfully deleted',
     };
+  }
+
+  /**
+   * Generate suggested activities from user's quizSnapshot, program, optional summary, and frontend hardness/satisfaction.
+   * Requires user.quizSnapshot and user.selectedProgram; summary is optional.
+   */
+  @Transactional()
+  async generateFromQuiz(user: User, dto: GenerateFromQuizDto): Promise<SuggestedActivityResponseDto[]> {
+    if (!user.quizSnapshot || user.quizSnapshot.length === 0) {
+      throw AppException.validation(ErrorCode.SUGGESTED_ACTIVITY_QUIZ_REQUIRED, 'Quiz data is required to generate suggestions');
+    }
+    if (!user.selectedProgram?.name) {
+      throw AppException.validation(ErrorCode.SUGGESTED_ACTIVITY_PROGRAM_REQUIRED, 'Program is required to generate suggestions');
+    }
+
+    const activityTypes = this.activityTypesService.getAllActivityTypes();
+    const activityTypeNames = activityTypes.map((t) => t.id);
+
+    const items = await this.chatGPTService.generateSuggestedActivitiesFromQuiz(
+      {
+        quizSnapshot: user.quizSnapshot,
+        programName: user.selectedProgram.name,
+        summary: user.summary ?? undefined,
+        hardness: dto.hardness,
+        satisfaction: dto.satisfaction,
+      },
+      dto.suggestedActivityCount,
+      activityTypeNames,
+    );
+
+    const targetDate = new Date();
+    targetDate.setHours(0, 0, 0, 0);
+
+    const suggestions = items.map((item) =>
+      this.suggestedActivityRepository.create({
+        user,
+        activityName: item.activityName,
+        activityType: item.activityType || 'general',
+        content: item.content,
+        reasoning: item.reasoning ?? undefined,
+        confidenceScore: 75,
+        suggestedDate: targetDate,
+        isUsed: false as const,
+      }),
+    );
+    const saved = await this.suggestedActivityRepository.save(suggestions);
+
+    for (const s of saved) {
+      await this.classifyAndUpdateSuggestedActivityType(s.id, s.activityName);
+    }
+
+    return saved.map(this.mapToResponseDto);
   }
 
   /**

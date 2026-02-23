@@ -50,7 +50,8 @@ export function validateEnvironmentVariables(): void {
     'LANGUAGES_FOLDER_ID',
     'ARCHIVE_FOLDER_ID',
     'SOCIAL_NETWORKS_FILE_ID',
-    'ONBOARDING_QUESTIONS_FILE_ID'
+    'ONBOARDING_QUESTIONS_FILE_ID',
+    'PROGRAMS_FILE_ID',
   ];
 
   const missingVars: string[] = [];
