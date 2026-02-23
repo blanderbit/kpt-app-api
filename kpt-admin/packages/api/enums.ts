@@ -33,6 +33,7 @@ export enum ApiBaseUrl {
   MoodSurveys = '/admin/mood-surveys',
   MoodTypes = '/admin/mood-types',
   OnboardingQuestions = '/admin/onboarding-questions',
+  Programs = '/admin/programs',
   Queue = '/admin/queue',
   Surveys = '/admin/surveys',
   Stats = '/admin',

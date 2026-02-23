@@ -10,6 +10,7 @@ import { ActivityModule } from './activity/activity.module';
 import { MoodTrackerModule } from './mood-tracker/mood-tracker.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { JwtModule } from '@nestjs/jwt';
+import { ChatGPTModule } from '../core/chatgpt/chatgpt.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { JwtModule } from '@nestjs/jwt';
     MoodTrackerModule,
     AnalyticsModule,
     JwtModule,
+    ChatGPTModule,
   ],
   controllers: [ProfileController],
   providers: [ProfileService],

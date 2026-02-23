@@ -31,6 +31,7 @@ interface SettingsConfig {
     activityTypes: Date | null;
     socialNetworks: Date | null;
     moodTypes: Date | null;
+    programs: Date | null;
   };
   suggestedActivities: {
     count: number;
@@ -198,6 +199,7 @@ export class SettingsService implements OnModuleInit {
         activityTypes: new Date(),
         socialNetworks: new Date(),
         moodTypes: new Date(),
+        programs: new Date(),
       },
       suggestedActivities: {
         count: 3,
@@ -251,6 +253,7 @@ export class SettingsService implements OnModuleInit {
         activityTypes: this.config.googleDriveSync.activityTypes?.toISOString() || null,
         socialNetworks: this.config.googleDriveSync.socialNetworks?.toISOString() || null,
         moodTypes: this.config.googleDriveSync.moodTypes?.toISOString() || null,
+        programs: this.config.googleDriveSync.programs?.toISOString() || null,
       },
       suggestedActivities: {
         count: this.config.suggestedActivities.count,
@@ -322,6 +325,11 @@ export class SettingsService implements OnModuleInit {
       if (updateDto.googleDriveSync.moodTypes !== undefined) {
         this.config.googleDriveSync.moodTypes = updateDto.googleDriveSync.moodTypes
           ? new Date(updateDto.googleDriveSync.moodTypes)
+          : null;
+      }
+      if (updateDto.googleDriveSync.programs !== undefined) {
+        this.config.googleDriveSync.programs = updateDto.googleDriveSync.programs
+          ? new Date(updateDto.googleDriveSync.programs)
           : null;
       }
     }
@@ -476,7 +484,7 @@ export class SettingsService implements OnModuleInit {
   /**
    * Update last sync timestamp for a specific module
    */
-  updateLastSync(module: 'onboardingQuestions' | 'languages' | 'activityTypes' | 'socialNetworks' | 'moodTypes'): void {
+  updateLastSync(module: 'onboardingQuestions' | 'languages' | 'activityTypes' | 'socialNetworks' | 'moodTypes' | 'programs'): void {
     this.config.googleDriveSync[module] = new Date();
     this.logger.log(`Updated last sync timestamp for ${module}`);
   }

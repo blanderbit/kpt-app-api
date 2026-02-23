@@ -93,6 +93,30 @@ export class EmailService {
     }
   }
 
+  async sendExternalSignupPasswordEmail(email: string, temporaryPassword: string): Promise<void> {
+    const baseUrl = emailServiceConfig.publicBaseUrl;
+    const htmlContent = await this.templateService.renderTemplate('external-signup-password', {
+      appName: emailServiceConfig.appName,
+      logoUrl: baseUrl ? `${baseUrl}/static/email/logo.png` : '/static/email/logo.png',
+      iconUrl: baseUrl ? `${baseUrl}/static/email/union.png` : '/static/email/union.png',
+      email,
+      password: temporaryPassword,
+    });
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: EmailSubject.EXTERNAL_SIGNUP_PASSWORD,
+        html: htmlContent,
+      });
+    } catch (error) {
+      throw AppException.internal(
+        ErrorCode.EMAIL_SEND_FAILED,
+        `Failed to send temporary password email: ${error.message}`,
+      );
+    }
+  }
+
   @Transactional()
   async generateAndSendVerificationCode(userId: number, email: string, type: 'email_verification' | 'password_reset' | 'email_change' = 'email_verification', tempEmail?: string): Promise<void> {
     // Remove previous codes for this user + type (and email for verification/reset) so only the latest code is valid

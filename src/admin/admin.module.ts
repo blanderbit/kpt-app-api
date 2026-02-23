@@ -12,6 +12,7 @@ import { ActivityTypesAdminModule } from './activity-types/activity-types-admin.
 import { MoodSurveyAdminModule } from './mood-survey/mood-survey-admin.module';
 import { SocialNetworksAdminModule } from './social-networks/social-networks.module';
 import { OnboardingQuestionsAdminModule } from './onboarding-questions/onboarding-questions.module';
+import { ProgramsModule } from './programs/programs.module';
 import { QueueManagementModule } from './queue/queue-management.module';
 import { SurveyModule } from './survey/survey.module';
 import { ArticlesModule } from './articles/articles.module';
@@ -33,6 +34,7 @@ import { User } from '../users/entities/user.entity';
     MoodSurveyAdminModule,
     SocialNetworksAdminModule,
     OnboardingQuestionsAdminModule,
+    ProgramsModule,
     QueueManagementModule,
     SurveyModule,
     ArticlesModule,

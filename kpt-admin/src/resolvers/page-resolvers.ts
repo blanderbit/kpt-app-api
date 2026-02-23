@@ -8,6 +8,7 @@ import {
   ActivityTypesService,
   SocialNetworksService,
   OnboardingQuestionsService,
+  ProgramsService,
   BackupService,
   MoodSurveysService,
   SurveysService,
@@ -157,6 +158,14 @@ export const pageLoadData: PageResolverConfig[] = [
     routerAuthResolver.routeInterceptor(() => ({
       onboardingSteps: () => OnboardingQuestionsService.getAll(),
       onboardingStats: () => OnboardingQuestionsService.getStats(),
+      settings: () => SettingsService.getSettings(),
+    })),
+  ),
+  createComponentResolver(
+    'programs',
+    routerAuthResolver.routeInterceptor(() => ({
+      programs: () => ProgramsService.getAll(),
+      programsStats: () => ProgramsService.getStats(),
       settings: () => SettingsService.getSettings(),
     })),
   ),

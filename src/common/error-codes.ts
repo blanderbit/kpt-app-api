@@ -298,6 +298,7 @@ export enum ErrorCode {
   PROFILE_ACTIVITY_TYPE_DETERMINATION_FAILED = '4025',
   PROFILE_ACTIVITY_GOOGLE_DRIVE_UNAVAILABLE = '4026',
   PROFILE_ACTIVITY_INVALID_CONTENT_FORMAT = '4027',
+  PROFILE_SUMMARY_NO_QUIZ_DATA = '4028',
 
   // Mood Tracking (4100-4199)
   PROFILE_MOOD_NOT_FOUND = '4101',
@@ -332,6 +333,8 @@ export enum ErrorCode {
   SUGGESTED_ACTIVITY_DAILY_LIMIT_EXCEEDED = '5007',
   SUGGESTED_ACTIVITY_ALREADY_USED = '5008',
   SUGGESTED_ACTIVITY_REFRESH_FAILED = '5009',
+  SUGGESTED_ACTIVITY_QUIZ_REQUIRED = '5010',
+  SUGGESTED_ACTIVITY_PROGRAM_REQUIRED = '5011',
 
   // Suggested Activity Queue (5100-5199)
   SUGGESTED_ACTIVITY_QUEUE_JOB_FAILED = '5101',
@@ -712,6 +715,7 @@ export const ErrorDescription: Record<ErrorCode, string> = {
   [ErrorCode.PROFILE_ACTIVITY_TYPE_DETERMINATION_FAILED]: 'Failed to determine activity type',
   [ErrorCode.PROFILE_ACTIVITY_GOOGLE_DRIVE_UNAVAILABLE]: 'Google Drive not available for activity operations',
   [ErrorCode.PROFILE_ACTIVITY_INVALID_CONTENT_FORMAT]: 'Invalid activity content format',
+  [ErrorCode.PROFILE_SUMMARY_NO_QUIZ_DATA]: 'No quiz data to generate summary',
   [ErrorCode.PROFILE_MOOD_NOT_FOUND]: 'Mood entry not found',
   [ErrorCode.PROFILE_MOOD_CREATION_FAILED]: 'Mood creation failed',
   [ErrorCode.PROFILE_MOOD_UPDATE_FAILED]: 'Mood update failed',
@@ -738,6 +742,8 @@ export const ErrorDescription: Record<ErrorCode, string> = {
   [ErrorCode.SUGGESTED_ACTIVITY_DAILY_LIMIT_EXCEEDED]: 'Daily suggested activity limit exceeded',
   [ErrorCode.SUGGESTED_ACTIVITY_ALREADY_USED]: 'Suggested activity already used today',
   [ErrorCode.SUGGESTED_ACTIVITY_REFRESH_FAILED]: 'Failed to refresh suggested activities',
+  [ErrorCode.SUGGESTED_ACTIVITY_QUIZ_REQUIRED]: 'Quiz data is required to generate suggestions',
+  [ErrorCode.SUGGESTED_ACTIVITY_PROGRAM_REQUIRED]: 'Program is required to generate suggestions',
   [ErrorCode.SUGGESTED_ACTIVITY_QUEUE_JOB_FAILED]: 'Queue job failed for suggested activity',
   [ErrorCode.SUGGESTED_ACTIVITY_QUEUE_PROCESSING_FAILED]: 'Queue processing failed for suggested activity',
   [ErrorCode.SUGGESTED_ACTIVITY_QUEUE_CLEANUP_FAILED]: 'Queue cleanup failed for suggested activity',

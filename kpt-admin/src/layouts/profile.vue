@@ -36,6 +36,7 @@ const menuSections: MenuSection[] = [
       { title: 'Mood Types', icon: 'mdi-emoticon-happy', route: '/profile/mood-types' },
       { title: 'Notifications', icon: 'mdi-bell-outline', route: '/profile/notifications' },
       { title: 'Onboarding Questions', icon: 'mdi-help-circle', route: '/profile/onboarding-questions' },
+      { title: 'Programs', icon: 'mdi-format-list-bulleted', route: '/profile/programs' },
       { title: 'Subscriptions', icon: 'mdi-receipt', route: '/profile/subscriptions' },
       { title: 'Social Networks', icon: 'mdi-share-variant', route: '/profile/social-networks' },
       { title: 'Surveys', icon: 'mdi-clipboard-text', route: '/profile/surveys' },

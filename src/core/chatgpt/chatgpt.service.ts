@@ -102,6 +102,122 @@ export class ChatGPTService {
   }
 
   /**
+   * Select the most suitable program from the list based on quiz question/answer pairs.
+   * Returns the exact program name from programNames, or empty string if parsing fails.
+   */
+  async selectProgram(
+    quizPairs: { questionText: string; answerText: string }[],
+    programNames: string[],
+  ): Promise<string> {
+    try {
+      this.assertApiKey();
+      if (!programNames.length) return '';
+
+      const prompt = this.buildSelectProgramPrompt(quizPairs, programNames);
+      const response = await this.callChatGPT(prompt, {
+        temperature: 0.3,
+        maxTokens: 150,
+      });
+
+      const rawContent = response?.choices?.[0]?.message?.content;
+      if (!rawContent) return '';
+
+      const name = this.parseSelectProgramResponse(rawContent, programNames);
+      return name || '';
+    } catch (error) {
+      this.logger.error(`Error selecting program via ChatGPT: ${error.message}`);
+      return '';
+    }
+  }
+
+  /**
+   * Generate suggested activities from quiz/program/summary and hardness/satisfaction.
+   * Uses quizSnapshot and programName (required); summary is optional.
+   */
+  async generateSuggestedActivitiesFromQuiz(
+    context: {
+      quizSnapshot: { questionText: string; answerText: string }[];
+      programName: string;
+      summary?: string | null;
+      hardness: number;
+      satisfaction: number;
+    },
+    count: number,
+    activityTypeNames: string[] = [],
+  ): Promise<ActivityBatchItem[]> {
+    try {
+      this.assertApiKey();
+      const prompt = this.buildSuggestedFromQuizPrompt(context, count, activityTypeNames);
+      const response = await this.callChatGPT(prompt, {
+        temperature: 0.75,
+        maxTokens: Math.min(800 + count * 180, 4000),
+      });
+      const rawContent = response?.choices?.[0]?.message?.content;
+      if (!rawContent) {
+        throw new Error('Empty response from ChatGPT');
+      }
+      const parsed = this.parseActivityBatch(rawContent, activityTypeNames);
+      return parsed || [];
+    } catch (error) {
+      this.logger.error(`Error in generateSuggestedActivitiesFromQuiz: ${error.message}`);
+      throw AppException.internal(ErrorCode.SUGGESTED_ACTIVITY_CHATGPT_API_ERROR, error.message, {
+        operation: 'generateSuggestedActivitiesFromQuiz',
+      });
+    }
+  }
+
+  private buildSuggestedFromQuizPrompt(
+    context: {
+      quizSnapshot: { questionText: string; answerText: string }[];
+      programName: string;
+      summary?: string | null;
+      hardness: number;
+      satisfaction: number;
+    },
+    count: number,
+    activityTypeNames: string[],
+  ): string {
+    const qaList = context.quizSnapshot
+      .map((p) => `Q: ${p.questionText}\nA: ${p.answerText}`)
+      .join('\n\n');
+    const summaryBlock = context.summary?.trim()
+      ? `\nUser summary (use for personalization):\n${context.summary}`
+      : '';
+    const typesList =
+      activityTypeNames.length > 0
+        ? `Available activity types (use one per activity): ${activityTypeNames.join(', ')}. If none fit well, use "general".`
+        : 'Use "general" or a short category name for activityType.';
+
+    return `You are a wellness coach. Generate exactly ${count} personalized activity suggestions for a user.
+
+User context:
+- Selected program: ${context.programName}
+- Quiz answers:
+${qaList}
+${summaryBlock}
+
+Current state (0-100 scale):
+- Satisfaction level: ${context.satisfaction}/100
+- Hardness/difficulty level: ${context.hardness}/100
+
+${typesList}
+
+Respond with strict JSON only (no markdown, no extra text):
+{
+  "activities": [
+    {
+      "activityName": "Short, action-oriented title (2-5 words)",
+      "content": "One sentence description, max 20 words",
+      "activityType": "one of the available types or general",
+      "reasoning": "Brief reason why this fits the user (optional)"
+    }
+  ]
+}
+
+Ensure activities are diverse, actionable, and tailored to the quiz answers and program. Generate exactly ${count} activities.`;
+  }
+
+  /**
    * Classify activity title/name into one of the known types
    */
   async getActivityType(
@@ -168,6 +284,68 @@ export class ChatGPTService {
         error: error.message,
         operation: 'callChatGPT',
       });
+    }
+  }
+
+  private buildSelectProgramPrompt(
+    quizPairs: { questionText: string; answerText: string }[],
+    programNames: string[],
+  ): string {
+    const qaList = quizPairs
+      .map((p) => `Q: ${p.questionText}\nA: ${p.answerText}`)
+      .join('\n\n');
+    const programsList = programNames.map((n) => `- ${n}`).join('\n');
+
+    return `You are a wellness coach. Based on the following quiz answers, choose the single most suitable program from the list below. Reply with the exact program name from the list, nothing else.
+
+Quiz answers:
+${qaList}
+
+Available programs (choose exactly one by name):
+${programsList}
+
+Respond with strict JSON only:
+{"programName": "exact name from the list"}`;
+  }
+
+  private parseSelectProgramResponse(content: string, programNames: string[]): string {
+    try {
+      const parsed = JSON.parse(content);
+      const name = typeof parsed?.programName === 'string' ? parsed.programName.trim() : '';
+      if (!name) return '';
+      return programNames.includes(name) ? name : '';
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Generate a short summary (2–3 sentences) from quiz answers and program name for external signup.
+   */
+  async generateQuizSummary(
+    quizPairs: { questionText: string; answerText: string }[],
+    programName: string,
+  ): Promise<string> {
+    try {
+      this.assertApiKey();
+      const qaList = quizPairs
+        .map((p) => `Q: ${p.questionText}\nA: ${p.answerText}`)
+        .join('\n\n');
+      const prompt = `You are a wellness coach. Based on the following quiz answers and the selected program "${programName}", write a brief personal summary in 2-3 sentences. Be encouraging and specific to their answers. Use English.
+
+Quiz answers:
+${qaList}
+
+Respond with plain text only, no JSON.`;
+      const response = await this.callChatGPT(prompt, {
+        temperature: 0.5,
+        maxTokens: 200,
+      });
+      const rawContent = response?.choices?.[0]?.message?.content;
+      return (rawContent && String(rawContent).trim()) || '';
+    } catch (error) {
+      this.logger.error(`Error generating quiz summary via ChatGPT: ${error.message}`);
+      return '';
     }
   }
 
