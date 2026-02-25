@@ -8,6 +8,11 @@ export interface RevenueCatWebhookEvent {
   entitlement_id?: string;
   entitlement_ids?: string[];
   environment?: string;
+  /**
+   * Store/source of the purchase in RevenueCat (e.g. APP_STORE, PLAY_STORE, STRIPE, PADDLE).
+   * Used to determine how cancellation should be handled.
+   */
+  store?: string;
   transaction_id?: string;
   original_transaction_id?: string;
   period_type?: string;

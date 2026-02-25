@@ -39,6 +39,13 @@ export class Subscription {
   @Column({ length: 255, nullable: true })
   environment?: string;
 
+  /**
+   * Store/source of the subscription in RevenueCat (e.g. APP_STORE, PLAY_STORE, STRIPE, PADDLE).
+   * Used to decide how cancellation should be handled (server-side vs only in store).
+   */
+  @Column({ length: 32, nullable: true })
+  store?: string;
+
   @Column({ type: 'enum', enum: SubscriptionPlanInterval, default: SubscriptionPlanInterval.UNKNOWN })
   planInterval: SubscriptionPlanInterval;
 
