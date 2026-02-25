@@ -193,7 +193,7 @@ export class SubscriptionsService {
   }
 
   /**
-   * If app_user_id is from external signup (pending_payment), create user, update signup, save pending link, link subscriptions.
+   * If app_user_id is from external signup (pending_payment): create user (or use existing if signup.userId set), update signup, save pending link, link subscriptions.
    */
   private async tryProcessExternalSignupPayment(
     appUserId: string,
@@ -204,8 +204,6 @@ export class SubscriptionsService {
     });
     if (!signup) return;
 
-    this.logger.log(`[webhook] external signup found id=${signup.id}, creating user and linking`);
-
     const meta = signup.meta;
     const programName = meta?.programName ?? '';
     const selectedProgram =
@@ -214,27 +212,43 @@ export class SubscriptionsService {
         : null;
     const quizSnapshot = meta?.quizSnapshot ?? undefined;
 
-    // Temporary password: same rules as registration (min 6 chars), 12 alphanumeric
-    const ALPHANUM = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const tempPasswordLength = 12;
-    let temporaryPassword = '';
-    const bytes = randomBytes(tempPasswordLength);
-    for (let i = 0; i < tempPasswordLength; i++) {
-      temporaryPassword += ALPHANUM[bytes[i]! % ALPHANUM.length];
+    let user: User;
+
+    if (signup.userId != null) {
+      this.logger.log(`[webhook] external signup found id=${signup.id}, existing user id=${signup.userId} (reactivation)`);
+      const existingUser = await this.userRepository.findOne({ where: { id: signup.userId } });
+      if (!existingUser) {
+        this.logger.warn(`[webhook] external signup userId=${signup.userId} not found, skipping`);
+        return;
+      }
+      user = existingUser;
+      user.selectedProgram = selectedProgram ?? user.selectedProgram;
+      user.quizSnapshot = quizSnapshot ?? user.quizSnapshot;
+      await this.userRepository.save(user);
+    } else {
+      this.logger.log(`[webhook] external signup found id=${signup.id}, creating user and linking`);
+
+      const ALPHANUM = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      const tempPasswordLength = 12;
+      let temporaryPassword = '';
+      const bytes = randomBytes(tempPasswordLength);
+      for (let i = 0; i < tempPasswordLength; i++) {
+        temporaryPassword += ALPHANUM[bytes[i]! % ALPHANUM.length];
+      }
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+
+      user = this.userRepository.create({
+        email: signup.email,
+        roles: 'user',
+        selectedProgram,
+        quizSnapshot,
+        needsOnboarding: true,
+        passwordHash,
+      });
+      await this.userRepository.save(user);
+
+      await this.emailService.sendExternalSignupPasswordEmail(signup.email, temporaryPassword);
     }
-    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
-
-    const user = this.userRepository.create({
-      email: signup.email,
-      roles: 'user',
-      selectedProgram,
-      quizSnapshot,
-      needsOnboarding: true,
-      passwordHash,
-    });
-    await this.userRepository.save(user);
-
-    await this.emailService.sendExternalSignupPasswordEmail(signup.email, temporaryPassword);
 
     signup.status = ExternalSignupStatus.PAID;
     signup.userId = user.id;
@@ -246,7 +260,7 @@ export class SubscriptionsService {
     await this.subscriptionPendingLinkService.save(appUserId, user.id, user.email);
     await this.linkSubscriptionsToUser(appUserId, user.id, user.email);
 
-    this.logger.log(`[webhook] external signup: user id=${user.id} created, signup updated, link saved`);
+    this.logger.log(`[webhook] external signup: user id=${user.id}, signup updated, link saved`);
   }
 
   /**

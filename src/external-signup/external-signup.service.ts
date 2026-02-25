@@ -27,23 +27,53 @@ export class ExternalSignupService {
 
   async startSignup(dto: StartSignupRequestDto): Promise<StartSignupResponseDto> {
     const email = dto.email.trim().toLowerCase();
+    const meta = {
+      programId: dto.programId,
+      programName: dto.programName ?? null,
+      quizSnapshot: dto.quiz?.length ? dto.quiz : null,
+    };
 
     const existingUser = await this.userRepository.findOne({ where: { email } });
     if (existingUser) {
-      throw AppException.conflict(
-        ErrorCode.AUTH_USER_ALREADY_EXISTS,
-        'This email is already registered. Please log in to the app.',
-      );
+      if (existingUser.hasPaidSubscription) {
+        throw AppException.conflict(
+          ErrorCode.AUTH_USER_ALREADY_EXISTS,
+          'This email is already registered with an active subscription. Please log in to the app.',
+        );
+      }
+      // Existing user without active subscription: allow external signup (reactivation flow)
+      const pendingSignup = await this.externalSignupRepository.findOne({
+        where: { email, status: ExternalSignupStatus.PENDING_PAYMENT },
+      });
+      if (pendingSignup) {
+        pendingSignup.meta = meta;
+        pendingSignup.userId = existingUser.id;
+        await this.externalSignupRepository.save(pendingSignup);
+        this.logger.log(`[start-signup] updated existing external_signup id=${pendingSignup.id}, userId=${existingUser.id}, app_user_id=${pendingSignup.appUserId}`);
+        return { appUserId: pendingSignup.appUserId };
+      }
+      const appUserId = `web_signup_${randomUUID().replace(/-/g, '')}`;
+      const signup = this.externalSignupRepository.create({
+        appUserId,
+        email,
+        meta,
+        status: ExternalSignupStatus.PENDING_PAYMENT,
+        userId: existingUser.id,
+      });
+      await this.externalSignupRepository.save(signup);
+      this.logger.log(`[start-signup] created external_signup id=${signup.id}, userId=${existingUser.id} (reactivation), app_user_id=${appUserId}`);
+      return { appUserId };
     }
 
     const pendingSignup = await this.externalSignupRepository.findOne({
       where: { email, status: ExternalSignupStatus.PENDING_PAYMENT },
     });
+
     if (pendingSignup) {
-      throw AppException.conflict(
-        ErrorCode.AUTH_USER_ALREADY_EXISTS,
-        'You already have a pending payment. Complete the payment or wait for the link to expire.',
-      );
+      pendingSignup.meta = meta;
+      await this.externalSignupRepository.save(pendingSignup);
+      this.logger.log(`[start-signup] updated existing external_signup id=${pendingSignup.id}, app_user_id=${pendingSignup.appUserId}`);
+      return { appUserId: pendingSignup.appUserId };
     }
 
     const appUserId = `web_signup_${randomUUID().replace(/-/g, '')}`;
@@ -51,11 +81,7 @@ export class ExternalSignupService {
     const signup = this.externalSignupRepository.create({
       appUserId,
       email,
-      meta: {
-        programId: dto.programId,
-        programName: dto.programName ?? null,
-        quizSnapshot: dto.quiz?.length ? dto.quiz : null,
-      },
+      meta,
       status: ExternalSignupStatus.PENDING_PAYMENT,
     });
     await this.externalSignupRepository.save(signup);
