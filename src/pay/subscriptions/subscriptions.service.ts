@@ -283,6 +283,7 @@ export class SubscriptionsService {
         appUserId,
         productId,
         environment: event.environment,
+        store: event.store ?? existing.store,
         status,
         planInterval,
         periodStart: this.resolveDate(event.purchased_at_ms, event.purchased_at),
@@ -316,6 +317,7 @@ export class SubscriptionsService {
       userEmail: event.subscriber_attributes?.email?.value || undefined,
       appUserId,
       provider,
+      store: event.store,
       externalSubscriptionId: event.transaction_id || event.original_transaction_id || event.entitlement_id,
       originalTransactionId: upsertKey,
       lastEventTimestampMs: String(eventTs),
@@ -377,6 +379,15 @@ export class SubscriptionsService {
     const subscription = await this.subscriptionRepository.findOne({ where: { id: dto.subscriptionId } });
     if (!subscription) {
       throw new NotFoundException('Subscription not found');
+    }
+
+    const store = subscription.store;
+    if (store === 'APP_STORE' || store === 'PLAY_STORE') {
+      this.logger.log(
+        `[cancel] requestCancellation: store=${store}, subscriptionId=${subscription.id} – must be cancelled in the app store`,
+      );
+      // Не меняем локальный статус: ждём вебхук RevenueCat после реальной отмены в сторе.
+      throw new Error('This subscription can only be cancelled in the app store (App Store / Google Play).');
     }
 
     if (subscription.provider === SubscriptionProvider.REVENUECAT) {
