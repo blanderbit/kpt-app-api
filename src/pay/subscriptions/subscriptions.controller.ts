@@ -5,6 +5,8 @@ import { SubscriptionSummaryDto } from './dto/subscription-summary.dto';
 import { RevenueCatWebhookPayload } from './dto/revenuecat-webhook.dto';
 import { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { User } from '../../users/entities/user.entity';
 import { Subscription } from './entities/subscription.entity';
 import { ConfigService } from '@nestjs/config';
 
@@ -76,11 +78,23 @@ export class SubscriptionsController {
   }
 
   @Post('revenuecat/cancel')
-  @ApiOperation({ summary: 'Request cancellation of a RevenueCat subscription' })
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Request cancellation of a web-managed subscription (RevenueCat)',
+    description:
+      'Requires JWT. Cancels via RevenueCat for Paddle/Stripe and other non-store channels. App Store / Google Play subscriptions return 403 — cancel in the store.',
+  })
   @ApiBody({ type: CancelSubscriptionDto })
+  @ApiResponse({ status: 403, description: 'Native store subscription or not your subscription' })
+  @ApiResponse({ status: 404, description: 'Subscription not found' })
   @ApiOkResponse({ description: 'Cancellation request processed' })
-  async cancelSubscription(@Body() dto: CancelSubscriptionDto): Promise<{ success: boolean }> {
-    await this.subscriptionsService.requestCancellation(dto);
+  async cancelSubscription(
+    @CurrentUser() user: User,
+    @Body() dto: CancelSubscriptionDto,
+  ): Promise<{ success: boolean }> {
+    await this.subscriptionsService.requestCancellation(user.id, dto);
     return { success: true };
   }
 
