@@ -1,4 +1,12 @@
-import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, Not, IsNull } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -389,10 +397,20 @@ export class SubscriptionsService {
     return SubscriptionStatus.UNKNOWN;
   }
 
-  async requestCancellation(dto: CancelSubscriptionDto): Promise<void> {
+  async requestCancellation(userId: number, dto: CancelSubscriptionDto): Promise<void> {
     const subscription = await this.subscriptionRepository.findOne({ where: { id: dto.subscriptionId } });
     if (!subscription) {
       throw new NotFoundException('Subscription not found');
+    }
+
+    if (subscription.userId !== userId) {
+      throw new ForbiddenException('You cannot cancel this subscription');
+    }
+
+    if (subscription.provider === SubscriptionProvider.NONE) {
+      throw new BadRequestException(
+        'This subscription cannot be cancelled through RevenueCat (e.g. trial or unpaid plan).',
+      );
     }
 
     const store = subscription.store;
@@ -400,21 +418,30 @@ export class SubscriptionsService {
       this.logger.log(
         `[cancel] requestCancellation: store=${store}, subscriptionId=${subscription.id} – must be cancelled in the app store`,
       );
-      // Не меняем локальный статус: ждём вебхук RevenueCat после реальной отмены в сторе.
-      throw new Error('This subscription can only be cancelled in the app store (App Store / Google Play).');
+      throw new ForbiddenException(
+        'This subscription can only be cancelled in the app store (App Store / Google Play).',
+      );
     }
 
-    if (subscription.provider === SubscriptionProvider.REVENUECAT) {
-      await this.revenueCatService
-        .cancelSubscription(subscription.appUserId || '', subscription.productId || '')
-        .catch((error) => {
-          this.logger.warn(`RevenueCat cancellation request failed: ${error?.message || error}`);
-        });
+    const appUserId = subscription.appUserId?.trim();
+    const productId = subscription.productId?.trim();
+    if (!appUserId || !productId) {
+      throw new BadRequestException(
+        'Subscription is missing RevenueCat identifiers (app user or product); cannot cancel via server.',
+      );
     }
+
+    await this.revenueCatService.cancelSubscription(appUserId, productId).catch((error) => {
+      this.logger.warn(`RevenueCat cancellation request failed: ${error?.message || error}`);
+    });
 
     subscription.status = SubscriptionStatus.CANCELLED;
     subscription.cancelledAt = new Date();
     await this.subscriptionRepository.save(subscription);
+
+    await this.refreshUserPaidStatus(userId).catch((error) =>
+      this.logger.warn(`refreshUserPaidStatus after cancel failed: ${error?.message || error}`),
+    );
   }
 
   async getSubscriptionsForUser(userId: number, query: PaginateQuery): Promise<Paginated<Subscription>> {
